@@ -88,3 +88,22 @@ sources:              # 可选：关联的 raw 资料，相对路径
 - 笔记文件：小写中划线，`attention-mechanism.md`
 - 主题目录：小写中划线，`llm`、`distributed-systems`
 - 主题总览固定名：`_overview.md`
+
+---
+
+## 6. Skill 编写规范（.agent/skills/ 下每个文件）
+
+参考 Anthropic Agent Skills 规范与社区最佳实践，每个 skill 必须包含以下结构，且**约束目标而非死板步骤**：
+
+- **frontmatter**：
+  - `name`：小写中划线，唯一。
+  - `description`：**写给模型看的触发条件**，不是功能摘要。用"用户说 X / 当 Y 时触发"的句式，带口语关键词；并写明"不要在 … 时用"（负面排除）。
+  - `disable-model-invocation: true`：本仓库 skill 均有副作用（写文件 / commit），统一设为仅用户手动触发。
+  - `allowed-tools`：声明所需工具（如 `Read, Write, Edit, Bash`），最小权限。
+- **正文结构**：
+  1. `## 何时用（触发）`：列用户原话 / 场景。
+  2. `## 目标（完成时仓库应处于的状态）`：定义完成标准（Definition of Done）。
+  3. `## 流程`：步骤，但只约束**目标**，不过度规定顺序；必须含一步 **校验**（写入后 `wc -l` 确认非空、`git status` 确认改动、检查链接可解析）。
+  4. `## Gotchas（真实踩过的坑）`：记录实际踩过的坑并随失败持续迭代——这是最高信号量的部分。
+  5. `## 注意`：边界与关联。
+- **不要**：把 description 写成功能摘要；重复 Claude 已懂的通用知识；写死后不再适用的固定步骤顺序。

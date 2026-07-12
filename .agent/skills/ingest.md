@@ -1,31 +1,31 @@
 ---
 name: ingest
-description: 用户给 PDF / 链接 / 仓库等资料时触发。把资料落地到 raw/，生成 source 摘要页，并与 wiki 交叉链接。
+description: 用户提供 PDF / 网页链接 / 项目仓库 / 文件等资料，或说"ingest/下载这个/把这个资料加进来/存一下这篇"时触发。把资料落地 raw/ 并生成摘要页。不要用于纯对话提问（那走 learn/query）。
+disable-model-invocation: true
+allowed-tools: Read, Write, Edit, Bash
 ---
 
 # skill: ingest
 
-## 触发
-用户提供资料：PDF 文件、网页链接、项目仓库、代码片段等。
+## 何时用（触发）
+- 用户发来 PDF / 文章 URL / 仓库地址 / 代码片段。
+- 用户说："把这个网页存一下"、"下载这篇论文"、"ingest 这个资料"。
+
+## 目标（完成时仓库应处于的状态）
+- `raw/` 有该资料（或一份引用页）；`wiki/<topic>/` 下有摘要页，通过 `sources:` 指回 raw；互链建立；`_overview.md` 同步；已 `git commit`（注意 raw 本身不进 git）。
 
 ## 流程
+1. **落地 raw/**：用户已手动放入 → 直接用；给链接 / 要求下载 → 下载或抓取文本存 `raw/`（文件名小写中划线）；给仓库 → **写引用页**（URL + 关键说明 + 关注的文件），**绝不 clone**。
+2. **生成摘要页（推荐）**：在 `wiki/<topic>/` 下新建摘要页，记录资料讲了什么、关键要点、与学习的关联；`sources:` 指回 raw 原文。
+3. **交叉链接 + 更新 `_overview.md`**。
+4. **校验（必做）**：若下载了文件，`wc -l` / `ls -l` 确认非空；检查摘要页相对链接可解析；`git status` 确认 raw 未被误加进暂存（应被 .gitignore 忽略）。
+5. **提交**：`git add -A && git commit -m "ingest raw: <资料名>"`。
 
-### 1. 落地资料到 raw/
-- 用户已手动放入 `raw/` → 直接用，不移动。
-- 用户给链接 / 要求下载 → 下载或抓取文本存到 `raw/`（文件名小写中划线，如 `2026-transformers.pdf` 或 `article-xxx.md`）。
-- 用户给仓库 → **不 clone 进仓库**（保持轻量），在 `raw/` 写一份引用页：仓库 URL + 关键说明 + 你关注的目录 / 文件。
-- raw/ 内容**不可变**：只增不删、不改原始内容。
-
-### 2. 生成 source 摘要页（可选但推荐）
-- 在 `wiki/<topic>/` 下（或 `wiki/sources/`）新建摘要页，记录：资料讲了什么、关键要点、与你学习的关联。
-- 通过 `sources:` frontmatter / 相对链接指回 `raw/` 原文。
-
-### 3. 交叉链接
-- 摘要页 ↔ 相关 wiki 笔记互链。
-- 更新 `_overview.md`。
-
-### 4. 收尾
-- `git add -A && git commit -m "ingest raw: <资料名>"`（commit message 即维护日志）
+## Gotchas（真实踩过的坑）
+- **raw/ 不进 git**：`.gitignore` 忽略了 `raw/*`，commit 只包含 wiki 摘要页；别误以为 raw 被提交了，也别试图 `git add raw/`。
+- **仓库类资料绝不 clone 进仓库**，只存引用页——否则仓库会塞爆。
+- **下载 / 抓取前先确认 URL 与文件名**（小写中划线）；大文件先告知用户体积。
+- **写入后校验非空**：并行写文件曾静默丢失内容。
 
 ## 注意
-- 仓库类资料只存引用页（URL + 关键说明），不把整个仓库放进来。
+- 关联：[[../../AGENTS.md]]、[[../../.agent/conventions.md]]
