@@ -8,7 +8,7 @@
 ## 核心规则
 
 1. **绝不编造**：不确定的内容明确说"我不确定"，不要假装确定。
-2. **改动即 commit**：每次对 wiki/ 或 raw/ 的改动，立即 `git commit`。commit message 格式：`<skill> <topic>: <一句话>`（如 `learn llm: 注意力机制笔记`）。
+2. **改动即 commit**：每次对 wiki/ 或 raw/ 的改动，立即 `git commit`。commit message 格式：`<skill> <topic>: <一句话>`（如 `learn deep-learning: 注意力机制笔记`）。
 3. **互链防孤儿**：笔记之间、笔记与 raw 之间用相对路径互链（如 `[注意力机制](../llm/attention-mechanism.md)`）。
 4. **raw/ 只读**：原始资料只增不删、不改内容。
 

@@ -147,6 +147,6 @@ sources:
 
 ## 8. 命名规范
 
-- 笔记文件：小写中划线，`dropout-prevents-overfitting.md`
+- 笔记文件：小写中划线。从主张式标题中提取 3-5 个关键词作为文件名，不要求文件名和标题完全一致。例：标题"Dropout 通过随机丢弃神经元来防止过拟合"→ 文件名 `dropout-prevents-overfitting.md`
 - 主题目录：小写中划线，`deep-learning`
 - 主题总览固定名：`_overview.md`

@@ -2,7 +2,7 @@
 
 个人学习仓库 —— 用对话学知识，用 git 管笔记。
 
-**入口**：[`AGENTS.md`](AGENTS.md)，包含完整协作约定、仓库结构与 skill 列表。
+**入口**：[`CLAUDE.md`](CLAUDE.md)（会话自动加载的核心规则）和 [`AGENTS.md`](AGENTS.md)（完整约定与 skill 列表）。
 
 ## 结构
 
