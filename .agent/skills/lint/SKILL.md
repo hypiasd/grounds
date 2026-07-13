@@ -21,7 +21,7 @@ allowed-tools: Read, Write, Edit, Bash
    - **矛盾说法**：不同笔记对同一概念描述冲突。
    - **过时内容**：引用了被新资料淘汰的说法（对照 `updated` 日期）。
    - **索引覆盖**：列 `wiki/` 核对每个 `<topic>/` 是否都有 `_overview.md`。
-   - **模板合规**：frontmatter 是否含 `title/topic/tags/summary/created/updated`；标题是否是主张式（而非"XX 笔记"）；链接是否说明了关系。
+   - **模板合规**：frontmatter 是否含 `title/topic/tags/summary/created/updated`；标题是否是简洁的概念名（而非"XX 笔记"或过长的句子）；链接是否说明了关系。
    - **草稿提醒**：`status: draft` 且 `updated` 超过 30 天的笔记，提醒用户补完或删除。
 2. **报告**：列出清单给用户，**先不自动改**，让用户决定。
 3. **若授权修复**：更新 `_overview.md`；`git add -A && git commit -m "lint: 修复 <问题摘要>"`。
@@ -42,7 +42,7 @@ allowed-tools: Read, Write, Edit, Bash
 - wiki/reinforcement-learning/ — 建议新建
 
 ### 模板合规
-- wiki/llm/old-note.md — 标题是主题名而非主张式；缺少 `tags` 字段
+- wiki/llm/old-note.md — 标题是"Old Note 笔记"而非简洁概念名；缺少 `tags` 字段
 
 ### 草稿提醒
 - wiki/dl/backprop.md — status: draft 已 45 天未更新

@@ -19,17 +19,19 @@
 
 ## 2. 标题规范
 
-标题应该是**一个主张，不是一个主题名**。
+标题就是**概念名**，简洁、可扫。
 
-**好的标题**（读完标题就知道这篇笔记的核心观点）：
-- `Dropout 通过随机丢弃神经元来防止过拟合`
-- `Batch Normalization 解决的是内部协变量偏移，不是梯度消失`
+**好的标题**：
+- `Dropout`
+- `Batch Normalization`
+- `Attention Mechanism`
 
-**差的标题**（读完不知道具体说什么）：
-- `Dropout 笔记`
-- `关于 Batch Normalization`
+**差的标题**：
+- `Dropout 笔记`（多余的"笔记"）
+- `关于 BatchNorm 的一些理解`（啰嗦）
+- `Dropout 通过随机丢弃神经元来防止过拟合`（把 summary 塞进了标题）
 
-> 来自 Zettelkasten 的"declarative title"原则。
+> 主旨和观点放在 `summary` 和 `TL;DR` 里，标题只负责让人一眼定位"这篇讲什么"。
 
 ---
 
@@ -50,7 +52,7 @@ sources:
 
 | 字段 | 必填 | 说明 |
 |------|------|------|
-| `title` | ✅ | 一个主张，不是主题名 |
+| `title` | ✅ | 概念名，简洁、可扫 |
 | `topic` | ✅ | 所属主题目录名（小写中划线） |
 | `tags` | ✅ | YAML 数组，不加 `#` 前缀。用于跨主题发现——一篇笔记可以属于 `deep-learning` 主题但打上 `regularization` 和 `practical-tips` 标签 |
 | `summary` | ✅ | 2-3 句话，包含核心定义 + 一个类比。这是给 agent 做 query 时快速扫描用的——agent 读 summaries 就能定位相关笔记，无需加载全文 |
@@ -64,7 +66,7 @@ sources:
 ## 4. 正文结构
 
 ```markdown
-# 标题（主张式）
+# 标题（概念名）
 
 ## TL;DR
 （和 frontmatter 的 summary 相同或稍扩展，3-4 句。读者读完这一段就应该知道这篇笔记在说什么。）
@@ -95,7 +97,7 @@ sources:
 ## 5. 好笔记 vs. 流水账
 
 ### 好笔记的特征
-- 标题是一个主张，读完就知道核心观点
+- 标题是简洁的概念名
 - TL;DR 用自己的话概括，不是复制定义
 - 至少有一个直觉类比
 - 标注了常见误区
@@ -122,7 +124,7 @@ sources:
 ...
 
 ## 包含笔记
-- [笔记名](note.md) — 一句话说明这篇笔记的核心主张
+- [笔记名](note.md) — 一句话说明这篇笔记的核心内容
 
 ## 知识脉络
 （笔记之间的依赖 / 推荐阅读顺序）
@@ -147,6 +149,6 @@ sources:
 
 ## 8. 命名规范
 
-- 笔记文件：小写中划线。从主张式标题中提取 3-5 个关键词作为文件名，不要求文件名和标题完全一致。例：标题"Dropout 通过随机丢弃神经元来防止过拟合"→ 文件名 `dropout-prevents-overfitting.md`
+- 笔记文件：小写中划线，与标题对应。例：标题 `Attention Mechanism` → 文件名 `attention-mechanism.md`
 - 主题目录：小写中划线，`deep-learning`
 - 主题总览固定名：`_overview.md`

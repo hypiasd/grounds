@@ -1,5 +1,5 @@
 ---
-title: 注意力机制通过动态加权让模型学会"看哪里"
+title: Attention Mechanism
 topic: grounds
 tags: [example, attention, deep-learning]
 summary: 注意力机制让模型在处理每个 token 时动态关注输入的不同位置，核心是 Query-Key-Value 的加权求和。类比查字典：你要查的词是 Query，书脊标签是 Key，书的内容是 Value。但这个类比在 Self-Attention 上失效——所有词同时互为 Query 和 Key。
@@ -7,7 +7,7 @@ created: 2026-07-13
 updated: 2026-07-13
 ---
 
-# 注意力机制通过动态加权让模型学会"看哪里"
+# Attention Mechanism
 
 ## TL;DR
 

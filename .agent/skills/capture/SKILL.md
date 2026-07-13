@@ -20,7 +20,7 @@ allowed-tools: Read, Write, Edit, Bash
 1. **提取**：回顾当前对话，提取学了什么、关键结论、待验证 / 开放问题；列 `wiki/` 看已有主题，判断归属 `wiki/<topic>/`（沿用或新建，新建须带 `_overview.md`）。
 2. **判断价值**：对照"值得沉淀"标准筛选，不要全量搬运对话。
 3. **写 / 更新笔记**：对应已有笔记 → 更新（刷新 `updated` 日期，补内容）；新知识点 → 新建 `<note>.md`（读 `.agent/conventions.md` 后按模板写）；更新 `_overview.md`。
-4. **校验（必做）**：`wc -l <note.md>` 确认非空；确认 frontmatter 包含 `title`（主张式）、`topic`、`tags`、`summary`、`created`、`updated`；`git status` 确认只改了预期文件；检查新增相对链接目标存在。
+4. **校验（必做）**：`wc -l <note.md>` 确认非空；确认 frontmatter 包含 `title`（概念名）、`topic`、`tags`、`summary`、`created`、`updated`；`git status` 确认只改了预期文件；检查新增相对链接目标存在。
 5. **提交**：`git add -A && git commit -m "capture <topic>: 沉淀对话笔记 <YYYY-MM-DDTHH-MM>"`。
 
 ## 什么是"值得沉淀"

@@ -16,7 +16,7 @@ allowed-tools: Read, Write, Edit, Bash
 
 ## 流程
 1. **落地 raw/**：用户已手动放入 → 直接用；给链接 / 要求下载 → 下载或抓取文本存 `raw/`（文件名小写中划线）；给仓库 → 默认写引用页（URL + 关键说明 + 关注的文件）。
-2. **生成摘要页（推荐）**：在 `wiki/<topic>/` 下新建摘要页，遵循 `.agent/conventions.md` 的模板要求（主张式标题、tags、summary 等）。摘要页记录资料讲了什么、关键要点、与学习的关联；`sources:` 指回 raw 原文。
+2. **生成摘要页（推荐）**：在 `wiki/<topic>/` 下新建摘要页，遵循 `.agent/conventions.md` 的模板要求（概念名标题、tags、summary 等）。摘要页记录资料讲了什么、关键要点、与学习的关联；`sources:` 指回 raw 原文。
 3. **交叉链接 + 更新 `_overview.md`**。
 4. **校验（必做）**：若下载了文件，`wc -l` / `ls -l` 确认非空；检查摘要页相对链接可解析；`git status` 确认改动符合预期。
 5. **提交**：`git add -A && git commit -m "ingest raw: <资料名>"`。

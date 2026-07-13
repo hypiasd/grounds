@@ -100,7 +100,7 @@ grounds/
 写任何笔记前，必须先读 `.agent/conventions.md`。核心要点：
 
 - **原子性**：一篇笔记只讲一个概念
-- **标题是主张**："Dropout 通过随机丢弃防止过拟合"，不是"Dropout 笔记"
+- **标题是概念名**："Dropout"，不是"Dropout 笔记"，也不是"Dropout 通过随机丢弃防止过拟合"
 - **Frontmatter 必填**：`title`、`topic`、`tags`、`summary`、`created`、`updated`
 - **tags 是跨主题发现的关键**：`[regularization, practical-tips]`，不加 `#` 前缀
 - **summary 是 query 扫描用的**：agent 读 summaries 定位笔记，无需加载全文
