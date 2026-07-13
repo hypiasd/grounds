@@ -23,13 +23,24 @@ raw/             原始资料（只增不删）
 
 ## 五个 Skill（手动触发）
 
-| Skill | 触发方式 | 产出 |
-|-------|---------|------|
-| `learn` | 用户问新知识 / "讲讲 X" / "帮我理解 Y" | 讲解 → 主动检验 → 沉淀笔记 |
-| `capture` | 用户说"整理一下" / "沉淀" / "记下来" | 蒸馏对话 → 多洞察 → 批量更新/新建笔记 |
-| `ingest` | 用户给 PDF/链接/仓库 | 资料落地 raw/ + 摘要页 |
-| `lint` | 用户说"体检" / "检查仓库" | 问题清单（默认只读） |
-| `query` | 用户复习 / "之前学的 X" | 基于笔记综合作答，附引用 |
+所有 skill 在 `.agent/skills/<name>/SKILL.md`。识别到触发词后，**必须先 Read 对应的 SKILL.md 文件**再执行——不要凭记忆和表格摘要行事，SKILL.md 里的详细流程、Gotchas、质量示例才是执行标准。
+
+| Skill | 触发词 | 文件 | 产出 |
+|-------|--------|------|------|
+| `learn` | "讲讲 X"、"什么是 Y"、"帮我理解 Z" | `.agent/skills/learn/SKILL.md` | 讲解 → 检验 → 沉淀笔记 |
+| `capture` | "整理一下"、"沉淀"、"记下来" | `.agent/skills/capture/SKILL.md` | 蒸馏 → 归位 → 面经 → 批量写入 |
+| `ingest` | 用户发 PDF/链接/仓库 | `.agent/skills/ingest/SKILL.md` | 资料落地 raw/ + 摘要页 |
+| `lint` | "体检"、"检查仓库" | `.agent/skills/lint/SKILL.md` | 问题清单（默认只读） |
+| `query` | "复习一下 X"、"之前学的 Y"、"对比 A 和 B" | `.agent/skills/query/SKILL.md` | 综合作答，附引用 |
+
+## Skill 调度规则（跨 agent 通用）
+
+不同 agent 平台的 skill 发现机制不同（Claude Code 扫 `.claude/skills/`，Codex 扫 `.github/skills/`，等等）。为适配所有平台，grounds 使用**显式文件路径调度**：
+
+1. 识别用户意图，匹配上表触发词。
+2. **用 Read 工具读取对应的 SKILL.md 文件**（路径见上表）。不要跳过这一步——表格只是索引，SKILL.md 才是完整指令。
+3. 严格按 SKILL.md 中的流程执行，包括校验步骤。
+4. 写笔记前必须再读 `.agent/conventions.md`。
 
 ## Gotchas（agent 最常犯的错）
 
