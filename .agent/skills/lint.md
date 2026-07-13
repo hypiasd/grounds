@@ -2,7 +2,7 @@
 name: lint
 description: 用户说"体检/lint/检查仓库/有没有矛盾/孤儿页/过时内容"时触发。只读检查仓库健康度，默认只报告不修改。不要在用户没要求时用。
 disable-model-invocation: true
-allowed-tools: Read, Bash
+allowed-tools: Read, Write, Edit, Bash
 ---
 
 # skill: lint

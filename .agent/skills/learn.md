@@ -19,7 +19,7 @@ allowed-tools: Read, Write, Edit, Bash
 1. **老师模式讲解**（先对话，不急着写文件）
    - 先给**直觉 / 类比**，再给形式化细节；主动指出**常见误区**。
    - 不确定处明确说"我不确定"，不要编造。
-2. **判断主题**：列 `wiki/` 看已有主题，按内容归属；无合适主题 → 新建目录并建 `_overview.md`（先写一句也行）。
+2. **判断主题**：列 `wiki/` 看已有主题，按内容归属；无合适主题 → 新建目录并按 `conventions.md` 模板建 `_overview.md`（骨架先行，内容后续随笔记补充）。
 3. **沉淀**（仅当用户认可）：在 `wiki/<topic>/` 下新建 `<note>.md`（套 `conventions.md` 模板）；更新 `_overview.md`。
 4. **校验（必做）**：`wc -l <note.md>` 确认非空；`git status` 确认改动符合预期；检查笔记内相对链接目标存在。
 5. **提交**：`git add -A && git commit -m "learn <topic>: <一句话>"`。

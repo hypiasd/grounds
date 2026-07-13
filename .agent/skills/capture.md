@@ -16,7 +16,7 @@ allowed-tools: Read, Write, Edit, Bash
 - **不**另存原始对话原文（对话精华已在笔记里）。
 
 ## 流程
-1. **提取**：回顾当前对话，提取学了什么、关键结论、待验证 / 开放问题；判断归属 `wiki/<topic>/`（沿用或新建，新建须带 `_overview.md`）。
+1. **提取**：回顾当前对话，提取学了什么、关键结论、待验证 / 开放问题；列 `wiki/` 看已有主题，判断归属 `wiki/<topic>/`（沿用或新建，新建须带 `_overview.md`）。
 2. **写 / 更新笔记**：对应已有笔记 → 更新（刷新 `updated` 日期，补内容）；新知识点 → 新建 `<note>.md`（套 `conventions.md` 模板）；更新 `_overview.md`。
 3. **校验（必做）**：`wc -l <note.md>` 确认非空；`git status` 确认只改了预期文件；检查新增相对链接目标存在。
 4. **提交**：`git add -A && git commit -m "capture <topic>: 沉淀对话笔记 <YYYY-MM-DDTHH-MM>"`。
