@@ -28,7 +28,7 @@ grounds/
 │   └── <topic>/
 │       ├── _overview.md # 该主题总览（强制存在）
 │       └── <note>.md    # 单篇笔记
-├── raw/                 # 原始资料（不可变，不进 git）：PDF / 链接快照 / 源码引用
+├── raw/                 # 原始资料（不可变）：PDF / 链接快照 / 源码引用
 ├── .agent/
 │   ├── conventions.md   # 模板、命名/链接规范
 │   ├── skills/          # 手动触发的 skill

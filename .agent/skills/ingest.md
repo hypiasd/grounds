@@ -22,7 +22,6 @@ allowed-tools: Read, Write, Edit, Bash
 5. **提交**：`git add -A && git commit -m "ingest raw: <资料名>"`。
 
 ## Gotchas（真实踩过的坑）
-- **raw/ 不进 git**：`.gitignore` 忽略了 `raw/*`，commit 只包含 wiki 摘要页；别误以为 raw 被提交了，也别试图 `git add raw/`。
 - **仓库类资料绝不 clone 进仓库**，只存引用页——否则仓库会塞爆。
 - **下载 / 抓取前先确认 URL 与文件名**（小写中划线）；大文件先告知用户体积。
 - **写入后校验非空**：并行写文件曾静默丢失内容。
