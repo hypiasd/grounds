@@ -63,8 +63,8 @@ allowed-tools: Read, Write, Edit, Bash
 
 - **默认只读优先**：先报告，用户说"直接修"才改。自动修改曾引入意外破坏——agent 把"看起来冗余"的笔记删了，但那是用户刻意保留的草稿。
 - **不要把指向 raw/ 的链接当"断链"修掉**：raw/ 是本地素材引用，链接在本地环境可解析即可。曾把有效的 raw 引用当断链删除，导致溯源断裂。
-- **绝不删历史 commit**；删除用冷归档（`.agent/archive/`）——保留回滚可能。
+- **绝不删历史 commit**；删除用冷归档（`.agents/archive/`）——保留回滚可能。
 
 ## 注意
-- 冷归档：确认废弃的笔记移入 `.agent/archive/`，并在原 `_overview.md` 注明。
-- 关联：`AGENTS.md`、`.agent/conventions.md`
+- 冷归档：确认废弃的笔记移入 `.agents/archive/`，并在原 `_overview.md` 注明。
+- 关联：`AGENTS.md`、`.agents/conventions.md`

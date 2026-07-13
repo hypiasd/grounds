@@ -101,7 +101,7 @@ allowed-tools: Read, Write, Edit, Bash
 
 1. **判断是否值得沉淀**：对照"好笔记"标准——有类比、有误区、有自己的话（尤其是检验中暴露的理解，比搬运定义更有价值）。
 2. 若值得 → 问用户"要沉淀成笔记吗？"。
-3. 用户确认 → 读 `.agent/conventions.md`：
+3. 用户确认 → 读 `.agents/conventions.md`：
 
    **新建模式**：列 `wiki/` 判断主题（沿用或新建，新建须带 `_overview.md`）→ 新建 `<note>.md` → 更新 `_overview.md`。
 
@@ -139,4 +139,4 @@ allowed-tools: Read, Write, Edit, Bash
 
 ## 注意
 - 保持和现有笔记的互链，避免孤儿页。
-- 关联：`AGENTS.md`、`.agent/conventions.md`
+- 关联：`AGENTS.md`、`.agents/conventions.md`

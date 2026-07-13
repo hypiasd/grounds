@@ -68,4 +68,4 @@ allowed-tools: Read, Bash
 
 ## 注意
 - query 默认不写文件；只有用户要求沉淀时才走 capture。
-- 关联：`AGENTS.md`、`.agent/conventions.md`
+- 关联：`AGENTS.md`、`.agents/conventions.md`
