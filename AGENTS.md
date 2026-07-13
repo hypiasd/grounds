@@ -29,7 +29,7 @@ grounds/
 │   └── <topic>/
 │       ├── _overview.md   # 该主题总览（强制存在）
 │       └── <note>.md      # 单篇笔记
-├── raw/                   # 原始资料（只增不删，不进 git）
+├── raw/                   # 原始资料（只增不删）
 ├── .agent/
 │   ├── conventions.md     # 笔记模板与规范（写笔记前必读）
 │   ├── skills/            # 技能定义（每 skill 一个子目录 + SKILL.md）
@@ -117,6 +117,4 @@ grounds/
 
 ## 注意事项
 
-- raw/ 不进 git（`.gitignore` 已配置），仅本地保留。
-- 废弃笔记移入 `.agent/archive/`，不要直接删除（保留回滚可能）。
-- 本文件与 CLAUDE.md 内容重叠是故意的——CLAUDE.md 精简版用于每次会话自动加载，本文件是完整参考。
+- 废弃笔记移入 `.agent/archive/`，不要直接删除。

@@ -16,7 +16,7 @@
 
 ```
 wiki/<topic>/    学习笔记，每主题必有 _overview.md
-raw/             原始资料（不修改，不进 git）
+raw/             原始资料（只增不删）
 .agent/skills/   技能定义
 .agent/conventions.md  笔记模板与规范
 ```

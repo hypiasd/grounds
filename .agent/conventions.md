@@ -19,7 +19,6 @@ sources:              # 可选：关联的 raw 资料，相对路径
 
 - `title`、`topic`、`created`、`updated` 为必填字段。
 - `sources` 为可选，关联原始资料时填写，便于溯源。
-- `status` 字段已废弃，不再使用。
 
 ---
 
