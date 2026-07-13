@@ -25,7 +25,7 @@ allowed-tools: Read, Bash
    - **跨多篇笔记**：先列举相关笔记的要点（各一两句），再对比或串联，最后给出综合结论。
    - **笔记不够但你知道**：明确说"仓库里没有相关笔记，但我可以说说已知的——以下内容未沉淀，建议后续走 learn 存下来"。
    - **完全不知道**：直接说"仓库没有，我也不确定"，建议 ingest 资料或走 learn。
-3. **引用粒度**：引用到具体笔记文件（如 `[注意力机制](../llm/attention-mechanism.md)`），如果有多个相关笔记，需逐一标注。
+3. **引用粒度**：引用到具体笔记文件（如 `[Dropout](../deep-learning/dropout.md)`），如果有多个相关笔记，需逐一标注。
 4. **校验（必做）**：确认引用的链接目标确实存在（不要引用不存在的笔记）。
 5. **沉淀（可选）**：若答案本身是有价值的新综合视角，提示用户用 `capture` 沉淀；query 本身不强制写文件。
 
@@ -50,7 +50,7 @@ allowed-tools: Read, Bash
 ## 质量示例
 
 **好的 query 回答**：
-> 根据 [注意力机制](../llm/attention-mechanism.md) 的笔记，核心思想是让模型在处理每个 token 时动态关注输入序列中不同位置的信息。笔记里用"查字典"做了类比：Query 是你要查的词，Key 是字典的索引，Value 是释义。常见误区是以为 Attention 只在 Transformer 里有——实际上它最早来自 RNN 的 Seq2Seq 模型。
+> 根据 [Attention Mechanism](../grounds/example-note.md) 的笔记，核心思想是让模型在处理每个 token 时动态关注输入序列中不同位置的信息。笔记里用"查字典"做了类比：Query 是你要查的词，Key 是字典的索引，Value 是释义。常见误区是以为 Attention 只在 Transformer 里有——实际上它最早来自 RNN 的 Seq2Seq 模型。
 >
 > ——有引用、有类比、有误区、定位具体。
 
