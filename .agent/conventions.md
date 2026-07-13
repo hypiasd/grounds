@@ -39,7 +39,7 @@
 
 ```yaml
 ---
-title: Dropout 通过随机丢弃神经元来防止过拟合
+title: Dropout
 topic: deep-learning
 tags: [regularization, overfitting, practical-tips]
 summary: 训练时随机丢弃神经元，迫使网络不依赖特定节点，测试时所有权重乘以保留概率。类比：让团队里的每个人都能独当一面，而不是依赖某个明星员工。
@@ -63,7 +63,43 @@ sources:
 
 ---
 
-## 4. 正文结构
+## 4. Topic 分配指南
+
+当一篇笔记需要归属到某个 `topic` 时，按以下优先级判断：
+
+### 原则一：topic 是浏览入口，tags 是安全网
+
+topic 决定笔记放在哪个目录下；tags 负责跨主题发现。如果一篇笔记可能同时属于两个 topic，**选一个放，另一个打 tag**。
+
+例：`Dropout` 是正则化技术也是深度学习训练技巧。放在 `deep-learning/`，打上 `[regularization, training]` 标签。
+
+### 原则二：topic 不要太宽也不要太窄
+
+- **太宽**（如 `machine-learning/` 下有 50 篇笔记）→ 浏览失去意义
+- **太窄**（如 `dropout-variants/` 下只有 2 篇笔记）→ 不如合并到上级
+
+一个 topic 下 3-15 篇笔记是比较健康的范围。超过这个范围时，lint 会提醒。
+
+### 原则三：不确定时，先放再调
+
+不需要在一开始就找到完美归属。先按直觉放，tags 保证能被找到。后续 topic 结构调整时，移动文件 + 更新 `_overview.md` 即可——成本很低。
+
+---
+
+## 5. Topic 结构会演化
+
+**重分配是正常的，不是架构失败。** 随着笔记增长，一些 topic 会自然分裂，另一些会自然合并。以下操作都是低成本且鼓励的：
+
+- 重命名 topic 目录 → `mv` + 更新所有相关笔记的 `topic` 字段
+- 拆分一个大 topic → 新建目录 + 移动笔记 + 更新两边的 `_overview.md`
+- 合并两个小 topic → `mv` + 合并 `_overview.md`
+- 改变笔记的 topic → 移动文件 + 更新 `topic` 字段 + 调整 tags
+
+lint 会定期检查 topic 健康度并给出建议，但它不会自动执行——结构变更由你决策。
+
+---
+
+## 6. 正文结构
 
 ```markdown
 # 标题（概念名）
@@ -115,7 +151,7 @@ sources:
 
 ---
 
-## 6. 主题总览 _overview.md（每个 topic 强制存在）
+## 7. 主题总览 _overview.md（每个 topic 强制存在）
 
 ```markdown
 # <topic> 总览
@@ -137,7 +173,7 @@ sources:
 
 ---
 
-## 7. 链接规范
+## 8. 链接规范
 
 - 笔记之间使用**相对路径**互链：`[笔记名](../topic/note.md)`
 - 链接旁必须说明**什么关系**，不要裸链接：
@@ -147,7 +183,7 @@ sources:
 
 ---
 
-## 8. 命名规范
+## 9. 命名规范
 
 - 笔记文件：小写中划线，与标题对应。例：标题 `Attention Mechanism` → 文件名 `attention-mechanism.md`
 - 主题目录：小写中划线，`deep-learning`

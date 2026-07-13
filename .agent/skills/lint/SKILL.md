@@ -23,6 +23,11 @@ allowed-tools: Read, Write, Edit, Bash
    - **索引覆盖**：列 `wiki/` 核对每个 `<topic>/` 是否都有 `_overview.md`。
    - **模板合规**：frontmatter 是否含 `title/topic/tags/summary/created/updated`；标题是否是简洁的概念名（而非"XX 笔记"或过长的句子）；链接是否说明了关系。
    - **草稿提醒**：`status: draft` 且 `updated` 超过 30 天的笔记，提醒用户补完或删除。
+   - **Topic 健康度**：
+     - 单篇 topic（目录下只有 1 篇笔记）→ 建议合并到相关 topic 或加更多笔记
+     - 膨胀 topic（目录下超过 15 篇笔记）→ 建议按子方向拆分
+     - 空 topic（有 `_overview.md` 但无笔记）→ 建议删除目录或补内容
+     - 标签与 topic 不一致：笔记的 `topic` 字段指向 A 但实际存放在 B 目录 → 提醒修正
 2. **报告**：列出清单给用户，**先不自动改**，让用户决定。
 3. **若授权修复**：更新 `_overview.md`；`git add -A && git commit -m "lint: 修复 <问题摘要>"`。
 4. **校验（必做）**：修复后确认链接已修、`wc -l` 确认文件非空、`git status` 符合预期。
@@ -46,6 +51,12 @@ allowed-tools: Read, Write, Edit, Bash
 
 ### 草稿提醒
 - wiki/dl/backprop.md — status: draft 已 45 天未更新
+
+### Topic 健康度
+- wiki/optimization/ — 仅 1 篇笔记，建议合并到 deep-learning/ 或补充更多笔记
+- wiki/deep-learning/ — 18 篇笔记，建议按子方向拆分（如 optimization、regularization、architectures）
+- wiki/empty-topic/ — 有 _overview 但无笔记，建议删除目录或补内容
+- wiki/dl/dropout.md — topic 字段写的是 `deep-learning` 但文件在 `dl/` 目录下
 ```
 
 ## Gotchas（真实踩过的坑）
