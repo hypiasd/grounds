@@ -57,9 +57,9 @@ grounds/
 
 **触发**："整理一下"、"记下来"、"沉淀"
 
-**流程**：回顾对话提取关键结论 → 筛选有价值的部分 → 写/更新笔记 → 更新 _overview.md → commit
+**流程**：蒸馏对话 → 列出所有原子洞察给用户确认 → 每个洞察各归其位（匹配已有笔记则增量更新，新概念则新建）→ 批量写入 → 一次 commit
 
-**产出**：`wiki/<topic>/<note>.md`
+**产出**：可能涉及多篇笔记的新建或更新。一次对话 → 多个洞察 → 一次 commit。
 
 **注意**：不另存对话原文；learn 讲解后的当场沉淀由 learn 自己处理，不走 capture。
 
@@ -113,7 +113,7 @@ grounds/
 ## 提交规范
 
 - commit message 格式：`<skill> <topic>: <一句话>`
-- 示例：`learn llm: 注意力机制笔记`、`ingest raw: 下载某论文 PDF`、`lint: 修复孤儿页`、`capture grounds: 沉淀对话笔记`
+- 示例：`learn deep-learning: 注意力机制笔记`、`ingest raw: 下载某论文 PDF`、`lint: 修复孤儿页`、`capture grounds: 沉淀对话笔记`（capture 通常涉及多个 topic，统一用 `grounds`）
 - 操作历史即由 git 记录：`git log` 看时间线，`git show <commit>` 看改动。
 
 ---
