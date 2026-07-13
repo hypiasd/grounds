@@ -99,10 +99,13 @@ grounds/
 
 写任何笔记前，必须先读 `.agent/conventions.md`。核心要点：
 
-- **Frontmatter 必填**：`title`、`topic`、`created`、`updated`
-- **命名**：小写中划线（`attention-mechanism.md`）
-- **链接**：标准 Markdown 相对路径，不用 `[[WikiLinks]]`
-- **质量**：有直觉类比、有常见误区、有自己的话——否则只是搬运定义
+- **原子性**：一篇笔记只讲一个概念
+- **标题是主张**："Dropout 通过随机丢弃防止过拟合"，不是"Dropout 笔记"
+- **Frontmatter 必填**：`title`、`topic`、`tags`、`summary`、`created`、`updated`
+- **tags 是跨主题发现的关键**：`[regularization, practical-tips]`，不加 `#` 前缀
+- **summary 是 query 扫描用的**：agent 读 summaries 定位笔记，无需加载全文
+- **链接必须说明关系**：`[Dropout](note.md) — 和 BatchNorm 同属正则化，但机制不同`
+- **命名**：小写中划线
 - **参考范例**：`wiki/grounds/example-note.md`
 
 ---
