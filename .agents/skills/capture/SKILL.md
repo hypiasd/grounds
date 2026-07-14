@@ -2,7 +2,7 @@
 name: capture
 description: 用户说"整理一下/记下来/沉淀"，或一轮对话结束想固化收获时触发。把当前对话中有价值的内容蒸馏为多个原子洞察，各归其位——更新已有笔记或新建。不要在用户只想继续聊、或本轮无明显收获时使用。
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
+allowed-tools: Read, Write, Edit, Bash
 ---
 
 # capture
