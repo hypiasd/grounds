@@ -38,15 +38,14 @@ grounds/
 
 ---
 
-## 五个 Skill
+## 四个 Skill
 
 所有 skill 在 `.agents/skills/<name>/SKILL.md`。识别到触发词后，**必须先 Read 对应的 SKILL.md 文件**再执行——表格只是索引，SKILL.md 里的详细流程、Gotchas、质量示例才是执行标准。
 
 | Skill | 触发词 | 文件 | 产出 |
 |-------|--------|------|------|
-| `learn` | "讲讲 X"、"什么是 Y"、"帮我理解 Z" | `.agents/skills/learn/SKILL.md` | 查仓库 → 讲解 → 检验 → 面试官深挖 → 沉淀 |
+| `learn` | "讲讲 X"、"什么是 Y"、"帮我理解 Z" | `.agents/skills/learn/SKILL.md` | 查仓库（含外部资料）→ 讲解 → 答疑 → 检验 → 深挖 → 沉淀 |
 | `capture` | "整理一下"、"沉淀"、"记下来" | `.agents/skills/capture/SKILL.md` | 蒸馏 → 归位 → 面经搜索 → 批量写入 |
-| `ingest` | 用户发 PDF/链接/仓库 | `.agents/skills/ingest/SKILL.md` | 资料落地 raw/ + 摘要页 |
 | `lint` | "体检"、"检查仓库" | `.agents/skills/lint/SKILL.md` | 问题清单（默认只读） |
 | `query` | "复习一下 X"、"之前学的 Y" | `.agents/skills/query/SKILL.md` | summary 扫描 → 精准加载 → 综合作答 |
 
@@ -65,21 +64,15 @@ grounds/
 
 **触发**："讲讲 X"、"什么是 Y"、"帮我理解 Z"
 
-**流程**：先查仓库（已有笔记 → 更新模式）→ 讲解（直觉→形式化→误区，**有公式必须写公式**）→ **主动检验**（基础 2 问 + 面试官深挖）→ 有漏洞则补讲 → 有价值则问"要沉淀吗？"→ 新建或更新笔记 → commit
+**流程**：先查仓库（已有笔记 → 更新模式；缺前置 → 先教前置；需外部资料 → 下载/使用 raw/ 中的文件）→ 讲解（精简，3-5 要点，有公式必写）→ 答疑循环 → **主动检验**（基础 2 问 + 面试官深挖）→ 有漏洞则补讲 → 沉淀 → commit
 
-**关键原则**：检验是固定阶段，不需要用户说"考考我"。同一概念永远只有一篇笔记——两次学 Dropout 是一篇笔记的两次迭代。
+**关键原则**：同一概念永远只有一篇笔记。外部资料（PDF、仓库、链接）在 learn 内部处理，不需要单独的 learn 命令。
 
 ### capture — 沉淀对话收获
 
 **触发**："整理一下"、"记下来"、"沉淀"
 
 **流程**：蒸馏对话 → 列出所有原子洞察给用户确认 → 每个洞察各归其位（匹配已有笔记则增量更新，新概念则新建）→ **面经搜索**（对每个概念搜网络面试题，追加到笔记）→ 批量写入 → 一次 commit
-
-### ingest — 收录外部资料
-
-**触发**：用户发 PDF/链接/仓库地址
-
-**流程**：资料落地 raw/ → 生成摘要页（推荐）→ 交叉链接 → commit
 
 ### lint — 仓库体检
 
@@ -93,7 +86,7 @@ grounds/
 
 **触发**："复习一下 X"、"之前学的 Y"、"对比 A 和 B"
 
-**流程**：第一遍扫 summaries（不加载正文）→ 精准加载命中笔记 → 综合引用作答 → 内容不足时明说并建议 learn/ingest
+**流程**：第一遍扫 summaries（不加载正文）→ 精准加载命中笔记 → 综合引用作答 → 内容不足时明说并建议 learn/learn
 
 ---
 
@@ -116,14 +109,14 @@ grounds/
 ## 提交规范
 
 - commit message 格式：`<skill> <topic>: <一句话>`
-- 示例：`learn deep-learning: 注意力机制笔记`、`ingest raw: 下载某论文 PDF`、`lint: 修复孤儿页`、`capture grounds: 沉淀对话笔记`（capture 涉及多个 topic 时统一用 `grounds`）
+- 示例：`learn deep-learning: 注意力机制笔记`、`lint: 修复孤儿页`、`capture grounds: 沉淀对话笔记`（capture 涉及多个 topic 时统一用 `grounds`）
 
 ---
 
 ## Gotchas（agent 最常犯的错）
 
 - **不读 conventions 就写笔记** → frontmatter 缺字段。写之前必须 Read `.agents/conventions.md`。
-- **不读 SKILL.md 就执行** → 遗漏关键步骤（如 learn 的检验阶段、capture 的面经搜索）。触发后必须先 Read 对应 SKILL.md。
+- **不读 SKILL.md 就执行** → 遗漏关键步骤（如 learn 的检验、答疑循环、外部资料处理；capture 的面经搜索）。触发后必须先 Read 对应 SKILL.md。
 - **忘记更新 _overview.md** → 笔记变孤儿页。
 - **讲完忘 commit** → 下次打开仓库状态不一致。
 - **把 query 当 learn 用** → 用户问已有知识时应该查笔记作答。
