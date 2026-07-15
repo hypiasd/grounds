@@ -38,13 +38,14 @@ allowed-tools: Read, Bash
 - [笔记A](../path/a.md) — 涉及了 X，但没有深入 Y（你的问题）
 - [笔记B](../path/b.md) — 提到了 Z，但角度不同
 
-## 仓库外的补充
-（如果你知道，可以补充，但必须标注"以下未沉淀"）
-- ...
+## 实时搜索补充
+（如需联网搜索，使用 agent-reach：`.agents/skills/agent-reach/SKILL.md`）
+- Exa 搜索：[结果摘要]
+- 小红书/其他平台：[结果摘要]
 
 ## 建议
-- 走 learn 深入学习 Y
-- 或 learn 时带上相关资料
+- 满意的话可以走 capture 沉淀搜索发现
+- 想深入理解可以走 learn（可带上搜到的文章链接）
 ```
 
 ## 质量示例
