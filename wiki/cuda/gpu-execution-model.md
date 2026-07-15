@@ -4,7 +4,7 @@ topic: cuda
 tags: [cuda, gpu, parallel-computing, hardware, memory, performance]
 summary: GPU 执行模型有三面相：线程层级（Grid/Block/Thread 软件体系 + SM/CUDA Core 硬件体系）、Warp/SIMT（32 线程锁步执行、warp divergence、latency hiding）、内存层级（寄存器/共享内存/显存）。三者互咬——block 的协作边界是 shared memory，warp 的延迟隐藏掩盖的是显存延迟。
 created: 2026-07-14
-updated: 2026-07-14
+updated: 2026-07-15
 ---
 
 # GPU 执行模型
@@ -38,7 +38,7 @@ add<<<40, 256>>>(a, b, c, n);  // 40 block x 256 thread = 10240 threads
 2. GPU 把 Block 分配到 SM。一个 SM 可接收多个 block，一个 block 不跨 SM
 3. SM 把 block 内线程按 32 一组切成 Warp 来执行
 
-### Block 存在的理由
+### Block 存在的理由：共享内存的物理边界
 
 如果只有 thread 和 warp，线程间无法协作。Block 给了三个能力：**共享内存**（block 内线程共用高速 SRAM）、**同步**（`__syncthreads()`，跨 block 无此原语）、**分工**（协作加载、汇总）。一句话：block 是线程共享内存和同步的最小边界。
 
@@ -46,6 +46,22 @@ add<<<40, 256>>>(a, b, c, n);  // 40 block x 256 thread = 10240 threads
 
 - 硬上限 1024 线程；最好 32 的倍数（warp 按 32 切）；太小浪费 SM 资源，太大挤占 shared memory/寄存器降低 occupancy
 - 经验值：128、256、512
+
+### Grid 存在的理由：纯软件概念
+
+grid 本身**没有对应的硬件单元**——它纯粹是软件概念，唯一作用是告诉 GPU 调度器"这次总共要启动多少个 block"。调度器拿到 grid 后把 block 分摊到各个 SM 上：SM 0 领 3 个，SM 1 领 4 个……谁先空出来谁再领，直到全部跑完。
+
+grid 的 1D/2D/3D 维度选择与硬件无关——硬件拿到的是扁平的 block 列表。2D grid 只是让你在写代码时不用手动 `pid // width`、`pid % width` 算行列号。同理，`dim3(width, height)` 的书写顺序是（横向, 纵向），与矩阵的（行, 列）习惯相反——记住"CUDA 的 dim3 是宽度×高度"即可。
+
+**三层设计与硬件的对应**：
+
+| 层级 | 设计动机 | 硬件对应 |
+|------|---------|---------|
+| Thread | 最小执行单元 | CUDA Core |
+| Block | **共享内存的物理边界**（SM 内 SRAM 是隔离的） | 一个 SM（block 不可跨 SM） |
+| Grid | 活的总量，给调度器分发用 | 无——纯软件概念 |
+
+block/SM 的关系是"一对多"：一个 block 一定只在一个 SM 上跑（因为共享内存物理隔离），但一个 SM 可以同时驻留多个 block（只要寄存器/共享内存够用）。block 切得越多，每个 SM 能分到的 block 越多，可切换的 warp 越多，latency hiding 越强。
 
 ## 二、Warp 与 SIMT：硬件怎么跑
 
@@ -137,4 +153,4 @@ __syncthreads();
 ## 关联
 
 - 前置：无（本笔记是 GPU 编程的起点）
-- 后续：Triton（待学）—— 如何在更高抽象层写 GPU kernel
+- 后续：[Triton](triton.md) — 块级 GPU 编程，编译器自动管理线程和共享内存
