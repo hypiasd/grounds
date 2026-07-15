@@ -4,7 +4,7 @@ topic: cuda
 tags: [gpu, parallel-computing, compiler, kernel-programming, performance]
 summary: Triton 是 OpenAI 开源的 GPU 内核编程语言和编译器，将 GPU 编程从"线程级"提升到"块级"——你只管数据怎么切 tile，编译器自动分配线程、插入同步、优化访存。核心语法只有几个零件：program_id（定位）、tl.arange（生成索引）、tl.load/store（读写）、tl.constexpr（编译时常量）、reductions（规约）。适合规整的 tiled computation，不规则计算仍需 CUDA。
 created: 2026-07-15
-updated: 2026-07-15
+updated: 2026-07-16
 ---
 
 # Triton
@@ -127,6 +127,20 @@ mask = (offs_m[:, None] < M) & (offs_n[None, :] < N)
 - CUDA 是给每个工人发一张纸条，精确写上他负责哪个 10cm×10cm 的方格。Triton 是把一面墙切成大方块，每组工人领一块说"这一平方米归你们"
 - Triton 之于 CUDA，如同 SIMD intrinsics 之于手写汇编——你指定数据级并行，编译器处理指令级细节
 
+在 GPU 编程抽象栈中，Triton 处于最高层——编译器全包，块级编程，内存管理自动。下面是 TileLang（显式内存层级 + TVM）、CUTLASS（CUDA 模板拼积木）、CUDA（线程级手动管理）：
+
+```
+抽象层级（高 = 开发快）
+  ▲
+  │  Triton        Python DSL + 自研编译器 → LLVM/PTX，块级，编译器管线程/内存
+  │  TileLang      基于 TVM 的 tile DSL，tile 一等公民，显式管内存层级
+  │  CUTLASS       CUDA C++ 模板库，拼 tile 积木，仍在 CUDA 生态内
+  │  CUDA          线程级，手动管理一切（线程映射、shared memory、同步）
+  └──────────────────────────────────────────────────────► 性能天花板（高 = 跑得快）
+```
+
+这个栈的核心张力是**控制 vs 效率**：每往上一层，开发效率提升，但精细控制减少。Triton 适合快速原型和规整计算，CUTLASS 适合需要极致性能和新硬件特性（如 H100 TMA）的定制 kernel，TileLang 在两者之间填了一个显式内存控制 + TVM auto-tuning 的生态位。
+
 ## 常见误区
 
 - **Triton 不是 CUDA 的通用替代品**：它擅长规整的 tiled computation（矩阵乘法、element-wise ops、reduction），遇到不规则数据（稀疏矩阵、图遍历、树结构）时 tile 边界对不齐，编译器无法优化，仍需 CUDA
@@ -161,3 +175,5 @@ mask = (offs_m[:, None] < M) & (offs_n[None, :] < N)
 
 - [GPU 执行模型](gpu-execution-model.md) — Triton 的前置知识，理解线程层级/warp/SIMT/内存层级后才能理解 Triton 抽象掉了什么
 - [vLLM 架构](../vllm/vllm-v1-architecture.md) — vLLM 中大量自定义 kernel 用 Triton 实现
+- [CUTLASS](cutlass.md) — CUDA 生态内的模板化 GEMM 框架，性能天花板更高但抽象更低
+- [TileLang](tilelang.md) — 基于 TVM 的 tile DSL，显式内存层级控制，填在 CUTLASS 和 Triton 之间的生态位
