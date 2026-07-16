@@ -3,6 +3,7 @@ import { getCollection, render } from 'astro:content'
 import type { CollectionEntry } from 'astro:content'
 import Sidebar from '../components/Sidebar.astro'
 import Search from '../components/Search.jsx'
+import SidebarToggle from '../components/SidebarToggle.astro'
 import '../styles/global.css'
 
 interface Props {
@@ -31,6 +32,7 @@ const topicNotes = allNotes
 </head>
 <body>
     <header class="site-header">
+      <SidebarToggle />
       <a href={base}>← grounds</a>
       <span style="margin-left: 16px; color: var(--text-muted);">/</span>
       <a href={`${base}/tags`} style="margin-left: 8px;">标签</a>

@@ -6,6 +6,7 @@ import Sidebar from '../components/Sidebar.astro'
 import Toc from '../components/Toc.astro'
 import Backlinks from '../components/Backlinks.astro'
 import Search from '../components/Search.jsx'
+import SidebarToggle from '../components/SidebarToggle.astro'
 import '../styles/global.css'
 
 interface Props {
@@ -42,6 +43,7 @@ const tags = data.tags || []
 </head>
 <body>
   <header class="site-header">
+    <SidebarToggle />
     <a href={base}>← grounds</a>
     <span style="margin-left: 16px; color: var(--text-muted);">/</span>
     <a href={`${base}/${data.topic}`} style="margin-left: 8px;">{data.topic}</a>

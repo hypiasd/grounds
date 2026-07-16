@@ -59,12 +59,47 @@ body {
   position: sticky;
   top: 0;
   z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 .site-header a {
   color: var(--text-primary);
   text-decoration: none;
   font-family: var(--font-heading);
   font-weight: 600;
+}
+
+/* ========== Sidebar 折叠按钮 ========== */
+.sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin-right: 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.sidebar-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+/* 默认显示 »（隐藏），折叠后显示 «（展开） */
+.sidebar-toggle .icon-sidebar-show { display: none; }
+.sidebar-toggle .icon-sidebar-hide { display: inline; }
+body.sidebar-hidden .sidebar-toggle .icon-sidebar-show { display: inline; }
+body.sidebar-hidden .sidebar-toggle .icon-sidebar-hide { display: none; }
+@media (max-width: 768px) {
+  .sidebar-toggle { display: none; }
 }
 
 /* ========== Main ========== */
@@ -358,6 +393,14 @@ img {
   margin: 32px auto;
   padding: 0 24px;
   justify-content: center;
+}
+/* 折叠 sidebar：主内容居中扩展 */
+body.sidebar-hidden .note-layout {
+  grid-template-columns: 0 minmax(0, 900px) 200px;
+  gap: 0 28px;
+}
+body.sidebar-hidden .sidebar {
+  display: none;
 }
 .note-main {
   max-width: none;
