@@ -31,59 +31,68 @@ export default function Graph({ data, currentSlug, height = 400, mini = false })
 
   useEffect(() => {
     if (!data) return
+    try {
+      // 复制节点和边（forceSimulation 会 mutate）
+      const simNodes = data.nodes.map(n => ({ ...n }))
+      const simLinks = data.edges
+        .filter(e => e.type === 'link')
+        .map(e => ({ source: e.source, target: e.target }))
 
-    // 复制节点和边（forceSimulation 会 mutate）
-    const simNodes = data.nodes.map(n => ({ ...n }))
-    const simLinks = data.edges
-      .filter(e => e.type === 'link')
-      .map(e => ({ source: e.source, target: e.target }))
+      // mini 模式：只显示当前节点的邻居
+      let filteredNodes = simNodes
+      let filteredLinks = simLinks
+      if (mini && currentSlug) {
+        const neighbors = new Set([currentSlug])
+        simLinks.forEach(l => {
+          if (l.source === currentSlug) neighbors.add(l.target)
+          if (l.target === currentSlug) neighbors.add(l.source)
+        })
+        filteredNodes = simNodes.filter(n => neighbors.has(n.id))
+        filteredLinks = simLinks.filter(l =>
+          neighbors.has(l.source) && neighbors.has(l.target)
+        )
+      }
 
-    // mini 模式：只显示当前节点的邻居
-    let filteredNodes = simNodes
-    let filteredLinks = simLinks
-    if (mini && currentSlug) {
-      const neighbors = new Set([currentSlug])
-      simLinks.forEach(l => {
-        if (l.source === currentSlug) neighbors.add(l.target)
-        if (l.target === currentSlug) neighbors.add(l.source)
-      })
-      filteredNodes = simNodes.filter(n => neighbors.has(n.id))
-      filteredLinks = simLinks.filter(l =>
-        neighbors.has(l.source) && neighbors.has(l.target)
-      )
+      // 仿真（svgRef 在初次渲染时为 null，因为 nodes 为空时走 loading 分支不渲染 svg）
+      const width = svgRef.current?.clientWidth ?? 800
+      const h = height
+      const simulation = forceSimulation(filteredNodes)
+        .force('charge', forceManyBody().strength(mini ? -200 : -300))
+        .force('link', forceLink(filteredLinks).id(d => d.id).distance(mini ? 60 : 80).strength(0.1))
+        .force('center', forceCenter(width / 2, h / 2))
+        .force('collide', forceCollide().radius(d => nodeRadius(d) + 4))
+
+      // 跑 300 tick 让布局稳定（避免动画）
+      for (let i = 0; i < 300; i++) simulation.tick()
+      simulation.stop()
+
+      setNodes(filteredNodes)
+      setLinks(filteredLinks)
+    } catch (err) {
+      console.error('[Graph] simulation error:', err)
+      if (typeof window !== 'undefined') {
+        window.__graphErr = err?.message + '\n' + (err?.stack || '').slice(0, 500)
+      }
     }
-
-    // 仿真
-    const width = svgRef.current.clientWidth
-    const h = height
-    const simulation = forceSimulation(filteredNodes)
-      .force('charge', forceManyBody().strength(mini ? -200 : -300))
-      .force('link', forceLink(filteredLinks).id(d => d.id).distance(mini ? 60 : 80).strength(0.1))
-      .force('center', forceCenter(width / 2, h / 2))
-      .force('collide', forceCollide().radius(d => nodeRadius(d) + 4))
-
-    // 跑 300 tick 让布局稳定（避免动画）
-    for (let i = 0; i < 300; i++) simulation.tick()
-    simulation.stop()
-
-    setNodes(filteredNodes)
-    setLinks(filteredLinks)
   }, [data, currentSlug, mini, height])
 
   useEffect(() => {
     if (!svgRef.current || nodes.length === 0) return
+    try {
+      const svg = select(svgRef.current)
+      const g = svg.select('g.zoom-layer')
 
-    const svg = select(svgRef.current)
-    const g = svg.select('g.zoom-layer')
-
-    // zoom（仅非 mini 模式）
-    if (!mini) {
-      const zoomBehavior = zoom()
-        .scaleExtent([0.2, 3])
-        .on('zoom', (event) => {
-          g.attr('transform', event.transform)
-        })
-      svg.call(zoomBehavior)
+      // zoom（仅非 mini 模式）
+      if (!mini) {
+        const zoomBehavior = zoom()
+          .scaleExtent([0.2, 3])
+          .on('zoom', (event) => {
+            g.attr('transform', event.transform)
+          })
+        svg.call(zoomBehavior)
+      }
+    } catch (err) {
+      console.error('[Graph] zoom setup error:', err)
     }
   }, [nodes, mini])
 

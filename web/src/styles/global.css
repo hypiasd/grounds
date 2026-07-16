@@ -146,6 +146,9 @@ pre {
   font-size: 0.9rem;
   line-height: 1.6;
   margin: 1.5em 0;
+  /* 覆盖 Shiki 默认 pre-wrap，避免 ASCII 图表断行 */
+  white-space: pre !important;
+  word-wrap: normal !important;
 }
 pre code {
   background: transparent;

@@ -117,7 +117,20 @@ export async function buildGraph(): Promise<GraphData> {
     }
   }
 
-  return { nodes, edges }
+  // 过滤掉指向不存在节点的边（防止 d3-force 初始化抛 "node not found"）
+  // 这种边通常来自笔记中代码块里被误识别为 markdown 链接的文本
+  // 同时去重：同一对 (source, target, type) 只保留一条（_overview 里多次引用同一笔记的情况）
+  const nodeIds = new Set(nodes.map(n => n.id))
+  const seenEdge = new Set<string>()
+  const validEdges = edges.filter(e => {
+    if (!nodeIds.has(e.source) || !nodeIds.has(e.target)) return false
+    const key = `${e.source}|${e.target}|${e.type}`
+    if (seenEdge.has(key)) return false
+    seenEdge.add(key)
+    return true
+  })
+
+  return { nodes, edges: validEdges }
 }
 
 // 反向链接：target slug → source 笔记列表

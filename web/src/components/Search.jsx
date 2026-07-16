@@ -38,7 +38,9 @@ export default function Search() {
       try {
         // pagefind 是构建后产物，运行时动态加载
         // 用变量名骗过 Vite 静态分析，避免构建时报 UNRESOLVED_IMPORT
-        const pagefindUrl = '/pagefind/pagefind.js'
+        // 注意：必须拼接 BASE_URL，否则 base='/grounds/' 下会 404
+        const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+        const pagefindUrl = `${base}/pagefind/pagefind.js`
         const pagefindModule = await import(/* @vite-ignore */ pagefindUrl)
         const pagefindSearch = pagefindModule.default || pagefindModule
         if (pagefindSearch.options) await pagefindSearch.options({})
