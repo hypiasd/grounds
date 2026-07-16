@@ -6,7 +6,7 @@ import rehypeKatex from 'rehype-katex'
 
 export default defineConfig({
   base: '/grounds/',
-  site: 'https://tian.github.io',
+    site: 'https://hypiasd.github.io',
   trailingSlash: 'never',
   integrations: [react()],
   markdown: {
