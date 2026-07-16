@@ -352,16 +352,18 @@ img {
 /* ========== 三栏布局 ========== */
 .note-layout {
   display: grid;
-  grid-template-columns: 220px 1fr 220px;
-  gap: 32px;
-  max-width: 1200px;
+  grid-template-columns: 200px minmax(0, 760px) 200px;
+  gap: 28px;
+  max-width: 1280px;
   margin: 32px auto;
-  padding: 0 20px;
+  padding: 0 24px;
+  justify-content: center;
 }
 .note-main {
-  max-width: 720px;
-  margin: 0 auto;
+  max-width: none;
+  min-width: 0;
   width: 100%;
+  margin: 0;
 }
 .note-right {
   position: sticky;
@@ -459,7 +461,7 @@ img {
 /* ========== 三栏响应式 ========== */
 @media (max-width: 1024px) {
   .note-layout {
-    grid-template-columns: 200px 1fr;
+    grid-template-columns: 200px minmax(0, 1fr);
   }
   .note-right {
     display: none;
