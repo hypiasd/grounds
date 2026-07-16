@@ -1,6 +1,7 @@
 ---
 import { getCollection, render } from 'astro:content'
 import type { CollectionEntry } from 'astro:content'
+import Sidebar from '../components/Sidebar.astro'
 import '../styles/global.css'
 
 interface Props {
@@ -28,14 +29,19 @@ const topicNotes = allNotes
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700&family=Noto+Serif+SC:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
 <body>
-  <header class="site-header">
-    <a href={base}>← grounds</a>
-  </header>
+    <header class="site-header">
+      <a href={base}>← grounds</a>
+      <span style="margin-left: 16px; color: var(--text-muted);">/</span>
+      <a href={`${base}/tags`} style="margin-left: 8px;">标签</a>
+    </header>
 
-  <main>
-    <article>
-      <Content />
-    </article>
+    <div class="note-layout">
+      <Sidebar currentTopic={topic} />
+
+      <main class="note-main">
+        <article>
+          <Content />
+        </article>
 
     <section class="home-section">
       <h2>笔记卡片</h2>
@@ -53,6 +59,7 @@ const topicNotes = allNotes
         ))}
       </div>
     </section>
-  </main>
+      </main>
+    </div>
 </body>
 </html>

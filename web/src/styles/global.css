@@ -345,3 +345,129 @@ img {
     padding: 12px;
   }
 }
+
+/* ========== 三栏布局 ========== */
+.note-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr 220px;
+  gap: 32px;
+  max-width: 1200px;
+  margin: 32px auto;
+  padding: 0 20px;
+}
+.note-main {
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+.note-right {
+  position: sticky;
+  top: 60px;
+  align-self: start;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  font-size: 0.85rem;
+}
+
+/* ========== Sidebar ========== */
+.sidebar {
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  position: sticky;
+  top: 60px;
+  align-self: start;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+.topic-group {
+  margin-bottom: 8px;
+}
+.topic-link {
+  display: block;
+  padding: 6px 8px;
+  color: var(--text-primary);
+  text-decoration: none;
+  font-weight: 600;
+  border-radius: 4px;
+}
+.topic-link:hover {
+  background: var(--accent-soft);
+}
+.note-list {
+  list-style: none;
+  padding: 0 0 0 12px;
+  margin: 0;
+}
+.note-list li {
+  padding: 3px 8px;
+}
+.note-list li.current a {
+  color: var(--accent);
+  font-weight: 600;
+}
+.note-list a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.note-list a:hover {
+  color: var(--accent);
+}
+
+/* ========== TOC ========== */
+.toc h3,
+.backlinks h3 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 8px 0;
+}
+.toc ul,
+.backlinks ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5em 0;
+}
+.toc li a,
+.backlinks li a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.85rem;
+  display: block;
+  padding: 2px 0;
+}
+.toc li.toc-h3 a {
+  padding-left: 12px;
+  font-size: 0.8rem;
+}
+.toc li a:hover,
+.backlinks li a:hover {
+  color: var(--accent);
+}
+.backlink-summary {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 2px 0 6px 0;
+  line-height: 1.4;
+}
+
+/* ========== 三栏响应式 ========== */
+@media (max-width: 1024px) {
+  .note-layout {
+    grid-template-columns: 200px 1fr;
+  }
+  .note-right {
+    display: none;
+  }
+}
+@media (max-width: 768px) {
+  .note-layout {
+    grid-template-columns: 1fr;
+    padding: 0 16px;
+  }
+  .sidebar {
+    display: none;
+  }
+}

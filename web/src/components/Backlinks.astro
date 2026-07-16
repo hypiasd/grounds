@@ -1,0 +1,31 @@
+---
+import { buildGraph, getBacklinks } from '../data/graph'
+import { getCollection } from 'astro:content'
+
+interface Props {
+  slug: string
+}
+
+const { slug } = Astro.props
+const graph = await buildGraph()
+const backlinks = getBacklinks(slug, graph)
+
+// 查每条 backlink 的 summary
+const allNotes = await getCollection('notes')
+const summaryMap = new Map(allNotes.map(n => [n.id, n.data.summary || '']))
+---
+{backlinks.length > 0 && (
+  <div class="backlinks">
+    <h3>反向链接 ({backlinks.length})</h3>
+    <ul>
+      {backlinks.map(bl => (
+        <li>
+          <a href={`/grounds/${bl.id.replace('/_overview', '')}`}>{bl.title}</a>
+          {summaryMap.get(bl.id) && (
+            <div class="backlink-summary">{summaryMap.get(bl.id)}</div>
+          )}
+        </li>
+      ))}
+    </ul>
+  </div>
+)}

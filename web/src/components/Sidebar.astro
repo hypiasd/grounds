@@ -1,0 +1,48 @@
+---
+import { getCollection } from 'astro:content'
+
+interface Props {
+  currentSlug?: string
+  currentTopic?: string
+}
+
+const { currentSlug, currentTopic } = Astro.props
+const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+
+const allNotes = await getCollection('notes')
+const topics = new Map<string, typeof allNotes>()
+for (const note of allNotes) {
+  const topic = note.id.split('/')[0]
+  if (!topics.has(topic)) topics.set(topic, [])
+  topics.get(topic)!.push(note)
+}
+
+function noteUrl(noteId: string): string {
+  const isOverview = noteId.endsWith('/_overview')
+  const slug = isOverview ? noteId.replace('/_overview', '') : noteId
+  return `${base}/${slug}`
+}
+---
+<aside class="sidebar">
+  {[...topics.entries()].map(([topic, topicNotes]) => {
+    const overview = topicNotes.find(n => n.id.endsWith('/_overview'))
+    const notes = topicNotes.filter(n => !n.id.endsWith('/_overview')).sort((a, b) => a.id.localeCompare(b.id))
+    const isCurrentTopic = topic === currentTopic
+    return (
+      <div class={`topic-group ${isCurrentTopic ? 'expanded' : ''}`}>
+        <a class="topic-link" href={overview ? noteUrl(overview.id) : '#'}>
+          {topic}
+        </a>
+        {isCurrentTopic && (
+          <ul class="note-list">
+            {notes.map(n => (
+              <li class={n.id === currentSlug ? 'current' : ''}>
+                <a href={noteUrl(n.id)}>{n.data.title || n.id}</a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    )
+  })}
+</aside>

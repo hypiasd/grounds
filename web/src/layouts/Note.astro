@@ -2,6 +2,9 @@
 import { getCollection, render } from 'astro:content'
 import type { CollectionEntry } from 'astro:content'
 import GraphView from '../components/GraphView.astro'
+import Sidebar from '../components/Sidebar.astro'
+import Toc from '../components/Toc.astro'
+import Backlinks from '../components/Backlinks.astro'
 import '../styles/global.css'
 
 interface Props {
@@ -9,7 +12,7 @@ interface Props {
 }
 
 const { note } = Astro.props
-const { Content } = await render(note)
+const { Content, headings } = await render(note)
 const data = note.data
 const base = import.meta.env.BASE_URL.replace(/\/$/, '')
 
@@ -39,30 +42,41 @@ const tags = data.tags || []
 <body>
   <header class="site-header">
     <a href={base}>← grounds</a>
+    <span style="margin-left: 16px; color: var(--text-muted);">/</span>
+    <a href={`${base}/${data.topic}`} style="margin-left: 8px;">{data.topic}</a>
   </header>
 
-  <main>
-    <h1>{data.title || note.id}</h1>
-    <div class="note-meta">
-      {data.topic}
-      {updated && ` · ${updated}`}
-      {tags.map(t => <span class="tag">#{t}</span>)}
-    </div>
-    {data.summary && <div class="note-summary">{data.summary}</div>}
+  <div class="note-layout">
+    <Sidebar currentSlug={note.id} currentTopic={data.topic} />
 
-    <article>
-      <Content />
-    </article>
+    <main class="note-main">
+      <h1>{data.title || note.id}</h1>
+      <div class="note-meta">
+        {data.topic}
+        {updated && ` · ${updated}`}
+        {tags.map(t => <span class="tag">#{t}</span>)}
+      </div>
+      {data.summary && <div class="note-summary">{data.summary}</div>}
 
-    <section class="home-section">
-      <h2>关联笔记</h2>
-      <GraphView currentSlug={note.id} mini={true} height={200} />
-    </section>
+      <article>
+        <Content />
+      </article>
 
-    <nav class="prev-next">
-      {prev ? <a href={`${base}/${prev.id}`}>← {prev.data.title}</a> : <span />}
-      {next ? <a href={`${base}/${next.id}`}>{next.data.title} →</a> : <span />}
-    </nav>
-  </main>
+      <section class="home-section">
+        <h2>关联笔记</h2>
+        <GraphView currentSlug={note.id} mini={true} height={200} />
+      </section>
+
+      <nav class="prev-next">
+        {prev ? <a href={`${base}/${prev.id}`}>← {prev.data.title}</a> : <span />}
+        {next ? <a href={`${base}/${next.id}`}>{next.data.title} →</a> : <span />}
+      </nav>
+    </main>
+
+    <aside class="note-right">
+      <Toc headings={headings} />
+      <Backlinks slug={note.id} />
+    </aside>
+  </div>
 </body>
 </html>

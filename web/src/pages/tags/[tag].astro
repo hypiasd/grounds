@@ -1,0 +1,58 @@
+---
+import { getCollection } from 'astro:content'
+import '../../styles/global.css'
+
+export async function getStaticPaths() {
+  const notes = await getCollection('notes')
+  const tagSet = new Set<string>()
+  for (const note of notes) {
+    for (const tag of note.data.tags || []) {
+      tagSet.add(tag)
+    }
+  }
+  return [...tagSet].map(tag => ({ params: { tag } }))
+}
+
+const { tag } = Astro.params
+const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+
+const allNotes = await getCollection('notes')
+const matched = allNotes
+  .filter(n => !n.id.endsWith('/_overview') && (n.data.tags || []).includes(tag))
+  .sort((a, b) => String(b.data.updated || '').localeCompare(String(a.data.updated || '')))
+---
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>#{tag} · grounds</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700&family=Noto+Serif+SC:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <header class="site-header">
+    <a href={base}>← grounds</a>
+    <span style="margin-left: 16px; color: var(--text-muted);">/</span>
+    <a href={`${base}/tags`} style="margin-left: 8px;">标签</a>
+  </header>
+
+  <main>
+    <h1>#{tag}</h1>
+    <p class="home-intro">{matched.length} 篇笔记</p>
+
+    <ul class="recent-list" style="margin-top: 2em;">
+      {matched.map(note => (
+        <li>
+          <a href={`${base}/${note.id}`}>{note.data.title || note.id}</a>
+          <span class="meta">{note.data.topic} · {String(note.data.updated || '').slice(0, 10)}</span>
+          {note.data.summary && (
+            <div style="font-size: 0.85em; color: var(--text-secondary); margin-top: 4px;">{note.data.summary}</div>
+          )}
+        </li>
+      ))}
+    </ul>
+  </main>
+</body>
+</html>
