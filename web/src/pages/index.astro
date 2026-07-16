@@ -1,10 +1,10 @@
 ---
 import { getCollection } from 'astro:content'
+import '../styles/global.css'
 
 const notes = await getCollection('notes')
 const base = import.meta.env.BASE_URL.replace(/\/$/, '')
 
-// 按 topic 分组
 const topics = new Map<string, typeof notes>()
 for (const note of notes) {
   const topic = note.id.split('/')[0]
@@ -12,7 +12,6 @@ for (const note of notes) {
   topics.get(topic)!.push(note)
 }
 
-// 最近更新（按 updated 倒序前 5）
 const recent = [...notes]
   .filter(n => !n.id.endsWith('/_overview'))
   .sort((a, b) => String(b.data.updated || '').localeCompare(String(a.data.updated || '')))
@@ -30,40 +29,41 @@ function noteUrl(noteId: string): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>grounds</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700&family=Noto+Serif+SC:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
 <body>
-  <header style="border-bottom: 1px solid #eee; padding: 16px 20px;">
-    <h1 style="margin: 0; font-size: 1.2rem;">grounds</h1>
+  <header class="site-header">
+    <a href={base}>grounds</a>
   </header>
 
-  <main style="max-width: 960px; margin: 40px auto; padding: 0 20px;">
-    <p style="color: #666;">个人学习笔记 · {notes.filter(n => !n.id.endsWith('/_overview')).length} 篇 · {topics.size} 个主题</p>
+  <main>
+    <p class="home-intro">个人学习笔记 · {notes.filter(n => !n.id.endsWith('/_overview')).length} 篇 · {topics.size} 个主题</p>
 
-    <section style="margin-top: 2em;">
+    <section class="home-section">
       <h2>主题</h2>
-      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 1em;">
+      <div class="topic-grid">
         {[...topics.entries()].map(([topic, topicNotes]) => {
           const overview = topicNotes.find(n => n.id.endsWith('/_overview'))
           const noteCount = topicNotes.filter(n => !n.id.endsWith('/_overview')).length
           return (
-            <a href={overview ? noteUrl(overview.id) : '#'} style="display: block; padding: 16px; border: 1px solid #e5e3dc; border-radius: 6px; text-decoration: none; color: inherit;">
-              <div style="font-weight: 600; font-size: 1.1em;">{topic}</div>
-              <div style="color: #888; font-size: 0.85em; margin-top: 4px;">{noteCount} 篇笔记</div>
+            <a class="topic-card" href={overview ? noteUrl(overview.id) : '#'}>
+              <div class="topic-name">{topic}</div>
+              <div class="topic-count">{noteCount} 篇笔记</div>
             </a>
           )
         })}
       </div>
     </section>
 
-    <section style="margin-top: 3em;">
+    <section class="home-section">
       <h2>最近更新</h2>
-      <ul style="list-style: none; padding: 0; margin-top: 1em;">
+      <ul class="recent-list">
         {recent.map(note => (
-          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
+          <li>
             <a href={noteUrl(note.id)}>{note.data.title || note.id}</a>
-            <span style="color: #888; font-size: 0.85em; margin-left: 12px;">
-              {note.data.topic} · {String(note.data.updated || '').slice(0, 10)}
-            </span>
+            <span class="meta">{note.data.topic} · {String(note.data.updated || '').slice(0, 10)}</span>
           </li>
         ))}
       </ul>

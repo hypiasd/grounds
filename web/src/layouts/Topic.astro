@@ -1,6 +1,7 @@
 ---
 import { getCollection, render } from 'astro:content'
 import type { CollectionEntry } from 'astro:content'
+import '../styles/global.css'
 
 interface Props {
   note: CollectionEntry<'notes'>  // _overview.md
@@ -11,7 +12,6 @@ const { Content } = await render(note)
 const topic = note.id.split('/')[0]
 const base = import.meta.env.BASE_URL.replace(/\/$/, '')
 
-// 该 topic 下所有笔记（不含 _overview），按 updated 倒序
 const allNotes = await getCollection('notes')
 const topicNotes = allNotes
   .filter(n => n.id.startsWith(`${topic}/`) && !n.id.endsWith('/_overview'))
@@ -23,30 +23,31 @@ const topicNotes = allNotes
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{note.data.title || `${topic} 总览`}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700&family=Noto+Serif+SC:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
 <body>
-  <header style="border-bottom: 1px solid #eee; padding: 12px 20px;">
+  <header class="site-header">
     <a href={base}>← grounds</a>
   </header>
 
-  <main style="max-width: 720px; margin: 40px auto; padding: 0 20px;">
+  <main>
     <article>
       <Content />
     </article>
 
-    <section style="margin-top: 3em; padding-top: 1.5em; border-top: 1px solid #eee;">
+    <section class="home-section">
       <h2>笔记卡片</h2>
-      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-top: 1em;">
+      <div class="note-grid">
         {topicNotes.map(n => (
-          <a href={`${base}/${n.id}`} style="display: block; padding: 12px; border: 1px solid #e5e3dc; border-radius: 6px; text-decoration: none; color: inherit;">
-            <div style="font-weight: 600; margin-bottom: 4px;">{n.data.title || n.id}</div>
+          <a class="note-card" href={`${base}/${n.id}`}>
+            <div class="note-title">{n.data.title || n.id}</div>
             {n.data.summary && (
-              <div style="font-size: 0.85em; color: #666; line-height: 1.4;">{n.data.summary.slice(0, 80)}{n.data.summary.length > 80 ? '...' : ''}</div>
+              <div class="note-summary">{n.data.summary.slice(0, 80)}{n.data.summary.length > 80 ? '...' : ''}</div>
             )}
             {n.data.tags && n.data.tags.length > 0 && (
-              <div style="margin-top: 6px; font-size: 0.75em; color: #8b5cf6;">
-                {n.data.tags.map(t => `#${t}`).join(' ')}
-              </div>
+              <div class="note-tags">{n.data.tags.map(t => `#${t}`).join(' ')}</div>
             )}
           </a>
         ))}
