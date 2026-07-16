@@ -1,39 +1,22 @@
 ---
-import { getCollection, render } from 'astro:content'
+import { getCollection } from 'astro:content'
+import Note from '../layouts/Note.astro'
+import Topic from '../layouts/Topic.astro'
 
 export async function getStaticPaths() {
   const notes = await getCollection('notes')
-  return notes.map(note => ({
-    params: { slug: note.id },
-    props: { note },
-  }))
+  return notes.map(note => {
+    const isOverview = note.id.endsWith('/_overview')
+    // _overview 渲染到 /<topic>，普通笔记渲染到 /<topic>/<note>
+    const slug = isOverview ? note.id.replace('/_overview', '') : note.id
+    return {
+      params: { slug },
+      props: { note },
+    }
+  })
 }
 
 const { note } = Astro.props
-const { Content } = await render(note)
-const data = note.data
-const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+const isOverview = note.id.endsWith('/_overview')
 ---
-<!doctype html>
-<html lang="zh">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{data.title || note.id}</title>
-</head>
-<body>
-  <p><a href={base}>← grounds</a></p>
-  <h1>{data.title || note.id}</h1>
-  {data.topic && (
-    <p style="color: #888; font-size: 0.9em;">
-      {data.topic}
-      {data.updated && ` · ${data.updated}`}
-      {data.tags && data.tags.length > 0 && ` · #${data.tags.join(' #')}`}
-    </p>
-  )}
-  {data.summary && <p style="background: #f5f5f5; padding: 8px 12px; border-radius: 4px;">{data.summary}</p>}
-  <article>
-    <Content />
-  </article>
-</body>
-</html>
+{isOverview ? <Topic note={note} /> : <Note note={note} />}
