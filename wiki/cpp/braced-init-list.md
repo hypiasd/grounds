@@ -52,4 +52,4 @@ return vector<int>{it->second, j};
 
 ## 关联
 
-- （暂无关联笔记，cpp 主题首篇）
+- [Value Initialization](value-initialization.md) — braced-init-list 是 `{}` 的语法面（无类型、靠目标类型决定构造），value initialization 是空 `{}` 的语义引擎（值初始化 → 零初始化）
