@@ -394,6 +394,10 @@ img {
   padding: 0 24px;
   justify-content: center;
 }
+/* 显式分配 grid-column，防止 sidebar display:none 时其它栏错位 */
+.note-layout > .sidebar    { grid-column: 1; }
+.note-layout > .note-main  { grid-column: 2; }
+.note-layout > .note-right { grid-column: 3; }
 /* 折叠 sidebar：主内容居中扩展 */
 body.sidebar-hidden .note-layout {
   grid-template-columns: 0 minmax(0, 900px) 200px;
@@ -401,6 +405,13 @@ body.sidebar-hidden .note-layout {
 }
 body.sidebar-hidden .sidebar {
   display: none;
+}
+/* Topic 落地页：2 栏布局（没有右侧 aside），主内容更宽更居中 */
+.note-layout--topic {
+  grid-template-columns: 200px minmax(0, 960px);
+}
+body.sidebar-hidden .note-layout--topic {
+  grid-template-columns: 0 minmax(0, 1100px);
 }
 .note-main {
   max-width: none;

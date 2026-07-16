@@ -97,7 +97,7 @@ export default function Graph({ data, currentSlug, height = 400, mini = false })
   }, [nodes, mini])
 
   if (!data || nodes.length === 0) {
-    return <div style={{ height, background: '#f5f5f5', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888' }}>加载图谱中...</div>
+    return <div style={{ height, background: 'var(--bg-elevated)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>加载图谱中...</div>
   }
 
   const base = typeof window !== 'undefined' ? window.location.pathname.replace(/\/[^/]*$/, '') : '/grounds'
