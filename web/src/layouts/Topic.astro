@@ -2,6 +2,7 @@
 import { getCollection, render } from 'astro:content'
 import type { CollectionEntry } from 'astro:content'
 import Sidebar from '../components/Sidebar.astro'
+import Search from '../components/Search.jsx'
 import '../styles/global.css'
 
 interface Props {
@@ -39,7 +40,7 @@ const topicNotes = allNotes
       <Sidebar currentTopic={topic} />
 
       <main class="note-main">
-        <article>
+        <article data-pagefind-body>
           <Content />
         </article>
 
@@ -61,5 +62,7 @@ const topicNotes = allNotes
     </section>
       </main>
     </div>
+
+  <Search client:idle />
 </body>
 </html>

@@ -5,6 +5,7 @@ import GraphView from '../components/GraphView.astro'
 import Sidebar from '../components/Sidebar.astro'
 import Toc from '../components/Toc.astro'
 import Backlinks from '../components/Backlinks.astro'
+import Search from '../components/Search.jsx'
 import '../styles/global.css'
 
 interface Props {
@@ -58,7 +59,7 @@ const tags = data.tags || []
       </div>
       {data.summary && <div class="note-summary">{data.summary}</div>}
 
-      <article>
+      <article data-pagefind-body>
         <Content />
       </article>
 
@@ -78,5 +79,7 @@ const tags = data.tags || []
       <Backlinks slug={note.id} />
     </aside>
   </div>
+
+  <Search client:idle />
 </body>
 </html>

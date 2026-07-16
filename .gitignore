@@ -15,3 +15,9 @@ __pycache__/
 raw/*
 !raw/.gitkeep
 .playwright-cli/
+
+# 前端工程（web/）
+web/node_modules/
+web/dist/
+web/.astro/
+.superpowers/

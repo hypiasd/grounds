@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content'
 import GraphView from '../components/GraphView.astro'
+import Search from '../components/Search.jsx'
 import '../styles/global.css'
 
 const notes = await getCollection('notes')
@@ -75,5 +76,7 @@ function noteUrl(noteId: string): string {
       </ul>
     </section>
   </main>
+
+  <Search client:idle />
 </body>
 </html>
