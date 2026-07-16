@@ -1,5 +1,6 @@
 ---
 import { getCollection } from 'astro:content'
+import GraphView from '../components/GraphView.astro'
 import '../styles/global.css'
 
 const notes = await getCollection('notes')
@@ -38,8 +39,13 @@ function noteUrl(noteId: string): string {
     <a href={base}>grounds</a>
   </header>
 
-  <main>
+  <main style="max-width: 960px;">
     <p class="home-intro">个人学习笔记 · {notes.filter(n => !n.id.endsWith('/_overview')).length} 篇 · {topics.size} 个主题</p>
+
+    <section class="home-section">
+      <h2>知识图谱</h2>
+      <GraphView height={400} />
+    </section>
 
     <section class="home-section">
       <h2>主题</h2>

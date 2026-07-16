@@ -1,6 +1,7 @@
 ---
 import { getCollection, render } from 'astro:content'
 import type { CollectionEntry } from 'astro:content'
+import GraphView from '../components/GraphView.astro'
 import '../styles/global.css'
 
 interface Props {
@@ -52,6 +53,11 @@ const tags = data.tags || []
     <article>
       <Content />
     </article>
+
+    <section class="home-section">
+      <h2>关联笔记</h2>
+      <GraphView currentSlug={note.id} mini={true} height={200} />
+    </section>
 
     <nav class="prev-next">
       {prev ? <a href={`${base}/${prev.id}`}>← {prev.data.title}</a> : <span />}
