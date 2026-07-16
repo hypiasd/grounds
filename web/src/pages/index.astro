@@ -1,0 +1,26 @@
+---
+import { getCollection } from 'astro:content'
+
+const notes = await getCollection('notes')
+const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+---
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>grounds</title>
+</head>
+<body>
+  <h1>grounds</h1>
+  <p>Phase 1 骨架 · {notes.length} 篇笔记</p>
+  <ul>
+    {notes.map(note => (
+      <li>
+        <a href={`${base}/${note.id}`}>{note.data.title || note.id}</a>
+        {note.data.topic && <span> · {note.data.topic}</span>}
+      </li>
+    ))}
+  </ul>
+</body>
+</html>
