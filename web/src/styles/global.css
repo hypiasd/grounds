@@ -387,8 +387,8 @@ img {
 /* ========== 三栏布局 ========== */
 .note-layout {
   display: grid;
-  grid-template-columns: 200px minmax(0, 760px) 200px;
-  gap: 28px;
+  grid-template-columns: 170px minmax(0, 880px) 170px;
+  gap: 20px;
   max-width: 1280px;
   margin: 32px auto;
   padding: 0 24px;
@@ -400,18 +400,18 @@ img {
 .note-layout > .note-right { grid-column: 3; }
 /* 折叠 sidebar：主内容居中扩展 */
 body.sidebar-hidden .note-layout {
-  grid-template-columns: 0 minmax(0, 900px) 200px;
-  gap: 0 28px;
+  grid-template-columns: 0 minmax(0, 1020px) 170px;
+  gap: 0 20px;
 }
 body.sidebar-hidden .sidebar {
   display: none;
 }
 /* Topic 落地页：2 栏布局（没有右侧 aside），主内容更宽更居中 */
 .note-layout--topic {
-  grid-template-columns: 200px minmax(0, 960px);
+  grid-template-columns: 170px minmax(0, 1080px);
 }
 body.sidebar-hidden .note-layout--topic {
-  grid-template-columns: 0 minmax(0, 1100px);
+  grid-template-columns: 0 minmax(0, 1220px);
 }
 .note-main {
   max-width: none;
@@ -514,8 +514,9 @@ body.sidebar-hidden .note-layout--topic {
 
 /* ========== 三栏响应式 ========== */
 @media (max-width: 1024px) {
-  .note-layout {
-    grid-template-columns: 200px minmax(0, 1fr);
+  .note-layout,
+  .note-layout--topic {
+    grid-template-columns: 170px minmax(0, 1fr);
   }
   .note-right {
     display: none;
