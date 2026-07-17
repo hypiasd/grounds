@@ -52,14 +52,14 @@ sources:
 
 | 字段 | 必填 | 说明 |
 |------|------|------|
-| `title` | ✅ | 概念名，简洁、可扫 |
+| `title` | ✅ | 概念名，简洁、可扫。含 `:` `"` `#` 等特殊字符时整个值用双引号包裹（如 `title: "FlashAttention: ..."`），避免 YAML 解析失败 |
 | `topic` | ✅ | 所属主题目录名（小写中划线） |
 | `tags` | ✅ | YAML 数组，不加 `#` 前缀。用于跨主题发现——一篇笔记可以属于 `deep-learning` 主题但打上 `regularization` 和 `practical-tips` 标签 |
 | `summary` | ✅ | 2-3 句话，包含核心定义 + 一个类比。这是给 agent 做 query 时快速扫描用的——agent 读 summaries 就能定位相关笔记，无需加载全文 |
 | `description` | 可选 | 给网站/SEO 用的简短描述。未填时 Quartz 会 fallback 到 `summary` |
 | `created` | ✅ | 创建日期 |
 | `updated` | ✅ | 最后修改日期 |
-| `sources` | 可选 | 关联的 raw 资料路径，有就填 |
+| `sources` | 可选 | 关联的 raw 资料路径，有就填。注意：`raw/` 受 `.gitignore` 保护不进 git，跨机器需重新下载/clone，sources 链接仅本机有效 |
 | `status` | 可选 | `draft`（草稿，lint 会提醒补完）或省略（默认视为完成） |
 
 ---

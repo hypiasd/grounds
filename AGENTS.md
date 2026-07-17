@@ -10,7 +10,7 @@
 ## 铁律
 
 1. **绝不编造**：不确定的内容明确说"我不确定"，不要假装确定。
-2. **改动即 commit + push**：对 `wiki/`、`paper/`、`video/`、`raw/wiki/`、`raw/papers/` 的改动，立即 `git commit` 然后 `git push`。`raw/videos/` 下的 `sources/`、`figures/`、`ocr/` 中间产物不进 git（见 `.gitignore`），只追踪最终复制到 `video/` 的成品。commit message 格式：`<skill> <topic>: <一句话>`（如 `learn deep-learning: 注意力机制笔记`）。video skill 无 topic 时可省略（如 `bilibili-render-pdf: <视频标题>`）；lint 修复可省略 topic（如 `lint: 修复孤儿页`）。
+2. **改动即 commit + push**：对 `wiki/`、`paper/`、`video/` 的改动，立即 `git commit` 然后 `git push`。`raw/` 下所有内容（`raw/wiki/`、`raw/papers/`、`raw/videos/`）受 `.gitignore` 保护**不进 git**——笔记里的 `raw/` 链接视为本机参考资料，跨机器需重新下载/clone（论文 PDF 可从 arxiv 重下，源码快照可重新 clone）。`raw/videos/` 下的 `sources/`、`figures/`、`ocr/` 中间产物同样不进 git，只追踪最终复制到 `video/` 的成品。commit message 格式：`<skill> <topic>: <一句话>`（如 `learn deep-learning: 注意力机制笔记`）。video skill 无 topic 时可省略（如 `bilibili-render-pdf: <视频标题>`）；lint 修复可省略 topic（如 `lint: 修复孤儿页`）。
 3. **互链防孤儿**：`wiki/` 内笔记之间、笔记与 `raw/wiki/` 原始资料之间用标准 Markdown 相对路径互链（如 `[Dropout](../deep-learning/dropout.md)`、`[vLLM 源码](../../raw/wiki/vllm/vllm/v1/engine/llm_engine.py)`）。`paper/` 和 `video/` **不参与互链**。
 4. **主题自主生长**：列 `wiki/`（或 `paper/`）即发现所有主题；无合适主题时新建 `<topic>/` 目录，新建主题必须同时创建 `index.md`。
 

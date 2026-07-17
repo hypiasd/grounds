@@ -378,8 +378,16 @@ mkdir -p "video/<视频标题>"
 cp "raw/videos/<视频标题>/<basename>.tex" "video/<视频标题>/"
 cp "raw/videos/<视频标题>/<basename>.pdf" "video/<视频标题>/"
 cp "raw/videos/<视频标题>/index.md" "video/<视频标题>/"
-# 在 video/ 下的 .tex 顶部加注释：
-# % 源工作目录：../../raw/videos/<视频标题>/，如需重新编译请在该目录下执行 xelatex
+
+# 在 video/ 下的 .tex 顶部加注释说明源工作目录（用 Python heredoc 安全插入）
+python3 -c "
+path = 'video/<视频标题>/<basename>.tex'
+with open(path) as f: content = f.read()
+comment = '% 源工作目录：../../raw/videos/<视频标题>/，如需重新编译请在该目录下执行 xelatex\n'
+if not content.startswith(comment):
+    with open(path, 'w') as f: f.write(comment + content)
+print('注释已插入')
+"
 ```
 
 提交：

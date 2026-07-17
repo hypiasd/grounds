@@ -61,11 +61,11 @@ paper-learn 分六个阶段：**准备 → 论文全景 → 分章节深入 → 
 3. **提取 metadata**：标题 / 作者 / venue / 年份 / arxiv_id。
    - **arxiv 论文**（推荐）：查 arxiv API 获取结构化 metadata（venue 难自动提取，需手动从 PDF 首页读）：
      ```bash
-     # 替换 <arxiv_id>，返回 XML 含 title/authors/abstract/published
-     curl -s "http://export.arxiv.org/api/query?id_list=<arxiv_id>" | grep -E '<title>|<name>|<published>'
+     # 必须用 https:// + -L 跟随重定向，http:// 会静默返回 0 字节
+     curl -sL "https://export.arxiv.org/api/query?id_list=<arxiv_id>" | grep -E '<title>|<name>|<published>'
      ```
    - **非 arxiv**：用 `pdfinfo raw/papers/<file>.pdf` 提取 PDF 元数据（标题/作者可能为空）；标题/作者手动从 PDF 首页读
-   - **venue 难自动提取**：从 PDF 首页/footnote 找会议标识（如 "Published in NeurIPS 2024"），找不到时填 N/A，不要臆造
+   - **venue 难自动提取**：arxiv v2+ 版本通常无 venue 标识，从 PDF 首页/footnote 找会议标识（如 "Published in NeurIPS 2024"）；找不到时用 WebSearch 搜 `"<论文标题>" NeurIPS OR ICML OR ICLR site:proceedings.neurips.cc` 确认；仍找不到时填 N/A，不要臆造
 
 ---
 
@@ -130,8 +130,8 @@ paper-learn 分六个阶段：**准备 → 论文全景 → 分章节深入 → 
 
 5. **（可选）论文-代码对照**（借鉴 paper-analyzer）
    - 只在用户选了"深读 Method"或明确要复现时启用，不强制
-   - **搜官方/第三方实现**：用 WebSearch 搜 `"<论文标题>" github` / `"<方法名>" github` / `"<第一作者> github"`；或用 `gh search repos "<论文短标题>"`（需 gh CLI 已登录）
-   - **clone 位置**：clone 到 `raw/papers/<arxiv-id>-code/`（属原始资料，不进 git，仅供本笔记对照）
+   - **搜官方/第三方实现**：用 WebSearch 搜 `"<论文标题>" github` / `"<方法名>" github` / `"<第一作者> github"`；或用 `gh search repos "<论文短标题>"`（需 gh CLI 已登录——未登录或缺失时改用 WebSearch，或直接读论文 footnote/README 找官方仓库链接）
+   - **clone 位置**：clone 到 `raw/papers/<arxiv-id>-code/`（受 .gitignore 保护不进 git，仅供本笔记对照）
    - **定位关键文件**：用 Grep 搜方法名/类名（如 `class Attention`、`def forward`、关键算子名）找到对应论文式 (3) 的代码位置
    - **对照记录**：把对应关系写入笔记，如"论文式 (3) → `model.py:45` 的 `forward` 方法"——便于复现时追踪
    - 找不到开源实现时，明说"未找到官方实现"，不臆造代码细节
@@ -202,7 +202,11 @@ paper-learn 分六个阶段：**准备 → 论文全景 → 分章节深入 → 
 
 ## paper 笔记模板
 
-frontmatter 用 conventions 基础字段（不扩展），论文专属信息放正文：
+frontmatter 用 conventions 基础字段（不扩展），论文专属信息放正文。`sources` 是 paper 笔记专属字段，指向 `raw/papers/` 下的源 PDF（注意：`raw/papers/` 受 .gitignore 保护不进 git，跨机器需重新下载 PDF，sources 链接仅本机有效）。
+
+**YAML 特殊字符规则**（论文 title 常含冒号，必须用引号包裹）：
+- `title` 含 `:` `"` `'` `#` 等特殊字符时，整个值用双引号包裹（如 `title: "FlashAttention: Fast and ..."`）
+- `summary` 含双引号时，整个值用双引号包裹并避免内部双引号，或改用单引号
 
 ```markdown
 ---
@@ -315,6 +319,8 @@ updated: YYYY-MM-DD
 ```
 
 每次该主题新增或变更论文笔记，必须同步更新本文件。`index.md` 缺 frontmatter 会导致 Quartz folder note 渲染异常（同 wiki 规范）。
+
+> 新建 topic 只有一篇论文时，"阅读脉络"段可写"后续待补"或描述该论文在领域中的位置；"包含论文"列表只有一条是正常的，无需硬凑。
 
 ---
 

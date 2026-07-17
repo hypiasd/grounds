@@ -1,8 +1,8 @@
 ---
-title: FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness
+title: "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness"
 topic: llm
 tags: [attention, gpu-optimization, io-aware, systems, long-context]
-summary: FlashAttention 把"IO-aware"思想引入 attention 计算——通过 tiling 在 SRAM 内分块计算 + 反向重算避免 N² 中间矩阵落地 HBM，把精确 attention 的 HBM 访问从 Θ(Nd+N²) 降到 Θ(N²d²/M)，wall-clock 加速 2-3x 且内存省 10-20x。是 LLM 训练/推理的奠基性系统优化工作。
+summary: "FlashAttention 把 IO-aware 思想引入 attention 计算——通过 tiling 在 SRAM 内分块计算 + 反向重算避免 N² 中间矩阵落地 HBM，把精确 attention 的 HBM 访问从 Θ(Nd+N²) 降到 Θ(N²d²/M)，wall-clock 加速 2-3x 且内存省 10-20x。是 LLM 训练/推理的奠基性系统优化工作。"
 created: 2026-07-18
 updated: 2026-07-18
 sources:
