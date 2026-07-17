@@ -36,4 +36,9 @@ video/**/*.srt
 web/node_modules/
 web/dist/
 web/.astro/
+
+# Quartz 前端（quartz/）
+quartz/node_modules/
+quartz/public/
+quartz/.quartz/
 .superpowers/
