@@ -7,7 +7,6 @@ created: 2026-07-15
 updated: 2026-07-15
 ---
 
-# unordered_set
 
 ## TL;DR
 

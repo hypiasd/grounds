@@ -7,7 +7,6 @@ created: 2026-07-14
 updated: 2026-07-14
 ---
 
-# vLLM V1 架构与 PagedAttention
 
 ## TL;DR
 

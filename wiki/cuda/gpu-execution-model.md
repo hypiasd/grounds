@@ -7,7 +7,6 @@ created: 2026-07-14
 updated: 2026-07-17
 ---
 
-# GPU 执行模型
 
 ## TL;DR
 

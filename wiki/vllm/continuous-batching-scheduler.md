@@ -9,7 +9,6 @@ sources:
   - ../../raw/vllm/vllm/v1/core/sched/scheduler.py
 ---
 
-# Continuous Batching 与 vLLM 调度器
 
 ## TL;DR
 

@@ -7,7 +7,6 @@ created: 2026-07-17
 updated: 2026-07-17
 ---
 
-# GPU 浮点格式
 
 ## TL;DR
 

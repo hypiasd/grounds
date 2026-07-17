@@ -7,8 +7,6 @@ created: 2026-07-14
 updated: 2026-07-14
 ---
 
-# vLLM 总览
-
 ## 这个主题是什么 / 学习目标
 
 vLLM 是一个高吞吐量的 LLM 推理服务引擎。核心创新是 PagedAttention（KV cache 分页管理）和 Continuous Batching（混合 prefill/decode 调度）。2025 年起 V1 架构全面替代 V0，调度器、KV cache 管理、引擎核心循环均重构。

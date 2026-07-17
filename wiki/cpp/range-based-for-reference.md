@@ -7,7 +7,6 @@ created: 2026-07-14
 updated: 2026-07-14
 ---
 
-# Range-Based For with auto&
 
 ## TL;DR
 

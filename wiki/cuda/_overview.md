@@ -1,4 +1,11 @@
-# cuda 总览
+---
+title: cuda 总览
+topic: cuda
+tags: [cuda, gpu]
+summary: GPU 编程基础与工具栈。
+created: 2026-07-17
+updated: 2026-07-17
+---
 
 ## 这个主题是什么 / 学习目标
 

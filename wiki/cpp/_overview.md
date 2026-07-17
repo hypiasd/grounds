@@ -1,4 +1,11 @@
-# cpp 总览
+---
+title: cpp 总览
+topic: cpp
+tags: [cpp]
+summary: C++ 语言层面的语法特性、惯用法和容易踩坑的细节。
+created: 2026-07-17
+updated: 2026-07-17
+---
 
 ## 这个主题是什么 / 学习目标
 
