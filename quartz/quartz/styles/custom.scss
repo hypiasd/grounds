@@ -25,9 +25,9 @@
 }
 
 /* 限制正文最大宽度，避免大屏下中间过宽把右侧栏挤得难看 */
-@media all and (min-width: 1480px) {
+@media all and (min-width: 1400px) {
   .center > article {
-    max-width: 900px;
+    max-width: 800px;
     margin-left: auto;
     margin-right: auto;
   }
