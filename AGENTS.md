@@ -12,7 +12,7 @@
 1. **绝不编造**：不确定的内容明确说"我不确定"，不要假装确定。
 2. **改动即 commit + push**：每次对 `wiki/`、`paper/`、`video/` 或 `raw/` 的改动，立即 `git commit` 然后 `git push`。commit message 格式：`<skill> <topic>: <一句话>`（如 `learn deep-learning: 注意力机制笔记`）。
 3. **互链防孤儿**：`wiki/` 内笔记之间、笔记与 `raw/wiki/` 之间用标准 Markdown 相对路径互链（如 `[Dropout](../deep-learning/dropout.md)`）。`paper/` 和 `video/` **不参与互链**。
-4. **主题自主生长**：列 `wiki/`（或 `paper/`）即发现所有主题；无合适主题时新建 `<topic>/` 目录，新建主题必须同时创建 `_overview.md`。
+4. **主题自主生长**：列 `wiki/`（或 `paper/`）即发现所有主题；无合适主题时新建 `<topic>/` 目录，新建主题必须同时创建 `index.md`。
 
 ---
 
@@ -25,7 +25,7 @@ grounds/
 ├── README.md
 ├── wiki/                  # 学习笔记（learn/capture/query/lint 产出）
 │   └── <topic>/
-│       ├── _overview.md
+│       ├── index.md
 │       └── <note>.md
 ├── paper/                 # 论文笔记（paper-learn 产出）
 │   └── <topic>/
@@ -92,7 +92,7 @@ grounds/
 
 **触发**："体检"、"lint"、"检查仓库"
 
-**流程**：扫描（孤儿页/断链/矛盾/过时/缺 _overview/模板合规/Topic 健康度/草稿提醒）→ 报告清单 → 用户决定是否修复
+**流程**：扫描（孤儿页/断链/矛盾/过时/缺 index.md/模板合规/Topic 健康度/草稿提醒）→ 报告清单 → 用户决定是否修复
 
 **注意**：默认只报告不修改。**只扫 `wiki/`，不扫 `paper/` 和 `video/`**——后两者结构不同，不套用 wiki 的 lint 规则。
 
@@ -163,7 +163,7 @@ paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `con
 
 - **不读 conventions 就写笔记** → frontmatter 缺字段。写 wiki 笔记前必须 Read `.agents/conventions.md`。
 - **不读 SKILL.md 就执行** → 遗漏关键步骤（如 learn 的检验、答疑循环、外部资料处理；capture 的面经搜索；paper-learn 的论文-代码对照）。触发后必须先 Read 对应 SKILL.md。
-- **忘记更新 _overview.md** → wiki 笔记变孤儿页。
+- **忘记更新 index.md** → wiki 笔记变孤儿页。
 - **讲完忘 commit + push** → 下次打开仓库状态不一致。commit 之后不 push，换个机器就看不到。
 - **把 query 当 learn 用** → 用户问已有知识时应该查笔记作答。
 - **learn 讲完跳过检验** → 检验是固定阶段，讲完必须主动出题。
@@ -181,4 +181,5 @@ paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `con
 - `paper/` 笔记按主题分目录，但**不存在合并拆分问题**——一篇论文一个 md 文件，文件名即论文标题，论文不会移动。
 - `video/` 只追踪成品 `.tex` + `.pdf`；`raw/videos/` 下的 `sources/`、`figures/`、`ocr/` 中间产物不进 git（见 `.gitignore`）。
 - `lint` 只扫 `wiki/`，不扫 `paper/` 和 `video/`。
+- `wiki/<topic>/index.md` 是 Quartz 的 folder note，访问 `/wiki/<topic>/` 时直接渲染。
 - 互链只管 `wiki/`：wiki 笔记之间互链，wiki 笔记可引用 `raw/wiki/` 资料。`paper/` 和 `video/` 不参与互链（paper 笔记可单向引用 wiki，但不建立反链）。

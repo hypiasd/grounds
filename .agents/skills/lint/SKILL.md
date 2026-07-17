@@ -16,20 +16,20 @@ allowed-tools: Read, Write, Edit, Bash
 
 ## 流程
 1. **扫描（只读）**：
-   - **孤儿页**：`wiki/` 下无任何入链、也不被 `_overview.md` 引用的笔记。
+   - **孤儿页**：`wiki/` 下无任何入链、也不被 `index.md` 引用的笔记。
    - **缺失链接**：笔记里链接指向不存在的文件。
    - **矛盾说法**：不同笔记对同一概念描述冲突。
    - **过时内容**：引用了被新资料淘汰的说法（对照 `updated` 日期）。
-   - **索引覆盖**：列 `wiki/` 核对每个 `<topic>/` 是否都有 `_overview.md`。
+   - **索引覆盖**：列 `wiki/` 核对每个 `<topic>/` 是否都有 `index.md`。
    - **模板合规**：frontmatter 是否含 `title/topic/tags/summary/created/updated`；标题是否是简洁的概念名（而非"XX 笔记"或过长的句子）；链接是否说明了关系。
    - **草稿提醒**：`status: draft` 且 `updated` 超过 30 天的笔记，提醒用户补完或删除。
    - **Topic 健康度**：
      - 单篇 topic（目录下只有 1 篇笔记）→ 建议合并到相关 topic 或加更多笔记
      - 膨胀 topic（目录下超过 15 篇笔记）→ 建议按子方向拆分
-     - 空 topic（有 `_overview.md` 但无笔记）→ 建议删除目录或补内容
+     - 空 topic（有 `index.md` 但无笔记）→ 建议删除目录或补内容
      - 标签与 topic 不一致：笔记的 `topic` 字段指向 A 但实际存放在 B 目录 → 提醒修正
 2. **报告**：列出清单给用户，**先不自动改**，让用户决定。
-3. **若授权修复**：更新 `_overview.md`、修正 frontmatter、修复断链等；`git add -A && git commit -m "lint: 修复 <问题摘要>"`。
+3. **若授权修复**：更新 `index.md`、修正 frontmatter、修复断链等；`git add -A && git commit -m "lint: 修复 <问题摘要>"`。
 4. **校验（必做）**：修复后确认链接已修、`wc -l` 确认文件非空、`git status` 符合预期。
 
 ## 报告格式示例
@@ -38,12 +38,12 @@ allowed-tools: Read, Write, Edit, Bash
 ## Lint 报告
 
 ### 孤儿页（0 入链）
-- wiki/llm/forgotten-note.md — 建议：加入 _overview.md 或被其他笔记链接
+- wiki/llm/forgotten-note.md — 建议：加入 index.md 或被其他笔记链接
 
 ### 断链
 - wiki/llm/attention.md 引用了 [transformer](transformer.md) — 目标不存在
 
-### 缺 _overview.md
+### 缺 index.md
 - wiki/reinforcement-learning/ — 建议新建
 
 ### 模板合规
@@ -55,7 +55,7 @@ allowed-tools: Read, Write, Edit, Bash
 ### Topic 健康度
 - wiki/optimization/ — 仅 1 篇笔记，建议合并到 deep-learning/ 或补充更多笔记
 - wiki/deep-learning/ — 18 篇笔记，建议按子方向拆分（如 optimization、regularization、architectures）
-- wiki/empty-topic/ — 有 _overview 但无笔记，建议删除目录或补内容
+- wiki/empty-topic/ — 有 index.md 但无笔记，建议删除目录或补内容
 - wiki/dl/dropout.md — topic 字段写的是 `deep-learning` 但文件在 `dl/` 目录下
 ```
 
@@ -66,5 +66,5 @@ allowed-tools: Read, Write, Edit, Bash
 - **绝不删历史 commit**；删除用冷归档（`.agents/archive/`）——保留回滚可能。
 
 ## 注意
-- 冷归档：确认废弃的笔记移入 `.agents/archive/`，并在原 `_overview.md` 注明。
+- 冷归档：确认废弃的笔记移入 `.agents/archive/`，并在原 `index.md` 注明。
 - 关联：`AGENTS.md`、`.agents/conventions.md`

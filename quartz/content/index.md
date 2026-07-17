@@ -8,13 +8,13 @@ tags: []
 
 ## 主题
 
-- [C++](wiki/cpp/_overview) — 语言特性、惯用法与踩坑记录
-- [Algorithms](wiki/algorithms/_overview) — 算法题解与思维方法
-- [CUDA](wiki/cuda/_overview) — GPU 编程与推理优化
-- [vLLM](wiki/vllm/_overview) — 大模型推理引擎源码学习
+- [C++](wiki/cpp/) — 语言特性、惯用法与踩坑记录
+- [Algorithms](wiki/algorithms/) — 算法题解与思维方法
+- [CUDA](wiki/cuda/) — GPU 编程与推理优化
+- [vLLM](wiki/vllm/) — 大模型推理引擎源码学习
 
 ## 分区
 
-- [wiki](wiki/cpp/_overview) — 主题化学习笔记
-- [paper](paper/_overview) — 论文阅读笔记
-- [video](video/_overview) — 视频学习笔记
+- [wiki](wiki/cpp/) — 主题化学习笔记
+- [paper](paper/) — 论文阅读笔记
+- [video](video/) — 视频学习笔记

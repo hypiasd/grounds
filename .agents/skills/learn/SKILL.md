@@ -14,7 +14,7 @@ allowed-tools: Read, Write, Edit, Bash
 
 ## 目标（完成时仓库应处于的状态）
 - 用户对该概念有**全局认知**（知道它是什么、为什么存在、有哪些子方向、和什么相关），并能**在自己选择的方向上有深入理解**。
-- 若用户认可沉淀：仓库新增/更新一篇 `wiki/<topic>/<note>.md`，对应 `_overview.md` 已同步，且已 `git commit && git push`。
+- 若用户认可沉淀：仓库新增/更新一篇 `wiki/<topic>/<note>.md`，对应 `index.md` 已同步，且已 `git commit && git push`。
 
 ## 流程
 
@@ -151,8 +151,8 @@ learn 分五个阶段：**查仓库 → 全景概览 → 选方向深入 → 检
 
 1. **判断是否值得沉淀**：对照"好笔记"标准——有类比、有误区、有自己的话。
 2. 若值得 → 问用户"要沉淀成笔记吗？"。用户确认后：
-   - **新建模式**：列 `wiki/` 判断主题（沿用或新建，新建须带 `_overview.md`）→ 读 `.agents/conventions.md` → 新建 `<note>.md` → 更新 `_overview.md`。
-   - **更新模式**：读已有笔记 → 将新内容融入现有结构 → 刷新 `updated` 日期 → 更新 `_overview.md`。
+   - **新建模式**：列 `wiki/` 判断主题（沿用或新建，新建须带 `index.md`）→ 读 `.agents/conventions.md` → 新建 `<note>.md` → 更新 `index.md`。
+   - **更新模式**：读已有笔记 → 将新内容融入现有结构 → 刷新 `updated` 日期 → 更新 `index.md`。
    - **关键原则**：同一概念永远只有一篇笔记。两次学 Dropout 是一篇笔记的两次迭代。
 3. **校验（必做）**：`wc -l <note.md>` 确认非空；确认 frontmatter 完整；`git status` 确认改动符合预期；检查笔记内链接目标存在。
 4. **提交**：`git add -A && git commit -m "learn <topic>: <一句话>"`。
