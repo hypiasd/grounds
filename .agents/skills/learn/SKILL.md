@@ -42,9 +42,9 @@ learn 分五个阶段：**查仓库 → 全景概览 → 选方向深入 → 检
 
 **三、外部资料（按需）：**
 
-- **用户已手动放入 `raw/`** → 直接用。
-- **用户提供 URL/仓库/视频** → 下载或 clone 到 `raw/`（文件名小写中划线）。
-- **用户只给了一个主题名** → 可用 Tavily 搜参考文章，但不强制。
+- **用户已手动放入 `raw/wiki/`** → 直接用。
+- **用户提供 URL/仓库/视频** → 下载或 clone 到 `raw/wiki/<来源名>/`（文件名小写中划线）。
+- **用户只给了一个主题名** → 可用 Exa 搜参考文章（`mcporter call 'exa.web_search_exa(query: "...", numResults: 5)'`），但不强制。
 
 ---
 
@@ -152,10 +152,10 @@ learn 分五个阶段：**查仓库 → 全景概览 → 选方向深入 → 检
 1. **判断是否值得沉淀**：对照"好笔记"标准——有类比、有误区、有自己的话。
 2. 若值得 → 问用户"要沉淀成笔记吗？"。用户确认后：
    - **新建模式**：列 `wiki/` 判断主题（沿用或新建，新建须带 `index.md`）→ 读 `.agents/conventions.md` → 新建 `<note>.md` → 更新 `index.md`。
-   - **更新模式**：读已有笔记 → 将新内容融入现有结构 → 刷新 `updated` 日期 → 更新 `index.md`。
+   - **更新模式**：读 `.agents/conventions.md` → 读已有笔记 → 将新内容融入现有结构 → 刷新 `updated` 日期 → 更新 `index.md`。
    - **关键原则**：同一概念永远只有一篇笔记。两次学 Dropout 是一篇笔记的两次迭代。
 3. **校验（必做）**：`wc -l <note.md>` 确认非空；确认 frontmatter 完整；`git status` 确认改动符合预期；检查笔记内链接目标存在。
-4. **提交**：`git add -A && git commit -m "learn <topic>: <一句话>"`。
+4. **提交**：`git add -A && git commit -m "learn <topic>: <一句话>" && git push`。
 
 ---
 

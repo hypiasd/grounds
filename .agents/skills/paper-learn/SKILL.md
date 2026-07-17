@@ -32,7 +32,7 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 
 ## 流程
 
-paper-learn 分五个阶段：**准备 → 论文全景 → 分章节深入 → 检验 → 沉淀**。
+paper-learn 分六个阶段：**准备 → 论文全景 → 分章节深入 → 检验 → 补漏 → 沉淀**。
 
 ### 阶段零：准备
 
@@ -195,7 +195,8 @@ tags: [tag1, tag2, tag3]
 summary: <2-3 句话概括核心贡献，给 query 扫描用>
 created: 2026-07-17
 updated: 2026-07-17
-source: ../../raw/papers/<arxiv-id 或短标题>.pdf
+sources:
+  - ../../raw/papers/<arxiv-id 或短标题>.pdf
 ---
 
 # <论文标题>
@@ -208,7 +209,7 @@ source: ../../raw/papers/<arxiv-id 或短标题>.pdf
 
 - **作者**：[作者列表，第一作者 et al. 即可]
 - **Venue**：[会议/期刊名]  **年份**：[年份]  **arxiv**：[arxiv_id 或 N/A]
-- **源文件**：[PDF](../../raw/papers/<arxiv-id>.pdf)
+- **源文件**：[PDF](../../raw/papers/<arxiv-id 或短标题>.pdf)
 - **论文类型**：[Empirical / Theoretical / Survey / Systems / Position]
 
 ## 研究背景与动机

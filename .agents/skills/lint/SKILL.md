@@ -12,7 +12,7 @@ allowed-tools: Read, Write, Edit, Bash
 - 用户想定期维护健康度。
 
 ## 目标（完成时仓库应处于的状态）
-- 产出问题清单（位置 / 类型 / 建议修复）；若用户授权，已修复并 `git commit`；现有内容不被破坏。
+- 产出问题清单（位置 / 类型 / 建议修复）；若用户授权，已修复并 `git commit && git push`；现有内容不被破坏。
 
 ## 流程
 1. **扫描（只读）**：
@@ -29,7 +29,7 @@ allowed-tools: Read, Write, Edit, Bash
      - 空 topic（有 `index.md` 但无笔记）→ 建议删除目录或补内容
      - 标签与 topic 不一致：笔记的 `topic` 字段指向 A 但实际存放在 B 目录 → 提醒修正
 2. **报告**：列出清单给用户，**先不自动改**，让用户决定。
-3. **若授权修复**：更新 `index.md`、修正 frontmatter、修复断链等；`git add -A && git commit -m "lint: 修复 <问题摘要>"`。
+3. **若授权修复**：更新 `index.md`、修正 frontmatter、修复断链等；`git add -A && git commit -m "lint: 修复 <问题摘要>" && git push`。
 4. **校验（必做）**：修复后确认链接已修、`wc -l` 确认文件非空、`git status` 符合预期。
 
 ## 报告格式示例

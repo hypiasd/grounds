@@ -47,8 +47,9 @@ def classify_frame(ocr_text: str, char_count: int) -> tuple:
 
     lines = [l for l in ocr_text.split('\n') if l.strip()]
     # code detection: significant indentation + keywords, but not markdown headings
+    # 注意 kw 列表已含尾空格，下面拼接 kw + ' ' 会变双空格——这里 kw 去掉尾空格
     code_lines = sum(1 for l in lines if (l.startswith(('    ', '\t')) and len(l) > 4)
-                     or any(l.startswith(kw + ' ') for kw in ['def ', 'class ', 'import ', 'from ']))
+                     or any(l.startswith(kw + ' ') for kw in ['def', 'class', 'import', 'from']))
     if code_lines >= 2:
         return "code", min(5, max(3, char_count // 60))
 
@@ -76,7 +77,7 @@ def assess_frame(path: str, client) -> dict:
         temperature=0.0,
         max_tokens=1024,
     )
-    raw_text = resp.choices[0].message.content
+    raw_text = resp.choices[0].message.content or ""
     ocr_text = clean_ocr_text(raw_text)
     char_count = len(re.sub(r'[\s\n]', '', ocr_text))
 

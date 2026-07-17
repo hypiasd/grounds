@@ -145,11 +145,11 @@ raw/videos/<视频标题>/
 YouTube 通常有自动字幕，手动字幕优先。
 
 ```bash
-yt-dlp --write-subs --sub-langs "zh-Hans,zh-CN,zh,en,auto-generated" --convert-subs srt \
+yt-dlp --write-subs --write-auto-subs --sub-langs "zh-Hans,zh-CN,zh,en" --convert-subs srt \
   --skip-download -o "%(title)s.%(ext)s" "<URL>"
 ```
 
-无 `.srt` 文件时走 Priority 2。
+说明：`--write-auto-subs` 单独启用自动字幕（YouTube 字幕语言码不含 `auto-generated`，自动字幕必须用此标志）。无 `.srt` 文件时走 Priority 2。
 
 #### Priority 2: Whisper 语音转文字 —— 目标 ≤ 5 分钟总耗时
 

@@ -114,14 +114,16 @@ def strip_latex_wrappers(tex: str) -> str:
 
 
 def strip_comments(tex: str) -> str:
-    """删除 LaTeX 注释行（% 开头的行，保护 \\% 转义）."""
+    """删除 LaTeX 注释：整行注释 + 行内注释（保护 \\% 转义）."""
     lines = tex.split("\n")
     result = []
     for line in lines:
         stripped = line.lstrip()
-        # 跳过纯注释行（%% 或 %，但不是 \%）
+        # 跳过纯注释行（% 开头，但不是 \%）
         if stripped.startswith("%") and not stripped.startswith("\\%"):
             continue
+        # 删除行内注释（未转义的 % 及之后内容，保护 \%）
+        line = re.sub(r"(?<!\\)%.*$", "", line)
         result.append(line)
     return "\n".join(result)
 
@@ -131,7 +133,14 @@ def strip_comments(tex: str) -> str:
 # ---------------------------------------------------------------------------
 
 def convert_lists(tex: str) -> str:
-    """itemize → 无序列表，enumerate → 有序列表."""
+    """itemize → 无序列表，enumerate → 有序列表.
+
+    处理嵌套：先递归处理最内层（无子 itemize/enumerate 的），转换并按 2 空格缩进；
+    再逐层向外。这样外层 item 看到内层已转换的 "- ..." 行时，会给它们加缩进。
+    """
+    def has_nested_list(content: str) -> bool:
+        return bool(re.search(r"\\begin\{(itemize|enumerate)\}", content))
+
     def split_items(content: str) -> list[str]:
         items = re.split(r"\\item\b", content)
         return [item.strip() for item in items if item.strip()]
@@ -139,19 +148,44 @@ def convert_lists(tex: str) -> str:
     def itemize_replacer(match):
         content = match.group(1)
         items = split_items(content)
-        return "\n" + "\n".join(f"- {item}" for item in items) + "\n"
+        out_lines = []
+        for item in items:
+            item_lines = item.split("\n")
+            # 第一行作为 item 主体，后续行（已转换的嵌套 "- ..."）保留缩进
+            first = item_lines[0].strip()
+            out_lines.append(f"- {first}")
+            for ln in item_lines[1:]:
+                if ln.strip():
+                    out_lines.append("  " + ln.lstrip())
+        return "\n" + "\n".join(out_lines) + "\n"
 
     def enumerate_replacer(match):
         content = match.group(1)
         items = split_items(content)
-        return "\n" + "\n".join(f"{i+1}. {item}" for i, item in enumerate(items)) + "\n"
+        out_lines = []
+        for i, item in enumerate(items):
+            item_lines = item.split("\n")
+            first = item_lines[0].strip()
+            out_lines.append(f"{i+1}. {first}")
+            for ln in item_lines[1:]:
+                if ln.strip():
+                    out_lines.append("  " + ln.lstrip())
+        return "\n" + "\n".join(out_lines) + "\n"
 
-    # 循环处理嵌套（从内到外，先处理最内层的 itemize/enumerate）
-    prev = None
-    while prev != tex:
-        prev = tex
-        tex = re.sub(r"\\begin\{itemize\}(.*?)\\end\{itemize\}", itemize_replacer, tex, flags=re.DOTALL)
-        tex = re.sub(r"\\begin\{enumerate\}(.*?)\\end\{enumerate\}", enumerate_replacer, tex, flags=re.DOTALL)
+    # 只处理一次最内层（无嵌套子列表的 itemize/enumerate）
+    # 循环上限防止死循环
+    for _ in range(10):
+        new_tex = re.sub(
+            r"\\begin\{itemize\}((?:(?!\\begin\{itemize\}|\\begin\{enumerate\}).)*?)\\end\{itemize\}",
+            itemize_replacer, tex, flags=re.DOTALL,
+        )
+        new_tex = re.sub(
+            r"\\begin\{enumerate\}((?:(?!\\begin\{itemize\}|\\begin\{enumerate\}).)*?)\\end\{enumerate\}",
+            enumerate_replacer, new_tex, flags=re.DOTALL,
+        )
+        if new_tex == tex:
+            break
+        tex = new_tex
     return tex
 
 
@@ -414,6 +448,7 @@ _LATEX_SYMBOLS = {
     r"\#": "#",
     r"\&": "&",
     r"\%": "%",
+    r"\$": "$",
     r"\_": "_",
     r"\{": "{",
     r"\}": "}",
@@ -421,9 +456,25 @@ _LATEX_SYMBOLS = {
 
 
 def convert_symbols(tex: str) -> str:
-    """把常见 LaTeX 符号命令转成 Unicode."""
-    for cmd, sym in _LATEX_SYMBOLS.items():
+    """把常见 LaTeX 符号命令转成 Unicode.
+
+    按 key 长度降序处理 + 正则负向先行断言 `(?![a-zA-Z])`，
+    避免短前缀破坏长命令（如 `\\in` 误伤 `\\int`、`\\to` 误伤 `\\top`）。
+
+    例外：转义符（`\\# \\& \\% \\$ \\_ \\{ \\}`）后面可能跟字母
+    （如 `\\#tag`），不能用 `(?![a-zA-Z])`，单独朴素替换。
+    """
+    # 转义符先处理（朴素替换，不限制后续字符）
+    escapes = {r"\#": "#", r"\&": "&", r"\%": "%", r"\$": "$",
+               r"\_": "_", r"\{": "{", r"\}": "}"}
+    for cmd, sym in escapes.items():
         tex = tex.replace(cmd, sym)
+
+    # 其他符号按长度降序 + 单词边界
+    others = {k: v for k, v in _LATEX_SYMBOLS.items() if k not in escapes}
+    for cmd in sorted(others, key=len, reverse=True):
+        sym = others[cmd]
+        tex = re.sub(re.escape(cmd) + r"(?![a-zA-Z])", sym, tex)
     return tex
 
 

@@ -39,9 +39,9 @@ allowed-tools: Read, Bash
 - [笔记B](../path/b.md) — 提到了 Z，但角度不同
 
 ## 实时搜索补充
-（如需联网搜索，使用 agent-reach：`.agents/skills/agent-reach/SKILL.md`）
+（如需联网搜索，用 Exa：`mcporter call 'exa.web_search_exa(query: "...", numResults: 5)'`）
 - Exa 搜索：[结果摘要]
-- 小红书/其他平台：[结果摘要]
+- 其他平台（小红书/知乎等）：用 `opencli <platform> search "..." -f yaml`
 
 ## 建议
 - 满意的话可以走 capture 沉淀搜索发现
@@ -51,7 +51,7 @@ allowed-tools: Read, Bash
 ## 质量示例
 
 **好的 query 回答**：
-> 根据 [Attention Mechanism](../grounds/example-note.md) 的笔记，核心思想是让模型在处理每个 token 时动态关注输入序列中不同位置的信息。笔记里用"查字典"做了类比：Query 是你要查的词，Key 是字典的索引，Value 是释义。常见误区是以为 Attention 只在 Transformer 里有——实际上它最早来自 RNN 的 Seq2Seq 模型。
+> 根据 [Attention Mechanism](../<topic>/attention-mechanism.md) 的笔记，核心思想是让模型在处理每个 token 时动态关注输入序列中不同位置的信息。笔记里用"查字典"做了类比：Query 是你要查的词，Key 是字典的索引，Value 是释义。常见误区是以为 Attention 只在 Transformer 里有——实际上它最早来自 RNN 的 Seq2Seq 模型。
 >
 > ——有引用、有类比、有误区、定位具体。
 

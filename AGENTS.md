@@ -30,10 +30,11 @@ grounds/
 ├── paper/                 # 论文笔记（paper-learn 产出）
 │   └── <topic>/
 │       └── <论文标题>.md
-├── video/                 # 视频笔记成品（video skill 产出，仅 .tex + .pdf）
+├── video/                 # 视频笔记成品（video skill 产出，.tex + .pdf + .md）
 │   └── <视频标题>/
 │       ├── <basename>.tex
-│       └── <basename>.pdf
+│       ├── <basename>.pdf
+│       └── <basename>.md
 ├── raw/                   # 原始资料（只增不删，分三类）
 │   ├── wiki/              # learn/capture/query 引用的资料
 │   ├── papers/            # 论文 PDF
@@ -114,9 +115,9 @@ grounds/
 
 **触发**：手动 / `$` 触发。用户说"用 bilibili-render-pdf 处理 X"或 `$bilibili-render-pdf <BV链接>`。
 
-**流程**：环境检查 → 元数据+字幕获取（CC→Whisper→OCR 三级回退）→ 视频/封面下载 → 帧选择（密集候选+评估）→ 写 `.tex`（封面+章节+图+公式+小结+总结）→ xelatex 编译 PDF → 工作目录留在 `raw/videos/<标题>/`，成品 `.tex`+`.pdf` 复制到 `video/<标题>/` → commit
+**流程**：环境检查 → 元数据+字幕获取（CC→Whisper→OCR 三级回退）→ 视频/封面下载 → 帧选择（密集候选+评估）→ 写 `.tex`（封面+章节+图+公式+小结+总结）→ xelatex 编译 PDF → 工作目录留在 `raw/videos/<标题>/`，成品 `.tex`+`.pdf`+`.md` 复制到 `video/<标题>/` → commit
 
-**产出位置**：完整工作目录（含 sources/figures/ocr/）在 `raw/videos/<标题>/`（不进 git）；成品 `.tex`+`.pdf` 复制到 `video/<标题>/`（进 git）。
+**产出位置**：完整工作目录（含 sources/figures/ocr/）在 `raw/videos/<标题>/`（不进 git）；成品 `.tex`+`.pdf`+`.md` 复制到 `video/<标题>/`（进 git）。`.md` 由 `tex_to_md.py` 从 `.tex` 转换，给前端网页渲染用。
 
 ### youtube-render-pdf — YouTube 视频转 PDF
 
@@ -140,7 +141,7 @@ grounds/
 - **summary 是 query 扫描用的**：agent 读 summaries 定位笔记，无需加载全文
 - **链接必须说明关系**：`[Dropout](note.md) — 和 BatchNorm 同属正则化，但机制不同`
 - **Topic 分配**：选一个 topic 放，tags 补其他维度。不确定时先放再调——结构会演化。
-- **参考范例**：`wiki/grounds/example-note.md`
+- **参考范例**：`wiki/cpp/move-semantics.md`
 
 paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `conventions.md`。
 
@@ -179,7 +180,7 @@ paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `con
 - 废弃笔记移入 `.agents/archive/`，不要直接删除。
 - `raw/` 只增不删，分三个子目录：`raw/wiki/`（learn/capture/query 资料）、`raw/papers/`（论文 PDF）、`raw/videos/`（视频工作目录，含中间产物）。
 - `paper/` 笔记按主题分目录，但**不存在合并拆分问题**——一篇论文一个 md 文件，文件名即论文标题，论文不会移动。
-- `video/` 只追踪成品 `.tex` + `.pdf`；`raw/videos/` 下的 `sources/`、`figures/`、`ocr/` 中间产物不进 git（见 `.gitignore`）。
+- `video/` 只追踪成品 `.tex` + `.pdf` + `.md`；`raw/videos/` 下的 `sources/`、`figures/`、`ocr/` 中间产物不进 git（见 `.gitignore`）。
 - `lint` 只扫 `wiki/`，不扫 `paper/` 和 `video/`。
 - `wiki/<topic>/index.md` 是 Quartz 的 folder note，访问 `/wiki/<topic>/` 时直接渲染。
 - 互链只管 `wiki/`：wiki 笔记之间互链，wiki 笔记可引用 `raw/wiki/` 资料。`paper/` 和 `video/` 不参与互链（paper 笔记可单向引用 wiki，但不建立反链）。

@@ -22,7 +22,7 @@ raw/videos/**/sources/
 raw/videos/**/figures/
 raw/videos/**/ocr/
 
-# video 成品目录：只追踪 .tex 和 .pdf，排除误放的中间产物
+# video 成品目录：只追踪 .tex / .pdf / .md，排除误放的中间产物
 video/**/sources/
 video/**/figures/
 video/**/ocr/
