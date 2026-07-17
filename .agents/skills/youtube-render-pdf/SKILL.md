@@ -397,7 +397,8 @@ git commit -m "youtube-render-pdf: <视频标题>" && git push
 YouTube 特定：
 - **字幕语言**：YouTube 自动字幕质量通常优于 B 站，Priority 1 成功率高
 - **区域限制**：某些视频区域限制导致 yt-dlp 失败时，提示用户用 VPN
-- **直播录像**：超长视频（>2 小时）考虑分段处理
+- **年龄限制**：需登录 cookies，用 `--cookies-from-browser chrome`；私享视频无法下载，报告用户并退出
+- **直播录像/超长视频（>2 小时）**：按 YouTube chapters 分段处理（无章节时按 30 分钟切），每段独立工作目录 `raw/videos/<标题>-part<n>/`，各自独立转录后合并 SRT，最终产出独立 PDF 或合并为一个 PDF
 
 ---
 

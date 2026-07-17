@@ -16,12 +16,16 @@ allowed-tools: Read, Write, Edit, Bash
 
 ## 流程
 1. **扫描（只读）**：
-   - **孤儿页**：`wiki/` 下无任何入链、也不被 `index.md` 引用的笔记。
-   - **缺失链接**：笔记里链接指向不存在的文件。
-   - **矛盾说法**：不同笔记对同一概念描述冲突。
-   - **过时内容**：引用了被新资料淘汰的说法（对照 `updated` 日期）。
+   - **孤儿页**：`wiki/` 下无任何入链、也不被 `index.md` 引用的笔记。**同时检查 `index.md` 内容完整性**：对比 `index.md` 的"包含笔记"列表和目录下实际 `.md` 文件，未列入的视为孤儿页（`index.md` 存在但笔记未列入 = 实际孤儿页）。
+   - **缺失链接**：笔记里链接指向不存在的文件。**区分 raw/ 链接**：链接路径以 `../raw/` 或 `../../raw/` 开头的跳过断链检查（本地素材引用，本地环境可解析即可，不要当断链修掉）。
+   - **重复笔记**：检查是否有两篇笔记讲同一概念。通过比对 `title` 相似度 + `tags` 重叠 + `summary` 语义近似发现。提醒用户合并。
+   - **矛盾说法**：不同笔记对同一概念描述冲突。需 agent 主动比对相同 `tags` 的笔记两两读 `summary`，发现可疑冲突时加载正文核对。这是 agent 主观判断，非自动检查——不要假装扫描后报"无矛盾"。
+   - **过时内容**：引用了被新资料淘汰的说法。`updated` 日期旧 ≠ 内容过时，`updated` 新 ≠ 内容不过时——这同样是 agent 主观判断，对照领域最新进展评估，不要简单按日期报。
    - **索引覆盖**：列 `wiki/` 核对每个 `<topic>/` 是否都有 `index.md`。
-   - **模板合规**：frontmatter 是否含 `title/topic/tags/summary/created/updated`；标题是否是简洁的概念名（而非"XX 笔记"或过长的句子）；链接是否说明了关系。
+   - **模板合规**（笔记 + `index.md` 都要查）：
+     - 笔记：frontmatter 是否含 `title/topic/tags/summary/created/updated`；标题是否是简洁的概念名（而非"XX 笔记"或过长的句子）；链接是否说明了关系。
+     - `index.md`：同样必须有 frontmatter（`title/topic/tags/summary/created/updated`），缺失会导致 Quartz folder note 渲染异常。
+     - `title` vs 文件名一致性：`title` 转 kebab-case 后与文件名比对，不一致提醒（如 `title: Attention Mechanism` 应对应 `attention-mechanism.md`）。
    - **草稿提醒**：`status: draft` 且 `updated` 超过 30 天的笔记，提醒用户补完或删除。
    - **Topic 健康度**：
      - 单篇 topic（目录下只有 1 篇笔记）→ 建议合并到相关 topic 或加更多笔记
