@@ -27,6 +27,7 @@ const NotFound: QuartzComponent = ({ cfg, ctx }: QuartzComponentProps) => {
               if (pathname.startsWith("/")) {
                 pathname = pathname.slice(1);
               }
+              var originalPathname = pathname;
               if (pathname.endsWith("/")) {
                 pathname = pathname.slice(0, -1);
               }
@@ -36,11 +37,26 @@ const NotFound: QuartzComponent = ({ cfg, ctx }: QuartzComponentProps) => {
               if (pathname.endsWith("/index")) {
                 pathname = pathname.slice(0, -6);
               }
-              var lowered = pathname.toLowerCase();
-              if (lowered !== pathname && index[lowered] != null) {
+
+              function doRedirect(targetSlug) {
                 var prefix = hasBasePrefix ? basePath : "";
-                var target = prefix + (prefix.endsWith("/") ? "" : "/") + lowered;
+                var sep = prefix.endsWith("/") ? "" : "/";
+                var target;
+                if (index[targetSlug + "/index"] != null) {
+                  target = prefix + sep + targetSlug + "/";
+                } else {
+                  target = prefix + sep + targetSlug + ".html";
+                }
                 window.location.replace(target);
+              }
+
+              if (index[pathname] != null && !originalPathname.endsWith(".html")) {
+                doRedirect(pathname);
+              } else {
+                var lowered = pathname.toLowerCase();
+                if (lowered !== pathname && index[lowered] != null) {
+                  doRedirect(lowered);
+                }
               }
             });
           }
