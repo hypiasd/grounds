@@ -396,9 +396,9 @@ img {
 /* ========== 三栏布局 ========== */
 .note-layout {
   display: grid;
-  grid-template-columns: 170px minmax(0, 880px) 170px;
+  grid-template-columns: 170px minmax(0, 1020px) 170px;
   gap: 20px;
-  max-width: 1280px;
+  max-width: 1400px;
   margin: 32px auto;
   padding: 0 24px;
   justify-content: center;
@@ -409,7 +409,7 @@ img {
 .note-layout > .note-right { grid-column: 3; }
 /* 折叠 sidebar：主内容居中扩展 */
 body.sidebar-hidden .note-layout {
-  grid-template-columns: 0 minmax(0, 1020px) 170px;
+  grid-template-columns: 0 minmax(0, 1210px) 170px;
   gap: 0 20px;
 }
 body.sidebar-hidden .sidebar {
@@ -417,10 +417,10 @@ body.sidebar-hidden .sidebar {
 }
 /* Topic 落地页：2 栏布局（没有右侧 aside），主内容更宽更居中 */
 .note-layout--topic {
-  grid-template-columns: 170px minmax(0, 1080px);
+  grid-template-columns: 170px minmax(0, 1190px);
 }
 body.sidebar-hidden .note-layout--topic {
-  grid-template-columns: 0 minmax(0, 1220px);
+  grid-template-columns: 0 minmax(0, 1360px);
 }
 .note-main {
   max-width: none;
