@@ -7,6 +7,11 @@
   overflow-x: auto;
 }
 
+/* 目录内容区同时支持横向和纵向滚动，触控板可在同一区域左右/上下滑动 */
+.explorer-content {
+  overflow: auto !important;
+}
+
 /* 站点标题与目录条目保持单行，不截断，随侧边栏横向滚动显示完整 */
 .page-title,
 .explorer-content ul li > a,
