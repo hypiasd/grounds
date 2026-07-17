@@ -2,17 +2,29 @@
   display: none;
 }
 
-/* 左侧边栏允许水平滚动，以查看完整长标题 */
+/* 左侧边栏统一作为唯一滚动容器，目录内容宽度按内容撑开，支持触控板左右/上下滑动 */
 .sidebar.left {
+  overflow: auto;
   overflow-x: auto;
+  scrollbar-gutter: stable;
 }
 
-/* 目录内容区同时支持横向和纵向滚动，触控板可在同一区域左右/上下滑动 */
+.explorer {
+  overflow: visible;
+}
+
 .explorer-content {
-  overflow: auto !important;
+  overflow: visible !important;
+  width: max-content;
+  min-width: 100%;
 }
 
-/* 站点标题与目录条目保持单行，不截断，随侧边栏横向滚动显示完整 */
+.explorer-content .explorer-ul,
+.explorer-content ul {
+  width: max-content;
+}
+
+/* 站点标题与目录条目保持单行，不截断 */
 .page-title,
 .explorer-content ul li > a,
 .folder-container div > a,
@@ -26,12 +38,6 @@
 .folder-container div > a,
 .folder-container div > button span {
   display: inline-block;
-}
-
-/* 保证目录内容宽度能撑开，出现横向滚动条 */
-.explorer-content,
-.explorer-ul {
-  min-width: max-content;
 }
 
 /* 限制正文最大宽度，避免大屏下中间过宽把右侧栏挤得难看 */
