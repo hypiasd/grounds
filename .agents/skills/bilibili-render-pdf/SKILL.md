@@ -1,6 +1,6 @@
 ---
 name: bilibili-render-pdf
-description: 用户手动或用 `$bilibili-render-pdf <BV链接>` 触发，把一个 Bilibili 视频（讲座/教程/技术演讲）转换成结构化中文 LaTeX 笔记并编译为 PDF。不接受语义触发——即使用户贴了 BV 链接，没有显式调用本 skill 也不得自动启动。工作目录在 raw/videos/<标题>/，成品 .tex+.pdf 复制到 video/<标题>/。
+description: 用户手动或用 `$bilibili-render-pdf <BV链接>` 触发，把一个 Bilibili 视频（讲座/教程/技术演讲）转换成结构化中文 LaTeX 笔记并编译为 PDF。不接受语义触发——即使用户贴了 BV 链接，没有显式调用本 skill 也不得自动启动。工作目录在 raw/videos/<标题>/，成品 .tex+.pdf+.md 复制到 video/<标题>/。
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash
 ---
@@ -22,7 +22,7 @@ allowed-tools: Read, Write, Edit, Bash
 ## 目标（完成时仓库应处于的状态）
 
 - `raw/videos/<视频标题>/` 下有完整工作目录（cover.jpg + .tex + .pdf + sources/ + figures/ + ocr/）
-- `video/<视频标题>/` 下有成品 `.tex` 和 `.pdf` 备份（进 git）
+- `video/<视频标题>/` 下有成品 `.tex` + `.pdf` + `.md`（进 git；`.md` 由 `tex_to_md.py` 从 `.tex` 转换，命名 `index.md` 作为 folder note）
 - 已 `git commit + push`，commit message：`bilibili-render-pdf: <视频标题>`
 
 ## Bilibili vs YouTube: 关键差异
@@ -580,12 +580,12 @@ ffmpeg -ss <mid_sec> -i sources/video.mp4 -vframes 1 -q:v 2 figures/talk_topic.j
 
 **tex → md 转换**（前端接入需要）：
 
-video/ 下的 .tex 在网页上无法渲染，需要转成 .md 给 Astro 渲染。用共享脚本 `.agents/skills/_shared/scripts/tex_to_md.py`：
+video/ 下的 .tex 在网页上无法渲染，需要转成 .md 给前端渲染。用共享脚本 `.agents/skills/_shared/scripts/tex_to_md.py`：
 
 ```bash
-# 在工作目录下执行
-python3 <grounds 根>/.agents/skills/_shared/scripts/tex_to_md.py \
-  "<basename>.tex" "<basename>.md"
+# 在工作目录下执行；输出文件名必须是 index.md（Quartz folder note 约定）
+python3 "$(git rev-parse --show-toplevel)/.agents/skills/_shared/scripts/tex_to_md.py" \
+  "<basename>.tex" "index.md"
 ```
 
 转换规则：
@@ -607,11 +607,11 @@ python3 <grounds 根>/.agents/skills/_shared/scripts/tex_to_md.py \
 **成品备份到 `video/<视频标题>/`（进 git）**：
 ```bash
 # 回到仓库根
-cd <grounds 根>
+cd "$(git rev-parse --show-toplevel)"
 mkdir -p "video/<视频标题>"
 cp "raw/videos/<视频标题>/<basename>.tex" "video/<视频标题>/"
 cp "raw/videos/<视频标题>/<basename>.pdf" "video/<视频标题>/"
-cp "raw/videos/<视频标题>/<basename>.md" "video/<视频标题>/"
+cp "raw/videos/<视频标题>/index.md" "video/<视频标题>/"
 
 # 在 video/ 下的 .tex 顶部加注释说明源工作目录
 # % 源工作目录：../../raw/videos/<视频标题>/，如需重新编译请在该目录下执行 xelatex
@@ -619,9 +619,8 @@ cp "raw/videos/<视频标题>/<basename>.md" "video/<视频标题>/"
 
 提交：
 ```bash
-git add video/<视频标题>/
-git commit -m "bilibili-render-pdf: <视频标题>"
-git push
+git add "video/<视频标题>"
+git commit -m "bilibili-render-pdf: <视频标题>" && git push
 ```
 
 ---

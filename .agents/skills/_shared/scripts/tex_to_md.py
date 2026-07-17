@@ -78,7 +78,32 @@ def restore_math(tex: str, store: dict[str, str]) -> str:
 # ---------------------------------------------------------------------------
 
 def extract_metadata(tex: str) -> dict:
-    """提取 \\newcommand 定义的元数据."""
+    """提取 \\newcommand 定义的元数据.
+
+    日期格式自动归一化为 ISO 8601（YYYY 或 YYYY-MM 或 YYYY-MM-DD），
+    避免 Quartz build 时报 "invalid date" warning。
+    支持的输入格式：2025年7月 / 2025年07月 / 2025-07 / 2025-07-01 / 2025/07 等。
+    """
+    def normalize_date(s: str) -> str:
+        s = s.strip()
+        # 中文日期：2025年7月 / 2025年07月15日
+        m = re.match(r"(\d{4})年(\d{1,2})月(?:(\d{1,2})日)?", s)
+        if m:
+            y, mo, d = m.group(1), int(m.group(2)), m.group(3)
+            out = f"{y}-{mo:02d}"
+            if d:
+                out += f"-{int(d):02d}"
+            return out
+        # 斜杠日期：2025/07/01
+        m = re.match(r"(\d{4})/(\d{1,2})(?:/(\d{1,2}))?", s)
+        if m:
+            y, mo, d = m.group(1), int(m.group(2)), m.group(3)
+            out = f"{y}-{mo:02d}"
+            if d:
+                out += f"-{int(d):02d}"
+            return out
+        return s
+
     meta = {}
     patterns = {
         "title": r"\\newcommand\{\\notetitle\}\{(.+?)\}",
@@ -92,6 +117,8 @@ def extract_metadata(tex: str) -> dict:
         if m:
             val = m.group(1).strip()
             if val and not val.startswith("[在此填写"):
+                if key == "publish_date":
+                    val = normalize_date(val)
                 meta[key] = val
     return meta
 
@@ -114,7 +141,11 @@ def strip_latex_wrappers(tex: str) -> str:
 
 
 def strip_comments(tex: str) -> str:
-    """删除 LaTeX 注释：整行注释 + 行内注释（保护 \\% 转义）."""
+    """删除 LaTeX 注释：整行注释 + 行内注释（保护 \\% 转义）.
+
+    行内注释仅在 % 前是空白/行首时才删除，避免误删未转义的字面 %
+    （如 "准确率 50%" 这种用户错误写法）。
+    """
     lines = tex.split("\n")
     result = []
     for line in lines:
@@ -122,8 +153,9 @@ def strip_comments(tex: str) -> str:
         # 跳过纯注释行（% 开头，但不是 \%）
         if stripped.startswith("%") and not stripped.startswith("\\%"):
             continue
-        # 删除行内注释（未转义的 % 及之后内容，保护 \%）
-        line = re.sub(r"(?<!\\)%.*$", "", line)
+        # 删除行内注释：% 前必须是空白或行首才当注释
+        # 用正则：匹配 (空白或行首)% 之后的所有内容
+        line = re.sub(r"(^|\s)%.*$", r"\1", line)
         result.append(line)
     return "\n".join(result)
 
@@ -136,11 +168,9 @@ def convert_lists(tex: str) -> str:
     """itemize → 无序列表，enumerate → 有序列表.
 
     处理嵌套：先递归处理最内层（无子 itemize/enumerate 的），转换并按 2 空格缩进；
-    再逐层向外。这样外层 item 看到内层已转换的 "- ..." 行时，会给它们加缩进。
+    再逐层向外。外层 item 看到内层已转换的 "- ..." 行时，会在行首加 2 空格缩进，
+    保留内层已有的缩进（不 lstrip），这样 3 层及以上嵌套也能正确累积缩进。
     """
-    def has_nested_list(content: str) -> bool:
-        return bool(re.search(r"\\begin\{(itemize|enumerate)\}", content))
-
     def split_items(content: str) -> list[str]:
         items = re.split(r"\\item\b", content)
         return [item.strip() for item in items if item.strip()]
@@ -151,12 +181,13 @@ def convert_lists(tex: str) -> str:
         out_lines = []
         for item in items:
             item_lines = item.split("\n")
-            # 第一行作为 item 主体，后续行（已转换的嵌套 "- ..."）保留缩进
+            # 第一行作为 item 主体
             first = item_lines[0].strip()
             out_lines.append(f"- {first}")
+            # 后续行（已转换的嵌套 "- ..."）保留原缩进 + 叠加 2 空格
             for ln in item_lines[1:]:
                 if ln.strip():
-                    out_lines.append("  " + ln.lstrip())
+                    out_lines.append("  " + ln)
         return "\n" + "\n".join(out_lines) + "\n"
 
     def enumerate_replacer(match):
@@ -169,11 +200,10 @@ def convert_lists(tex: str) -> str:
             out_lines.append(f"{i+1}. {first}")
             for ln in item_lines[1:]:
                 if ln.strip():
-                    out_lines.append("  " + ln.lstrip())
+                    out_lines.append("  " + ln)
         return "\n" + "\n".join(out_lines) + "\n"
 
-    # 只处理一次最内层（无嵌套子列表的 itemize/enumerate）
-    # 循环上限防止死循环
+    # 只处理最内层（无嵌套子列表的 itemize/enumerate），循环上限防死循环
     for _ in range(10):
         new_tex = re.sub(
             r"\\begin\{itemize\}((?:(?!\\begin\{itemize\}|\\begin\{enumerate\}).)*?)\\end\{itemize\}",
@@ -186,6 +216,25 @@ def convert_lists(tex: str) -> str:
         if new_tex == tex:
             break
         tex = new_tex
+    return tex
+
+
+def convert_quote(tex: str) -> str:
+    """转换 quote/quotation/verse 环境为 markdown blockquote.
+
+    必须在 strip_latex_commands 之前调用，否则 \\begin{quote} 会被
+    兜底规则 \\xxx{arg} → arg 转成字面 "quote" 字符串。
+    """
+    def quote_replacer(match):
+        content = match.group(1).strip()
+        lines = content.split("\n")
+        return "\n" + "\n".join(f"> {ln}" if ln.strip() else ">" for ln in lines) + "\n"
+
+    for env in ("quote", "quotation", "verse"):
+        tex = re.sub(
+            rf"\\begin\{{{env}\}}(.*?)\\end\{{{env}\}}",
+            quote_replacer, tex, flags=re.DOTALL,
+        )
     return tex
 
 
@@ -448,11 +497,12 @@ _LATEX_SYMBOLS = {
     r"\#": "#",
     r"\&": "&",
     r"\%": "%",
-    r"\$": "$",
     r"\_": "_",
     r"\{": "{",
     r"\}": "}",
 }
+# 注意：\$ 不在此处转换。protect_math 已把 \$ 保护起来，
+# 最终保留为 \$（KaTeX 尊重 \$ 为字面美元符号），避免被误判为公式定界符。
 
 
 def convert_symbols(tex: str) -> str:
@@ -461,12 +511,15 @@ def convert_symbols(tex: str) -> str:
     按 key 长度降序处理 + 正则负向先行断言 `(?![a-zA-Z])`，
     避免短前缀破坏长命令（如 `\\in` 误伤 `\\int`、`\\to` 误伤 `\\top`）。
 
-    例外：转义符（`\\# \\& \\% \\$ \\_ \\{ \\}`）后面可能跟字母
-    （如 `\\#tag`），不能用 `(?![a-zA-Z])`，单独朴素替换。
+    例外：转义符（`\\# \\& \\% \\_ \\{ \\}`）后面可能跟字母
+    （如 `\\#tag`），不能用 `(?![a-zA-Z])`，单独处理。
+    转义符统一转成 markdown 转义（`\\#`→`\\#`, `\\_`→`\\_`），
+    避免在行首/表格行触发 markdown 语法（H1/斜体/表格分隔符）。
     """
-    # 转义符先处理（朴素替换，不限制后续字符）
-    escapes = {r"\#": "#", r"\&": "&", r"\%": "%", r"\$": "$",
-               r"\_": "_", r"\{": "{", r"\}": "}"}
+    # 转义符：\# \& \_ \{ \} 保留为 markdown 转义形式（避免在行首/表格行触发 markdown 语法）
+    # \% 直接转成字面 %（markdown 里 % 不是特殊字符，不需要转义）
+    escapes = {r"\#": r"\#", r"\&": r"\&", r"\%": "%",
+               r"\_": r"\_", r"\{": r"\{", r"\}": r"\}"}
     for cmd, sym in escapes.items():
         tex = tex.replace(cmd, sym)
 
@@ -539,13 +592,14 @@ def build_frontmatter(meta: dict, tex_path: Path) -> str:
         fm.append(f"created: {today}")
         fm.append(f"updated: {today}")
     if meta.get("url"):
-        fm.append(f"video_url: {meta['url']}")
+        fm.append(f'video_url: "{meta["url"]}"')
     if meta.get("channel"):
-        fm.append(f"video_channel: {meta['channel']}")
+        fm.append(f'video_channel: "{meta["channel"]}"')
     if meta.get("duration"):
-        fm.append(f"video_duration: {meta['duration']}")
+        fm.append(f'video_duration: "{meta["duration"]}"')
     pdf_name = tex_path.stem + ".pdf"
-    fm.append(f"source: {pdf_name}")
+    fm.append("sources:")
+    fm.append(f"  - {pdf_name}")
     fm.append("---")
     return "\n".join(fm)
 
@@ -570,35 +624,40 @@ def convert(tex_path: Path, md_path: Path) -> None:
     # 4. 删除注释行
     body = strip_comments(body)
 
-    # 5. 转换列表（itemize/enumerate）—— 必须在 strip_latex_commands 前
+    # 5. 转换 quote/quotation/verse → blockquote（必须在 strip_latex_commands 前）
+    body = convert_quote(body)
+
+    # 6. 转换代码块 lstlisting（必须在 convert_lists 前，避免代码内 \item 被误切分）
+    body = convert_lstlisting(body)
+
+    # 7. 转换列表（itemize/enumerate）—— 必须在 strip_latex_commands 前
     body = convert_lists(body)
 
-    # 6. 转换高亮框 → blockquote
+    # 8. 转换高亮框 → blockquote
     body = convert_tcolorbox(body)
 
-    # 7. 跳过 TikZ / 转代码块 / 图片占位 / 剩余 figure
+    # 9. 跳过 TikZ / 图片占位 / 剩余 figure
     body = strip_tikz(body)
-    body = convert_lstlisting(body)
     body = convert_includegraphics(body)
     body = strip_remaining_figure_env(body)
 
-    # 8. 章节标题 / 链接 / 脚注
+    # 10. 章节标题 / 链接 / 脚注
     body = convert_sections(body)
     body = convert_href(body)
     body = convert_footnote(body)
 
-    # 9. LaTeX 符号转 Unicode —— 必须在 strip_latex_commands 前
+    # 11. LaTeX 符号转 Unicode —— 必须在 strip_latex_commands 前
     body = convert_symbols(body)
 
-    # 10. 清理剩余 LaTeX 命令
+    # 12. 清理剩余 LaTeX 命令
     body = strip_latex_commands(body)
     body = cleanup(body)
 
-    # 11. 还原数学公式
+    # 13. 还原数学公式
     body = restore_math(body, math_store)
     body = cleanup(body)
 
-    # 12. 组装 frontmatter + body（不再加 H1，布局组件会渲染标题）
+    # 14. 组装 frontmatter + body（不再加 H1，布局组件会渲染标题）
     fm = build_frontmatter(meta, tex_path)
     md = f"{fm}\n\n{body}\n"
 
