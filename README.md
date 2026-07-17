@@ -10,7 +10,7 @@
 wiki/    学习笔记（按主题分目录）
 paper/   论文笔记（按主题分目录）
 video/   视频笔记成品（每个视频一个目录）
-raw/     原始资料（只增不删；按来源分 topic/papers/videos）
+raw/     原始资料（只增不删；分 wiki/papers/videos）
 ```
 
 ## 七个 Skill
