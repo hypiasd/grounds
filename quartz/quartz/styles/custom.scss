@@ -22,6 +22,8 @@
 .explorer-content .explorer-ul,
 .explorer-content ul {
   width: max-content;
+  overscroll-behavior: auto !important;
+  touch-action: pan-x pan-y;
 }
 
 /* 站点标题与目录条目保持单行，不截断 */
