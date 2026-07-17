@@ -5,7 +5,11 @@ import Search from '../components/Search.jsx'
 import '../styles/global.css'
 
 const notes = await getCollection('notes')
+const papers = await getCollection('papers')
+const videos = await getCollection('videos')
 const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+const paperBase = `${base}/paper`
+const videoBase = `${base}/video`
 
 const topics = new Map<string, typeof notes>()
 for (const note of notes) {
@@ -19,10 +23,37 @@ const recent = [...notes]
   .sort((a, b) => String(b.data.updated || '').localeCompare(String(a.data.updated || '')))
   .slice(0, 5)
 
+// 最近 5 篇论文
+const recentPapers = [...papers]
+  .filter(p => !p.id.endsWith('/_overview'))
+  .sort((a, b) => String(b.data.updated || '').localeCompare(String(a.data.updated || '')))
+  .slice(0, 5)
+
+// 最近 5 个视频（按目录名去重）
+const videoMap = new Map<string, typeof videos>()
+for (const v of videos) {
+  const slug = v.id.split('/')[0]
+  if (!videoMap.has(slug)) videoMap.set(slug, v)
+}
+const recentVideos = [...videoMap.entries()]
+  .map(([slug, v]) => ({ slug, video: v }))
+  .sort((a, b) => String(b.video.data.updated || '').localeCompare(String(a.video.data.updated || '')))
+  .slice(0, 5)
+
+const noteCount = notes.filter(n => !n.id.endsWith('/_overview')).length
+const paperCount = recentPapers.length
+const videoCount = videoMap.size
+
 function noteUrl(noteId: string): string {
   const isOverview = noteId.endsWith('/_overview')
   const slug = isOverview ? noteId.replace('/_overview', '') : noteId
   return `${base}/${slug}`
+}
+
+function paperUrl(paperId: string): string {
+  const isOverview = paperId.endsWith('/_overview')
+  const slug = isOverview ? paperId.replace('/_overview', '') : paperId
+  return `${paperBase}/${slug}`
 }
 ---
 <!doctype html>
@@ -41,7 +72,11 @@ function noteUrl(noteId: string): string {
   </header>
 
   <main style="max-width: 960px;">
-    <p class="home-intro">个人学习笔记 · {notes.filter(n => !n.id.endsWith('/_overview')).length} 篇 · {topics.size} 个主题</p>
+    <p class="home-intro">
+      个人学习笔记 · {noteCount} 篇 wiki · {topics.size} 个主题
+      {paperCount > 0 && ` · ${paperCount} 篇论文`}
+      {videoCount > 0 && ` · ${videoCount} 个视频`}
+    </p>
 
     <section class="home-section">
       <h2>知识图谱</h2>
@@ -75,8 +110,82 @@ function noteUrl(noteId: string): string {
         ))}
       </ul>
     </section>
+
+    {paperCount > 0 && (
+      <section class="home-section">
+        <h2>论文笔记</h2>
+        <ul class="recent-list">
+          {recentPapers.map(paper => (
+            <li>
+              <a href={paperUrl(paper.id)}>{paper.data.title || paper.id}</a>
+              <span class="meta">{paper.data.topic} · {String(paper.data.updated || '').slice(0, 10)}</span>
+            </li>
+          ))}
+        </ul>
+        <a class="section-more" href={`${paperBase}`}>查看全部 →</a>
+      </section>
+    )}
+
+    {paperCount === 0 && (
+      <section class="home-section">
+        <h2>论文笔记</h2>
+        <p class="empty-hint">还没有论文笔记。用 <code>$paper-learn &lt;arxiv-url&gt;</code> 开始读第一篇。</p>
+      </section>
+    )}
+
+    {videoCount > 0 && (
+      <section class="home-section">
+        <h2>视频笔记</h2>
+        <ul class="recent-list">
+          {recentVideos.map(({ slug, video }) => (
+            <li>
+              <a href={`${videoBase}/${slug}`}>{video.data.title || slug}</a>
+              <span class="meta">
+                {video.data.video_channel || ''}
+                {video.data.video_channel && video.data.video_duration && ' · '}
+                {video.data.video_duration || ''}
+                {` · ${String(video.data.updated || '').slice(0, 10)}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <a class="section-more" href={`${videoBase}`}>查看全部 →</a>
+      </section>
+    )}
+
+    {videoCount === 0 && (
+      <section class="home-section">
+        <h2>视频笔记</h2>
+        <p class="empty-hint">还没有视频笔记。用 <code>$bilibili-render-pdf &lt;BV链接&gt;</code> 或 <code>$youtube-render-pdf &lt;链接&gt;</code> 开始处理第一个视频。</p>
+      </section>
+    )}
   </main>
 
   <Search client:idle />
 </body>
 </html>
+
+<style>
+  .empty-hint {
+    color: var(--text-muted);
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .empty-hint code {
+    background: var(--bg-sidebar);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+  .section-more {
+    display: inline-block;
+    margin-top: 12px;
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 14px;
+  }
+  .section-more:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+  }
+</style>
