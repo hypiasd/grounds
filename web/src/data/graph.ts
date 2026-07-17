@@ -94,6 +94,13 @@ export async function buildGraph(): Promise<GraphData> {
     }
   }
 
+  // _overview 节点 fallback title：用 `${topic} 总览` 而非裸 id（如 `cpp/_overview`）
+  for (const n of nodes) {
+    if (n.isOverview && (!n.title || n.title === n.id)) {
+      n.title = `${n.topic} 总览`
+    }
+  }
+
   // 2. tag 节点 + tag 边
   const tagSet = new Set<string>()
   for (const note of notes) {

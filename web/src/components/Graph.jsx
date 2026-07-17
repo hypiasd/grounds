@@ -205,18 +205,26 @@ export default function Graph({ data, currentSlug, height = 400, mini = false })
                 stroke={isHovered ? 'var(--accent)' : 'var(--bg-elevated)'}
                 strokeWidth={isHovered ? 3 : 1.5}
               />
-              {!mini && (
-                <text
-                  y={nodeRadius(node) + 12}
-                  textAnchor="middle"
-                  fontSize={10}
-                  fontFamily="var(--font-heading)"
-                  fill="var(--text-secondary)"
-                  pointerEvents="none"
-                >
-                  {node.title.length > 15 ? node.title.slice(0, 13) + '...' : node.title}
-                </text>
-              )}
+              <text
+                y={nodeRadius(node) + 12}
+                textAnchor="middle"
+                fontSize={mini ? 9 : 10}
+                fontFamily="var(--font-heading)"
+                fill={isCurrent ? 'var(--accent)' : 'var(--text-secondary)'}
+                fontWeight={isCurrent ? 600 : 400}
+                pointerEvents="none"
+              >
+                {(() => {
+                  const max = mini ? 12 : 15
+                  // 含 / 的 slug（id fallback）取最后一段，避免同 topic 前缀的笔记标签歧义
+                  let label = node.title
+                  if (label.includes('/')) {
+                    const parts = label.split('/')
+                    label = parts[parts.length - 1]
+                  }
+                  return label.length > max ? label.slice(0, max - 2) + '...' : label
+                })()}
+              </text>
             </g>
           )
         })}
