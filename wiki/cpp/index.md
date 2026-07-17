@@ -1,5 +1,5 @@
 ---
-title: cpp 总览
+title: C++ 总览
 topic: cpp
 tags: [cpp]
 summary: C++ 语言层面的语法特性、惯用法和容易踩坑的细节。

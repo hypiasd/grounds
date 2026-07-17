@@ -15,6 +15,6 @@ tags: []
 
 ## 分区
 
-- [wiki](wiki/cpp/) — 主题化学习笔记
+- [wiki](wiki/) — 主题化学习笔记
 - [paper](paper/) — 论文阅读笔记
 - [video](video/) — 视频学习笔记

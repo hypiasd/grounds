@@ -260,7 +260,7 @@ CUDA Core 要处理 FP32、INT32、各种指令格式，附带通用寄存器读
 ## 关联
 
 - 前置：无（本笔记是 GPU 编程的起点）
-- 后续：[Triton](triton.md) — 块级 GPU 编程，编译器自动管理线程和共享内存
-- [GPU 浮点格式](float-formats.md) — Tensor Core 混合精度依赖的浮点格式体系（FP32/FP16/BF16/TF32/FP8/FP4）
-- [Triton](triton.md) — 块级 GPU 编程，编译器自动管理线程和共享内存；Triton 通过 `tl.dot` 自动生成 Tensor Core MMA 指令
-- [CUTLASS](cutlass.md) — 用模板显式拼装 Tensor Core MMA 指令，追求极致性能；3.x 核心抽象 CuTe 直接映射到 Tensor Core tile 操作
+- 后续：
+  - [Triton](triton.md) — 块级 GPU 编程，编译器自动管理线程和共享内存；`tl.dot` 自动生成 Tensor Core MMA 指令
+  - [GPU 浮点格式](float-formats.md) — Tensor Core 混合精度依赖的浮点格式体系（FP32/FP16/BF16/TF32/FP8/FP4）
+  - [CUTLASS](cutlass.md) — 用模板显式拼装 Tensor Core MMA 指令，追求极致性能；3.x 核心抽象 CuTe 直接映射到 Tensor Core tile 操作
