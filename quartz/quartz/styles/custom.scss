@@ -1,3 +1,25 @@
 .explorer-ul > li.overflow-end {
   display: none;
 }
+
+/* 站点标题不换行，避免窄边栏下被挤成多行 */
+.page-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 目录条目超长时截断，hover 显示完整 */
+.explorer-content ul li > a,
+.folder-container div > a,
+.folder-container div > button span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.folder-container div > a,
+.folder-container div > button span {
+  display: inline-block;
+}
