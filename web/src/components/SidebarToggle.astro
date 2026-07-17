@@ -1,10 +1,8 @@
 ---
-// 左侧边栏折叠按钮 + 持久化逻辑
+// 浮动展开按钮（sidebar 折叠时显示）+ 折叠/展开持久化逻辑
+// sidebar 内的折叠按钮在 Sidebar.astro 里，class 为 .sidebar-toggle--collapse
 ---
-<button id="sidebar-toggle" class="sidebar-toggle" aria-label="切换侧边栏" title="切换侧边栏">
-  <span class="icon-sidebar-hide">»</span>
-  <span class="icon-sidebar-show">«</span>
-</button>
+<button class="sidebar-toggle sidebar-toggle--floating" aria-label="展开侧边栏" title="展开侧边栏">»</button>
 
 <script is:inline>
   (function () {
@@ -17,11 +15,16 @@
     const saved = (() => { try { return localStorage.getItem(KEY) } catch (e) { return null } })()
     if (saved === '1') apply(true)
 
+    const toggle = () => apply(!document.body.classList.contains('sidebar-hidden'))
+
     document.addEventListener('DOMContentLoaded', () => {
-      const btn = document.getElementById('sidebar-toggle')
-      if (!btn) return
-      btn.addEventListener('click', () => {
-        apply(!document.body.classList.contains('sidebar-hidden'))
+      // 浮动展开按钮
+      document.querySelectorAll('.sidebar-toggle--floating').forEach(btn => {
+        btn.addEventListener('click', toggle)
+      })
+      // sidebar 内的折叠按钮
+      document.querySelectorAll('.sidebar-toggle--collapse').forEach(btn => {
+        btn.addEventListener('click', toggle)
       })
     })
   })()

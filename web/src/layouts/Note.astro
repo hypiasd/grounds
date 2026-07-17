@@ -42,9 +42,9 @@ const tags = data.tags || []
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700&family=Noto+Serif+SC:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
 <body>
+  <SidebarToggle />
   <header class="site-header">
-    <SidebarToggle />
-    <a href={base}>← grounds</a>
+    <a href={base}>grounds</a>
     <span style="margin-left: 16px; color: var(--text-muted);">/</span>
     <a href={`${base}/${data.topic}`} style="margin-left: 8px;">{data.topic}</a>
   </header>

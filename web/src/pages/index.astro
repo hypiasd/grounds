@@ -1,6 +1,8 @@
 ---
 import { getCollection } from 'astro:content'
 import GraphView from '../components/GraphView.astro'
+import Sidebar from '../components/Sidebar.astro'
+import SidebarToggle from '../components/SidebarToggle.astro'
 import Search from '../components/Search.jsx'
 import '../styles/global.css'
 
@@ -67,99 +69,104 @@ function paperUrl(paperId: string): string {
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700&family=Noto+Serif+SC:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
 <body>
+  <SidebarToggle />
   <header class="site-header">
     <a href={base}>grounds</a>
   </header>
 
-  <main style="max-width: 960px;">
-    <p class="home-intro">
-      个人学习笔记 · {noteCount} 篇 wiki · {topics.size} 个主题
-      {paperCount > 0 && ` · ${paperCount} 篇论文`}
-      {videoCount > 0 && ` · ${videoCount} 个视频`}
-    </p>
+  <div class="note-layout note-layout--topic">
+    <Sidebar section="wiki" />
 
-    <section class="home-section">
-      <h2>知识图谱</h2>
-      <GraphView height={400} />
-    </section>
+    <main class="note-main">
+      <p class="home-intro">
+        个人学习笔记 · {noteCount} 篇 wiki · {topics.size} 个主题
+        {paperCount > 0 && ` · ${paperCount} 篇论文`}
+        {videoCount > 0 && ` · ${videoCount} 个视频`}
+      </p>
 
-    <section class="home-section">
-      <h2>主题</h2>
-      <div class="topic-grid">
-        {[...topics.entries()].map(([topic, topicNotes]) => {
-          const overview = topicNotes.find(n => n.id.endsWith('/_overview'))
-          const noteCount = topicNotes.filter(n => !n.id.endsWith('/_overview')).length
-          return (
-            <a class="topic-card" href={overview ? noteUrl(overview.id) : '#'}>
-              <div class="topic-name">{topic}</div>
-              <div class="topic-count">{noteCount} 篇笔记</div>
-            </a>
-          )
-        })}
-      </div>
-    </section>
-
-    <section class="home-section">
-      <h2>最近更新</h2>
-      <ul class="recent-list">
-        {recent.map(note => (
-          <li>
-            <a href={noteUrl(note.id)}>{note.data.title || note.id}</a>
-            <span class="meta">{note.data.topic} · {String(note.data.updated || '').slice(0, 10)}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
-
-    {paperCount > 0 && (
       <section class="home-section">
-        <h2>论文笔记</h2>
+        <h2>最近更新</h2>
         <ul class="recent-list">
-          {recentPapers.map(paper => (
+          {recent.map(note => (
             <li>
-              <a href={paperUrl(paper.id)}>{paper.data.title || paper.id}</a>
-              <span class="meta">{paper.data.topic} · {String(paper.data.updated || '').slice(0, 10)}</span>
+              <a href={noteUrl(note.id)}>{note.data.title || note.id}</a>
+              <span class="meta">{note.data.topic} · {String(note.data.updated || '').slice(0, 10)}</span>
             </li>
           ))}
         </ul>
-        <a class="section-more" href={`${paperBase}`}>查看全部 →</a>
       </section>
-    )}
 
-    {paperCount === 0 && (
       <section class="home-section">
-        <h2>论文笔记</h2>
-        <p class="empty-hint">还没有论文笔记。用 <code>$paper-learn &lt;arxiv-url&gt;</code> 开始读第一篇。</p>
+        <h2>知识图谱</h2>
+        <GraphView height={400} />
       </section>
-    )}
 
-    {videoCount > 0 && (
       <section class="home-section">
-        <h2>视频笔记</h2>
-        <ul class="recent-list">
-          {recentVideos.map(({ slug, video }) => (
-            <li>
-              <a href={`${videoBase}/${slug}`}>{video.data.title || slug}</a>
-              <span class="meta">
-                {video.data.video_channel || ''}
-                {video.data.video_channel && video.data.video_duration && ' · '}
-                {video.data.video_duration || ''}
-                {` · ${String(video.data.updated || '').slice(0, 10)}`}
-              </span>
-            </li>
-          ))}
-        </ul>
-        <a class="section-more" href={`${videoBase}`}>查看全部 →</a>
+        <h2>主题</h2>
+        <div class="topic-grid">
+          {[...topics.entries()].map(([topic, topicNotes]) => {
+            const overview = topicNotes.find(n => n.id.endsWith('/_overview'))
+            const noteCount = topicNotes.filter(n => !n.id.endsWith('/_overview')).length
+            return (
+              <a class="topic-card" href={overview ? noteUrl(overview.id) : '#'}>
+                <div class="topic-name">{topic}</div>
+                <div class="topic-count">{noteCount} 篇笔记</div>
+              </a>
+            )
+          })}
+        </div>
       </section>
-    )}
 
-    {videoCount === 0 && (
-      <section class="home-section">
-        <h2>视频笔记</h2>
-        <p class="empty-hint">还没有视频笔记。用 <code>$bilibili-render-pdf &lt;BV链接&gt;</code> 或 <code>$youtube-render-pdf &lt;链接&gt;</code> 开始处理第一个视频。</p>
-      </section>
-    )}
-  </main>
+      {paperCount > 0 && (
+        <section class="home-section">
+          <h2>论文笔记</h2>
+          <ul class="recent-list">
+            {recentPapers.map(paper => (
+              <li>
+                <a href={paperUrl(paper.id)}>{paper.data.title || paper.id}</a>
+                <span class="meta">{paper.data.topic} · {String(paper.data.updated || '').slice(0, 10)}</span>
+              </li>
+            ))}
+          </ul>
+          <a class="section-more" href={`${paperBase}`}>查看全部 →</a>
+        </section>
+      )}
+
+      {paperCount === 0 && (
+        <section class="home-section">
+          <h2>论文笔记</h2>
+          <p class="empty-hint">还没有论文笔记。用 <code>$paper-learn &lt;arxiv-url&gt;</code> 开始读第一篇。</p>
+        </section>
+      )}
+
+      {videoCount > 0 && (
+        <section class="home-section">
+          <h2>视频笔记</h2>
+          <ul class="recent-list">
+            {recentVideos.map(({ slug, video }) => (
+              <li>
+                <a href={`${videoBase}/${slug}`}>{video.data.title || slug}</a>
+                <span class="meta">
+                  {video.data.video_channel || ''}
+                  {video.data.video_channel && video.data.video_duration && ' · '}
+                  {video.data.video_duration || ''}
+                  {` · ${String(video.data.updated || '').slice(0, 10)}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <a class="section-more" href={`${videoBase}`}>查看全部 →</a>
+        </section>
+      )}
+
+      {videoCount === 0 && (
+        <section class="home-section">
+          <h2>视频笔记</h2>
+          <p class="empty-hint">还没有视频笔记。用 <code>$bilibili-render-pdf &lt;BV链接&gt;</code> 或 <code>$youtube-render-pdf &lt;链接&gt;</code> 开始处理第一个视频。</p>
+        </section>
+      )}
+    </main>
+  </div>
 
   <Search client:idle />
 </body>

@@ -50,6 +50,8 @@ if (section === 'wiki') {
 }
 ---
 <aside class="sidebar">
+  {/* 折叠按钮（sidebar 可见时显示，点击隐藏；隐藏后浮动按钮在 SidebarToggle.astro） */}
+  <button class="sidebar-toggle sidebar-toggle--collapse" aria-label="折叠侧边栏" title="折叠侧边栏">«</button>
   {/* 分区导航 */}
   <nav class="sidebar-sections">
     {sectionLinks.map(s => (

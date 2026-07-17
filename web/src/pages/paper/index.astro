@@ -1,5 +1,7 @@
 ---
 import { getCollection } from 'astro:content'
+import Sidebar from '../../components/Sidebar.astro'
+import SidebarToggle from '../../components/SidebarToggle.astro'
 import Search from '../../components/Search.jsx'
 import '../../styles/global.css'
 
@@ -31,35 +33,40 @@ function paperUrl(paperId: string): string {
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700&family=Noto+Serif+SC:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
 <body>
+  <SidebarToggle />
   <header class="site-header">
-    <a href={base}>← grounds</a>
+    <a href={base}>grounds</a>
     <span style="margin-left: 16px; color: var(--text-muted);">/</span>
     <span style="margin-left: 8px;">paper</span>
   </header>
 
-  <main style="max-width: 960px;">
-    <p class="home-intro">论文笔记 · {papers.filter(p => !p.id.endsWith('/_overview')).length} 篇 · {topics.size} 个主题</p>
+  <div class="note-layout note-layout--topic">
+    <Sidebar section="paper" />
 
-    {topics.size === 0 ? (
-      <p style="color: var(--text-muted); margin-top: 40px;">还没有论文笔记。用 <code>$paper-learn &lt;arxiv-url&gt;</code> 开始读第一篇。</p>
-    ) : (
-      <section class="home-section">
-        <h2>主题</h2>
-        <div class="topic-grid">
-          {[...topics.entries()].map(([topic, topicPapers]) => {
-            const overview = topicPapers.find(p => p.id.endsWith('/_overview'))
-            const count = topicPapers.filter(p => !p.id.endsWith('/_overview')).length
-            return (
-              <a class="topic-card" href={overview ? paperUrl(overview.id) : '#'}>
-                <div class="topic-name">{topic}</div>
-                <div class="topic-count">{count} 篇论文</div>
-              </a>
-            )
-          })}
-        </div>
-      </section>
-    )}
-  </main>
+    <main class="note-main">
+      <p class="home-intro">论文笔记 · {papers.filter(p => !p.id.endsWith('/_overview')).length} 篇 · {topics.size} 个主题</p>
+
+      {topics.size === 0 ? (
+        <p style="color: var(--text-muted); margin-top: 40px;">还没有论文笔记。用 <code>$paper-learn &lt;arxiv-url&gt;</code> 开始读第一篇。</p>
+      ) : (
+        <section class="home-section">
+          <h2>主题</h2>
+          <div class="topic-grid">
+            {[...topics.entries()].map(([topic, topicPapers]) => {
+              const overview = topicPapers.find(p => p.id.endsWith('/_overview'))
+              const count = topicPapers.filter(p => !p.id.endsWith('/_overview')).length
+              return (
+                <a class="topic-card" href={overview ? paperUrl(overview.id) : '#'}>
+                  <div class="topic-name">{topic}</div>
+                  <div class="topic-count">{count} 篇论文</div>
+                </a>
+              )
+            })}
+          </div>
+        </section>
+      )}
+    </main>
+  </div>
 
   <Search client:idle />
 </body>

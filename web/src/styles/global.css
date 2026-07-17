@@ -70,21 +70,21 @@ body {
   font-weight: 600;
 }
 
-/* ========== Sidebar 折叠按钮 ========== */
+/* ========== Sidebar 折叠/展开按钮 ========== */
 .sidebar-toggle {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 100%;
+  height: 26px;
   padding: 0;
-  margin-right: 12px;
+  margin-bottom: 12px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg-elevated);
   color: var(--text-secondary);
   font-family: var(--font-heading);
-  font-size: 1rem;
+  font-size: 0.95rem;
   line-height: 1;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
@@ -93,11 +93,20 @@ body {
   border-color: var(--accent);
   color: var(--accent);
 }
-/* 默认显示 »（隐藏），折叠后显示 «（展开） */
-.sidebar-toggle .icon-sidebar-show { display: none; }
-.sidebar-toggle .icon-sidebar-hide { display: inline; }
-body.sidebar-hidden .sidebar-toggle .icon-sidebar-show { display: inline; }
-body.sidebar-hidden .sidebar-toggle .icon-sidebar-hide { display: none; }
+/* sidebar 内的折叠按钮：随 sidebar 一起 display:none */
+/* 浮动展开按钮：默认隐藏，sidebar 折叠后显示 */
+.sidebar-toggle--floating {
+  position: fixed;
+  left: 12px;
+  top: 60px;
+  width: 26px;
+  margin-bottom: 0;
+  z-index: 50;
+  display: none;
+}
+body.sidebar-hidden .sidebar-toggle--floating {
+  display: flex;
+}
 @media (max-width: 768px) {
   .sidebar-toggle { display: none; }
 }
