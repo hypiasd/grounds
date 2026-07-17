@@ -588,13 +588,17 @@ python3 <grounds 根>/.agents/skills/_shared/scripts/tex_to_md.py \
 
 转换规则：
 - `\section` → `##`，`\subsection` → `###`
-- `importantbox/knowledgebox/warningbox` → GFM callout
+- `itemize` → 无序列表（`-`），`enumerate` → 有序列表（`1.`）
+- `importantbox/knowledgebox/warningbox` → blockquote（`> **[重要]** **标题**`，不依赖 GFM callout 扩展）
 - `\includegraphics` → 占位符 `[图：path — 见 PDF]`
 - TikZ 块 → 跳过（占位 `[图：TikZ 可视化 — 见 PDF]`）
 - `lstlisting` → 代码块
-- `$...$` 和 `$$...$$` 保留（remark-math 识别）
+- `$...$` 和 `$$...$$` 保留（remark-math 识别），转换过程中受保护不被误伤
+- `\rightarrow` `\leq` `\alpha` 等 90+ LaTeX 符号 → Unicode（`→` `≤` `α`）；数学模式内的符号保留给 KaTeX 渲染
+- `%` 开头的注释行 → 删除（保护 `\%` 转义）
 - 元数据 → frontmatter（含 video_url/video_channel/source 等）
 - `\href{url}{text}` → `[text](url)`
+- 不在 .md 末尾加 H1 标题（布局组件会渲染 `data.title`）
 
 注：figures/ 下的图片不进 git（见 .gitignore），所以 .md 里用占位符而非 `![]()`，读者看完整图请打开 PDF。
 
