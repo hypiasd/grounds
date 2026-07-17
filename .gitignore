@@ -10,17 +10,9 @@
 node_modules/
 __pycache__/
 
-# 原始资料：PDF / 源码快照 / 视频 / 字幕等大文件只留本地，不进 git
-# 保留目录结构（.gitkeep）让骨架存在；其余内容忽略
-raw/**
-!raw/**/
-!raw/**/.gitkeep
-
-# video skill 在 raw/videos 下的中间产物（即使误追踪也排除）
-# 注：raw/** 已忽略，这三条是冗余保险
-raw/videos/**/sources/
-raw/videos/**/figures/
-raw/videos/**/ocr/
+# 原始资料：PDF / 源码快照 / 视频 / 字幕等大文件只留本地，全部不进 git
+# raw/ 目录会在 learn / paper-learn / video skill 使用时自动创建，无需 .gitkeep 维持骨架
+raw/
 
 # video 成品目录：只追踪 .tex / .pdf / .md，排除误放的中间产物
 video/**/sources/
