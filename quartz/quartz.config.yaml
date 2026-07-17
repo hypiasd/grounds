@@ -148,6 +148,7 @@ plugins:
       folderDefaultState: collapsed
       folderClickBehavior: link
       useSavedState: true
+      mapFn: "(node) => { if (node.isFolder && node.data && node.children.length === 0) { node.isFolder = false; } return node; }"
     layout:
       position: left
       priority: 50
