@@ -1,0 +1,112 @@
+---
+import { render } from 'astro:content'
+import type { CollectionEntry } from 'astro:content'
+import Sidebar from '../components/Sidebar.astro'
+import Toc from '../components/Toc.astro'
+import Search from '../components/Search.jsx'
+import SidebarToggle from '../components/SidebarToggle.astro'
+import '../styles/global.css'
+
+interface Props {
+  video: CollectionEntry<'videos'>
+}
+
+const { video } = Astro.props
+const { Content, headings } = await render(video)
+const data = video.data
+const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+const videoBase = `${base}/video`
+
+// slug = 目录名（视频标题）
+const slug = video.id.split('/')[0]
+
+const updated = data.updated ? String(data.updated).slice(0, 10) : ''
+
+// PDF 链接指向 GitHub 仓库（video/ 下的 .pdf 不进 dist，需跳 GitHub 查看）
+const repoUrl = 'https://github.com/hypiasd/grounds'
+const pdfUrl = data.source
+  ? `${repoUrl}/blob/main/video/${slug}/${data.source}`
+  : ''
+---
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{data.title || slug}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700&family=Noto+Serif+SC:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <header class="site-header">
+    <SidebarToggle />
+    <a href={base}>← grounds</a>
+    <span style="margin-left: 16px; color: var(--text-muted);">/</span>
+    <a href={`${videoBase}`} style="margin-left: 8px;">video</a>
+    <span style="margin-left: 8px; color: var(--text-muted);">/</span>
+    <span style="margin-left: 8px;">{slug}</span>
+  </header>
+
+  <div class="note-layout">
+    <Sidebar />
+
+    <main class="note-main">
+      <h1>{data.title || slug}</h1>
+
+      <div class="note-meta">
+        {data.video_channel && <span>{data.video_channel}</span>}
+        {data.video_duration && ` · ${data.video_duration}`}
+        {updated && ` · ${updated}`}
+      </div>
+
+      {data.summary && <div class="note-summary">{data.summary}</div>}
+
+      {/* 视频元数据 + PDF 下载 */}
+      <div class="video-meta-bar">
+        {data.video_url && (
+          <a href={data.video_url} target="_blank" rel="noopener" class="video-source-link">
+            视频原链接 ↗
+          </a>
+        )}
+        {pdfUrl && (
+          <a href={pdfUrl} target="_blank" rel="noopener" class="video-pdf-link">
+            查看完整 PDF ↗
+          </a>
+        )}
+      </div>
+
+      <article data-pagefind-body>
+        <Content />
+      </article>
+    </main>
+
+    <aside class="note-right">
+      <Toc headings={headings} />
+    </aside>
+  </div>
+
+  <Search client:idle />
+</body>
+</html>
+
+<style>
+  .video-meta-bar {
+    display: flex;
+    gap: 16px;
+    margin: 12px 0 24px;
+    padding: 10px 14px;
+    background: var(--bg-sidebar);
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  .video-source-link, .video-pdf-link {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .video-source-link:hover, .video-pdf-link:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+  }
+</style>

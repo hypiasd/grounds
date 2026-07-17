@@ -29,4 +29,21 @@ const papers = defineCollection({
   schema: noteSchema,
 })
 
-export const collections = { notes, papers }
+const videos = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: '../video' }),
+  schema: z.object({
+    title: z.string().optional(),
+    topic: z.string().optional(),
+    tags: z.array(z.string()).default([]),
+    summary: z.string().default(''),
+    created: dateString.optional(),
+    updated: dateString.optional(),
+    // video 专属字段（由 tex_to_md.py 生成）
+    video_url: z.string().optional(),
+    video_channel: z.string().optional(),
+    video_duration: z.string().optional(),
+    source: z.string().optional(),  // PDF 文件名，同目录
+  }),
+})
+
+export const collections = { notes, papers, videos }

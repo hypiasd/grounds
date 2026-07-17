@@ -1,0 +1,67 @@
+---
+import { getCollection } from 'astro:content'
+import Search from '../../components/Search.jsx'
+import '../../styles/global.css'
+
+const videos = await getCollection('videos')
+const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+const videoBase = `${base}/video`
+
+// 按目录名（视频标题）分组，每个目录取第一个 .md
+const videoMap = new Map<string, typeof videos>()
+for (const video of videos) {
+  const slug = video.id.split('/')[0]
+  if (!videoMap.has(slug)) videoMap.set(slug, video)
+}
+
+const videoList = [...videoMap.entries()]
+  .map(([slug, v]) => ({ slug, video: v }))
+  .sort((a, b) => String(b.video.data.updated || '').localeCompare(String(a.video.data.updated || '')))
+---
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>视频笔记 · grounds</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:wght@400;600;700&family=Noto+Serif+SC:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <header class="site-header">
+    <a href={base}>← grounds</a>
+    <span style="margin-left: 16px; color: var(--text-muted);">/</span>
+    <span style="margin-left: 8px;">video</span>
+  </header>
+
+  <main style="max-width: 960px;">
+    <p class="home-intro">视频笔记 · {videoList.length} 个视频</p>
+
+    {videoList.length === 0 ? (
+      <p style="color: var(--text-muted); margin-top: 40px;">还没有视频笔记。用 <code>$bilibili-render-pdf &lt;BV链接&gt;</code> 或 <code>$youtube-render-pdf &lt;链接&gt;</code> 开始处理第一个视频。</p>
+    ) : (
+      <section class="home-section">
+        <h2>视频列表</h2>
+        <div class="note-grid">
+          {videoList.map(({ slug, video }) => (
+            <a class="note-card" href={`${videoBase}/${slug}`}>
+              <div class="note-title">{video.data.title || slug}</div>
+              {video.data.summary && (
+                <div class="note-summary">{video.data.summary.slice(0, 80)}{video.data.summary.length > 80 ? '...' : ''}</div>
+              )}
+              <div class="note-tags">
+                {video.data.video_channel && `${video.data.video_channel}`}
+                {video.data.video_channel && video.data.video_duration && ' · '}
+                {video.data.video_duration && `${video.data.video_duration}`}
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+  </main>
+
+  <Search client:idle />
+</body>
+</html>

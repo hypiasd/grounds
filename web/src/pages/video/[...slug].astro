@@ -1,0 +1,20 @@
+---
+import { getCollection } from 'astro:content'
+import Video from '../../layouts/Video.astro'
+
+export async function getStaticPaths() {
+  const videos = await getCollection('videos')
+  // video.id = "<标题>/<basename>"，slug 取目录名（视频标题）
+  // 每个视频目录只有一个 .md，用目录名作 slug
+  return videos.map(video => {
+    const slug = video.id.split('/')[0]
+    return {
+      params: { slug },
+      props: { video },
+    }
+  })
+}
+
+const { video } = Astro.props
+---
+<Video video={video} />
