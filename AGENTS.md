@@ -147,6 +147,27 @@ paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `con
 
 ---
 
+## 外部工具依赖
+
+各 skill 执行时依赖的外部命令行工具（首次执行或换机器时检查）：
+
+| 工具 | 用途 | 涉及 skill | 检查命令 |
+|------|------|------------|----------|
+| `opencli` | 中文面经搜索（小红书/知乎/牛客三大源统一入口） | capture | `which opencli` |
+| `mcporter`（含 Exa MCP） | 通用网页搜索（按需，非强制） | learn / capture / query | `mcporter tools list` |
+| `yt-dlp` | 视频/字幕下载 | bilibili-render-pdf / youtube-render-pdf | `which yt-dlp` |
+| `ffmpeg` / `ffprobe` | 音频提取、帧提取、视频时长校验 | bilibili-render-pdf / youtube-render-pdf | `which ffmpeg` |
+| `xelatex` | LaTeX → PDF 编译 | bilibili-render-pdf / youtube-render-pdf | `which xelatex` |
+| `whisper` / `faster-whisper` | 语音转字幕（CC 字幕失败时回退） | bilibili-render-pdf / youtube-render-pdf | `which whisper` 或 `python3 -c "import faster_whisper"` |
+| `tesseract` | OCR 回退（视觉模式） | bilibili-render-pdf / youtube-render-pdf | `which tesseract` |
+| `pdftotext` / `pdfinfo` | PDF 文本提取 / 元数据 | paper-learn | `which pdfinfo` |
+| `qpdf` / `ocrmypdf` | PDF 解密 / OCR（扫描版论文） | paper-learn | `which qpdf` |
+| `gh`（GitHub CLI） | 论文-代码对照搜仓库（可选） | paper-learn | `which gh` |
+
+工具缺失时：对应 skill 需在 SKILL.md 的环境检查小节说明替代方案或报告用户——不要静默跳过必需步骤（如 capture 缺 `opencli` 时面经补充无法执行，必须问用户是否跳过）。
+
+---
+
 ## 提交规范
 
 - commit message 格式：`<skill> <topic>: <一句话>`，commit 之后必须 `git push`

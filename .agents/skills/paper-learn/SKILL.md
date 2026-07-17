@@ -46,12 +46,26 @@ paper-learn 分六个阶段：**准备 → 论文全景 → 分章节深入 → 
      curl -L -o raw/papers/1706.03762.pdf "https://arxiv.org/pdf/1706.03762"
      ```
 
+1b. **PDF 完整性检查与解析失败处理**（必做）：
+   - 下载/复制后先 `pdfinfo raw/papers/<file>.pdf` 确认文件非损坏、页数合理（论文一般 5-30 页）
+   - **扫描版 PDF**（无文字层，文本提取为空或乱码）→ 不要硬抠文本。改用 OCR：`ocrmypdf -l eng+chi_sim <input>.pdf <output>.pdf`（需 ocrmypdf）；或用 `pdftoppm` 转图片再 tesseract 逐页 OCR
+   - **加密 PDF**（`pdfinfo` 报 `Encrypted: yes`）→ 用 `qpdf --decrypt <input>.pdf <output>.pdf` 解密后再处理；解密失败时报告用户并退出
+   - **损坏 PDF**（`pdfinfo` 失败或报错）→ 重新下载；仍失败时报告用户检查源链接，不要继续
+   - 文本提取用 `pdftotext -layout <file>.pdf -`，配合 Read 工具读关键章节（Abstract/Method/Experiments）
+
 2. **查 paper/ 是否已有该论文笔记**：
    - 按 arxiv_id 或 title 匹配。读 frontmatter 的 `title` 和正文"论文信息"段。
    - **已有笔记** → 必须先读笔记正文，告诉用户："笔记里已有 X 和 Y，但 Z 部分只有骨架——需要从 Z 开始补，还是你有其他方向想深入？"等用户确认。
    - **没有笔记** → 「这是个新论文，我按新建模式来」→ 进入阶段一。
 
-3. **提取 metadata**：标题 / 作者 / venue / 年份 / arxiv_id（从 PDF 或 arxiv API）。
+3. **提取 metadata**：标题 / 作者 / venue / 年份 / arxiv_id。
+   - **arxiv 论文**（推荐）：查 arxiv API 获取结构化 metadata（venue 难自动提取，需手动从 PDF 首页读）：
+     ```bash
+     # 替换 <arxiv_id>，返回 XML 含 title/authors/abstract/published
+     curl -s "http://export.arxiv.org/api/query?id_list=<arxiv_id>" | grep -E '<title>|<name>|<published>'
+     ```
+   - **非 arxiv**：用 `pdfinfo raw/papers/<file>.pdf` 提取 PDF 元数据（标题/作者可能为空）；标题/作者手动从 PDF 首页读
+   - **venue 难自动提取**：从 PDF 首页/footnote 找会议标识（如 "Published in NeurIPS 2024"），找不到时填 N/A，不要臆造
 
 ---
 
@@ -115,9 +129,12 @@ paper-learn 分六个阶段：**准备 → 论文全景 → 分章节深入 → 
    - 例如：方法适用边界、符号歧义、容易误解的术语
 
 5. **（可选）论文-代码对照**（借鉴 paper-analyzer）
-   - 搜 GitHub 是否有官方/第三方开源实现
-   - 把方法描述和代码实现对应起来（如"论文式 (3) 对应 `model.py` 第 45 行的 `forward` 方法"）
    - 只在用户选了"深读 Method"或明确要复现时启用，不强制
+   - **搜官方/第三方实现**：用 WebSearch 搜 `"<论文标题>" github` / `"<方法名>" github` / `"<第一作者> github"`；或用 `gh search repos "<论文短标题>"`（需 gh CLI 已登录）
+   - **clone 位置**：clone 到 `raw/papers/<arxiv-id>-code/`（属原始资料，不进 git，仅供本笔记对照）
+   - **定位关键文件**：用 Grep 搜方法名/类名（如 `class Attention`、`def forward`、关键算子名）找到对应论文式 (3) 的代码位置
+   - **对照记录**：把对应关系写入笔记，如"论文式 (3) → `model.py:45` 的 `forward` 方法"——便于复现时追踪
+   - 找不到开源实现时，明说"未找到官方实现"，不臆造代码细节
 
 **篇幅**：一个章节 3-5 个要点，不要展开到子子章节。
 
@@ -178,8 +195,8 @@ paper-learn 分六个阶段：**准备 → 论文全景 → 分章节深入 → 
    - **新建模式**：列 `paper/` 判断主题（沿用或新建 `<topic>/`，新建须带 `index.md`）→ 新建 `<论文标题>.md` → 更新 `index.md`。
    - **更新模式**：读已有笔记 → 将新内容融入现有结构 → 刷新 `updated` 日期。
    - **关键原则**：一篇论文一个 md 文件，文件名即论文标题。两次读同一篇论文是同一篇笔记的两次迭代。
-3. **校验（必做）**：`wc -l <note.md>` 确认非空；确认 frontmatter 完整；`git status` 确认改动符合预期。
-4. **提交**：`git add -A && git commit -m "paper-learn <topic>: <一句话>"`，然后 `git push`。
+3. **校验（必做）**：`wc -l <note.md>` 确认非空；确认 frontmatter 完整；确认 `index.md` 的"包含论文"列表已包含本笔记条目（新建时新增，更新时确认条目存在且说明文字未过期）；`git status` 确认改动符合预期。
+4. **提交**：先 `git status` 确认仅本笔记 + `index.md` 改动；显式 `git add <论文标题>.md <topic>/index.md`（不要 `git add -A`，避免误带其他未完成改动）；`git commit -m "paper-learn <topic>: <一句话>" && git push`。
 
 ---
 
@@ -267,6 +284,37 @@ sources:
 ```
 
 > 结构为建议，非强制。但 TL;DR、核心方法（含公式）、实验设计与关键结果、局限与改进方向四者**至少要有三个**——缺了它们，笔记退化成论文摘要搬运。
+
+---
+
+## paper `<topic>/index.md` 模板
+
+新建 `paper/<topic>/` 目录时必须同步创建 `index.md`，作为 Quartz folder note：
+
+```markdown
+---
+title: <topic> 论文总览
+topic: <topic>
+tags: [<topic>]
+summary: <一句话概括这个主题下的论文脉络>
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+
+## 这个主题是什么 / 收录范围
+...
+
+## 包含论文
+- [论文标题](论文标题.md) — 一句话说明这篇论文的核心贡献
+
+## 阅读脉络
+（论文之间的依赖 / 推荐阅读顺序 / 同期工作对比）
+
+## 未读 / 待补
+- ...
+```
+
+每次该主题新增或变更论文笔记，必须同步更新本文件。`index.md` 缺 frontmatter 会导致 Quartz folder note 渲染异常（同 wiki 规范）。
 
 ---
 
