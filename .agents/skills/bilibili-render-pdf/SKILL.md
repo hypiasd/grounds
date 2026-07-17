@@ -576,6 +576,28 @@ ffmpeg -ss <mid_sec> -i sources/video.mp4 -vframes 1 -q:v 2 figures/talk_topic.j
 | `sources/` | `./sources/` | 原始下载：视频、音频、字幕 |
 | `ocr/` | `./ocr/frame_ocr.json` | OCR 输出时间线（视觉模式时） |
 
+**tex → md 转换**（前端接入需要）：
+
+video/ 下的 .tex 在网页上无法渲染，需要转成 .md 给 Astro 渲染。用共享脚本 `.agents/skills/_shared/scripts/tex_to_md.py`：
+
+```bash
+# 在工作目录下执行
+python3 <grounds 根>/.agents/skills/_shared/scripts/tex_to_md.py \
+  "<basename>.tex" "<basename>.md"
+```
+
+转换规则：
+- `\section` → `##`，`\subsection` → `###`
+- `importantbox/knowledgebox/warningbox` → GFM callout
+- `\includegraphics` → 占位符 `[图：path — 见 PDF]`
+- TikZ 块 → 跳过（占位 `[图：TikZ 可视化 — 见 PDF]`）
+- `lstlisting` → 代码块
+- `$...$` 和 `$$...$$` 保留（remark-math 识别）
+- 元数据 → frontmatter（含 video_url/video_channel/source 等）
+- `\href{url}{text}` → `[text](url)`
+
+注：figures/ 下的图片不进 git（见 .gitignore），所以 .md 里用占位符而非 `![]()`，读者看完整图请打开 PDF。
+
 **成品备份到 `video/<视频标题>/`（进 git）**：
 ```bash
 # 回到仓库根
@@ -583,6 +605,7 @@ cd <grounds 根>
 mkdir -p "video/<视频标题>"
 cp "raw/videos/<视频标题>/<basename>.tex" "video/<视频标题>/"
 cp "raw/videos/<视频标题>/<basename>.pdf" "video/<视频标题>/"
+cp "raw/videos/<视频标题>/<basename>.md" "video/<视频标题>/"
 
 # 在 video/ 下的 .tex 顶部加注释说明源工作目录
 # % 源工作目录：../../raw/videos/<视频标题>/，如需重新编译请在该目录下执行 xelatex

@@ -359,12 +359,24 @@ TikZ 速查模式见 `bilibili-render-pdf` SKILL.md。
 | `sources/` | `./sources/` | 原始下载：视频、音频、字幕 |
 | `ocr/` | `./ocr/frame_ocr.json` | OCR 输出时间线（视觉模式时） |
 
+**tex → md 转换**（前端接入需要）：
+
+video/ 下的 .tex 在网页上无法渲染，需要转成 .md 给 Astro 渲染。用共享脚本 `.agents/skills/_shared/scripts/tex_to_md.py`：
+
+```bash
+python3 <grounds 根>/.agents/skills/_shared/scripts/tex_to_md.py \
+  "<basename>.tex" "<basename>.md"
+```
+
+转换规则同 bilibili-render-pdf（见其 SKILL.md）。注：figures/ 下的图片不进 git，.md 里用占位符，读者看完整图请打开 PDF。
+
 **成品备份到 `video/<视频标题>/`（进 git）**：
 ```bash
 cd <grounds 根>
 mkdir -p "video/<视频标题>"
 cp "raw/videos/<视频标题>/<basename>.tex" "video/<视频标题>/"
 cp "raw/videos/<视频标题>/<basename>.pdf" "video/<视频标题>/"
+cp "raw/videos/<视频标题>/<basename>.md" "video/<视频标题>/"
 # 在 video/ 下的 .tex 顶部加注释：
 # % 源工作目录：../../raw/videos/<视频标题>/，如需重新编译请在该目录下执行 xelatex
 ```
