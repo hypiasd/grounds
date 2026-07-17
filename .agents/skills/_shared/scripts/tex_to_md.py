@@ -3,14 +3,16 @@ r"""LaTeX → Markdown 转换器（video skill 共用）.
 
 把 video skill 产出的 .tex 转成可在网页渲染的 .md。
 - 文档结构：\section → ##，\subsection → ###，\subsubsection → ####
-- 高亮框：importantbox/knowledgebox/warningbox → GFM callout
+- 列表：itemize → -，enumerate → 1.
+- 高亮框：importantbox/knowledgebox/warningbox → blockquote（带 [重要]/[知识]/[注意] 标签）
 - 图：\includegraphics → 占位符 [图：path — 见 PDF]
 - TikZ：\begin{tikzpicture}...\end{tikzpicture} → 跳过
 - 代码：lstlisting → 代码块
 - 公式：$...$ 和 $$...$$ 保留（remark-math 识别），转换过程中受保护
+- 符号：\rightarrow → → 等常见 LaTeX 符号转 Unicode
 - 元数据：\notetitle \videochannel 等 → frontmatter
 - 链接：\href{url}{text} → [text](url)
-- \tableofcontents / \newpage / \titlepage → 删除
+- \tableofcontents / \newpage / \titlepage / 注释行 → 删除
 
 用法:
     python3 tex_to_md.py <input.tex> <output.md>
@@ -39,9 +41,7 @@ def protect_math(tex: str) -> tuple[str, dict[str, str]]:
         store[key] = m.group(0)
         return key
 
-    # 先匹配 $$...$$（贪婪），再匹配 $...$（非贪婪，不含换行）
-    # 注意：\$ 是转义美元符号，不应被当作公式起始
-    # 先把 \$ 暂存为另一个占位符避免误匹配
+    # \$ 是转义美元符号，不应被当作公式起始，先暂存
     dollar_store: dict[str, str] = {}
 
     def save_dollar(m: re.Match) -> str:
@@ -64,10 +64,8 @@ def restore_math(tex: str, store: dict[str, str]) -> str:
     """把 @@MATH_N@@ 占位符还原为原始公式."""
 
     def restore(m: re.Match) -> str:
-        key = m.group(0)
-        return store.get(key, key)
+        return store.get(m.group(0), m.group(0))
 
-    # 循环还原（占位符可能被嵌套保护，虽然概率小）
     prev = None
     while prev != tex:
         prev = tex
@@ -115,6 +113,48 @@ def strip_latex_wrappers(tex: str) -> str:
     return tex
 
 
+def strip_comments(tex: str) -> str:
+    """删除 LaTeX 注释行（% 开头的行，保护 \\% 转义）."""
+    lines = tex.split("\n")
+    result = []
+    for line in lines:
+        stripped = line.lstrip()
+        # 跳过纯注释行（%% 或 %，但不是 \%）
+        if stripped.startswith("%") and not stripped.startswith("\\%"):
+            continue
+        result.append(line)
+    return "\n".join(result)
+
+
+# ---------------------------------------------------------------------------
+# 列表转换（必须在 strip_latex_commands 之前）
+# ---------------------------------------------------------------------------
+
+def convert_lists(tex: str) -> str:
+    """itemize → 无序列表，enumerate → 有序列表."""
+    def split_items(content: str) -> list[str]:
+        items = re.split(r"\\item\b", content)
+        return [item.strip() for item in items if item.strip()]
+
+    def itemize_replacer(match):
+        content = match.group(1)
+        items = split_items(content)
+        return "\n" + "\n".join(f"- {item}" for item in items) + "\n"
+
+    def enumerate_replacer(match):
+        content = match.group(1)
+        items = split_items(content)
+        return "\n" + "\n".join(f"{i+1}. {item}" for i, item in enumerate(items)) + "\n"
+
+    # 循环处理嵌套（从内到外，先处理最内层的 itemize/enumerate）
+    prev = None
+    while prev != tex:
+        prev = tex
+        tex = re.sub(r"\\begin\{itemize\}(.*?)\\end\{itemize\}", itemize_replacer, tex, flags=re.DOTALL)
+        tex = re.sub(r"\\begin\{enumerate\}(.*?)\\end\{enumerate\}", enumerate_replacer, tex, flags=re.DOTALL)
+    return tex
+
+
 # ---------------------------------------------------------------------------
 # 章节转换
 # ---------------------------------------------------------------------------
@@ -129,34 +169,32 @@ def convert_sections(tex: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# tcolorbox 转换
+# tcolorbox 转换 → 普通 blockquote（不依赖 GFM callout 语法）
 # ---------------------------------------------------------------------------
 
-_TYPE_MAP = {
-    "importantbox": "IMPORTANT",
-    "knowledgebox": "NOTE",
-    "warningbox": "WARNING",
+_TYPE_LABEL = {
+    "importantbox": "重要",
+    "knowledgebox": "知识",
+    "warningbox": "注意",
 }
 
 
 def _make_callout(box_type: str, title: str, content: str) -> str:
-    callout_type = _TYPE_MAP.get(box_type, "NOTE")
-    title_str = f"**{title}**" if title else ""
+    label = _TYPE_LABEL.get(box_type, "提示")
+    header = f"**[{label}]**"
+    if title:
+        header += f" **{title}**"
     lines = content.strip().split("\n")
     prefixed = "\n".join(f"> {line}" if line.strip() else ">" for line in lines)
-    header = f"> [!{callout_type}]"
-    if title_str:
-        header += f" {title_str}"
-    return f"{header}\n{prefixed}\n"
+    return f"> {header}\n{prefixed}\n"
 
 
 def convert_tcolorbox(tex: str) -> str:
-    """转换 importantbox/knowledgebox/warningbox 为 GFM callout."""
+    """转换 importantbox/knowledgebox/warningbox 为 blockquote."""
     for box in ("importantbox", "knowledgebox", "warningbox"):
-        callout_type = box  # 闭包绑定
+        callout_type = box
 
         def replacer(match, _box=callout_type):
-            # group(1) = title（可选），group(2) = content
             title = match.group(1) or ""
             content = match.group(2) or ""
             return _make_callout(_box, title, content)
@@ -269,6 +307,127 @@ def strip_remaining_figure_env(tex: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# LaTeX 符号转 Unicode（必须在 strip_latex_commands 之前，否则命令会被删）
+# ---------------------------------------------------------------------------
+
+_LATEX_SYMBOLS = {
+    r"\rightarrow": "→",
+    r"\leftarrow": "←",
+    r"\Rightarrow": "⇒",
+    r"\Leftarrow": "⇐",
+    r"\to": "→",
+    r"\gets": "←",
+    r"\leftrightarrow": "↔",
+    r"\Leftrightarrow": "⇔",
+    r"\leq": "≤",
+    r"\le": "≤",
+    r"\geq": "≥",
+    r"\ge": "≥",
+    r"\neq": "≠",
+    r"\ne": "≠",
+    r"\approx": "≈",
+    r"\equiv": "≡",
+    r"\sim": "∼",
+    r"\infty": "∞",
+    r"\times": "×",
+    r"\div": "÷",
+    r"\pm": "±",
+    r"\mp": "∓",
+    r"\cdot": "·",
+    r"\cdots": "⋯",
+    r"\ldots": "…",
+    r"\dots": "…",
+    r"\vdots": "⋮",
+    r"\ddots": "⋱",
+    r"\alpha": "α",
+    r"\beta": "β",
+    r"\gamma": "γ",
+    r"\delta": "δ",
+    r"\epsilon": "ε",
+    r"\varepsilon": "ε",
+    r"\zeta": "ζ",
+    r"\eta": "η",
+    r"\theta": "θ",
+    r"\vartheta": "ϑ",
+    r"\iota": "ι",
+    r"\kappa": "κ",
+    r"\lambda": "λ",
+    r"\mu": "μ",
+    r"\nu": "ν",
+    r"\xi": "ξ",
+    r"\pi": "π",
+    r"\varpi": "ϖ",
+    r"\rho": "ρ",
+    r"\varrho": "ϱ",
+    r"\sigma": "σ",
+    r"\varsigma": "ς",
+    r"\tau": "τ",
+    r"\upsilon": "υ",
+    r"\phi": "φ",
+    r"\varphi": "φ",
+    r"\chi": "χ",
+    r"\psi": "ψ",
+    r"\omega": "ω",
+    r"\Gamma": "Γ",
+    r"\Delta": "Δ",
+    r"\Theta": "Θ",
+    r"\Lambda": "Λ",
+    r"\Xi": "Ξ",
+    r"\Pi": "Π",
+    r"\Sigma": "Σ",
+    r"\Phi": "Φ",
+    r"\Psi": "Ψ",
+    r"\Omega": "Ω",
+    r"\forall": "∀",
+    r"\exists": "∃",
+    r"\nexists": "∄",
+    r"\in": "∈",
+    r"\notin": "∉",
+    r"\subset": "⊂",
+    r"\subseteq": "⊆",
+    r"\supset": "⊃",
+    r"\supseteq": "⊇",
+    r"\cup": "∪",
+    r"\cap": "∩",
+    r"\emptyset": "∅",
+    r"\nabla": "∇",
+    r"\partial": "∂",
+    r"\sum": "∑",
+    r"\prod": "∏",
+    r"\int": "∫",
+    r"\oint": "∮",
+    r"\sqrt": "√",
+    r"\circ": "∘",
+    r"\star": "⋆",
+    r"\dagger": "†",
+    r"\ddagger": "‡",
+    r"\bullet": "•",
+    r"\ldotp": "·",
+    r"\colon": ":",
+    r"\degree": "°",
+    r"\textdegree": "°",
+    r"\checkmark": "✓",
+    r"\heartsuit": "♥",
+    r"\diamondsuit": "♦",
+    r"\clubsuit": "♣",
+    r"\spadesuit": "♠",
+    r"\#": "#",
+    r"\&": "&",
+    r"\%": "%",
+    r"\_": "_",
+    r"\{": "{",
+    r"\}": "}",
+}
+
+
+def convert_symbols(tex: str) -> str:
+    """把常见 LaTeX 符号命令转成 Unicode."""
+    for cmd, sym in _LATEX_SYMBOLS.items():
+        tex = tex.replace(cmd, sym)
+    return tex
+
+
+# ---------------------------------------------------------------------------
 # 剩余 LaTeX 命令清理（注意：此时公式已被保护，不会被误伤）
 # ---------------------------------------------------------------------------
 
@@ -348,35 +507,49 @@ def convert(tex_path: Path, md_path: Path) -> None:
     """主转换函数."""
     tex = tex_path.read_text(encoding="utf-8")
 
-    # 1. 提取元数据（在保护公式前，因为 \newcommand 可能含 $）
+    # 1. 提取元数据
     meta = extract_metadata(tex)
 
-    # 2. 保护数学公式（关键：后续所有转换都不会动 $...$ 内容）
+    # 2. 保护数学公式
     body, math_store = protect_math(tex)
 
     # 3. 删除 preamble/titlepage/toc/newcommand 定义
     body = strip_latex_wrappers(body)
 
-    # 4. 转换各元素（顺序重要）
+    # 4. 删除注释行
+    body = strip_comments(body)
+
+    # 5. 转换列表（itemize/enumerate）—— 必须在 strip_latex_commands 前
+    body = convert_lists(body)
+
+    # 6. 转换高亮框 → blockquote
     body = convert_tcolorbox(body)
+
+    # 7. 跳过 TikZ / 转代码块 / 图片占位 / 剩余 figure
     body = strip_tikz(body)
     body = convert_lstlisting(body)
     body = convert_includegraphics(body)
     body = strip_remaining_figure_env(body)
+
+    # 8. 章节标题 / 链接 / 脚注
     body = convert_sections(body)
     body = convert_href(body)
     body = convert_footnote(body)
+
+    # 9. LaTeX 符号转 Unicode —— 必须在 strip_latex_commands 前
+    body = convert_symbols(body)
+
+    # 10. 清理剩余 LaTeX 命令
     body = strip_latex_commands(body)
     body = cleanup(body)
 
-    # 5. 还原数学公式
+    # 11. 还原数学公式
     body = restore_math(body, math_store)
     body = cleanup(body)
 
-    # 6. 组装 frontmatter + body
+    # 12. 组装 frontmatter + body（不再加 H1，布局组件会渲染标题）
     fm = build_frontmatter(meta, tex_path)
-    title_for_h1 = meta.get("title", "").replace("课程笔记：", "").strip() or tex_path.stem
-    md = f"{fm}\n\n# {title_for_h1}\n\n{body}\n"
+    md = f"{fm}\n\n{body}\n"
 
     md_path.write_text(md, encoding="utf-8")
     print(f"OK: {tex_path} → {md_path} ({len(md)} chars)")
