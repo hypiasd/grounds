@@ -63,7 +63,7 @@ function paperUrl(paperId: string): string {
 
   {isOverview ? (
     <div class="note-layout note-layout--topic">
-      <Sidebar currentTopic={topic} />
+      <Sidebar currentTopic={topic} section="paper" />
 
       <main class="note-main">
         <article data-pagefind-body>
@@ -90,7 +90,7 @@ function paperUrl(paperId: string): string {
     </div>
   ) : (
     <div class="note-layout">
-      <Sidebar currentSlug={paper.id} currentTopic={data.topic} />
+      <Sidebar currentSlug={paper.id} currentTopic={data.topic} section="paper" />
 
       <main class="note-main">
         <h1>{data.title || paper.id}</h1>
