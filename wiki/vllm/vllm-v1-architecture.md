@@ -27,10 +27,10 @@ Worker / GPUModelRunner ← 实际在 GPU 上跑 forward
 ```
 
 关键源码对应：
-- [llm_engine.py](../../raw/wiki/vllm/vllm/v1/engine/llm_engine.py) — LLMEngine（V0 兼容外壳，实际 alias 到 V1）
-- [core.py](../../raw/wiki/vllm/vllm/v1/engine/core.py) — EngineCore 核心循环
-- [scheduler.py](../../raw/wiki/vllm/vllm/v1/core/sched/scheduler.py) — 调度器
-- [gpu_model_runner.py](../../raw/wiki/vllm/vllm/v1/worker/gpu_model_runner.py) — GPU 执行
+- [llm_engine.py](../../raw/vllm/vllm/v1/engine/llm_engine.py) — LLMEngine（V0 兼容外壳，实际 alias 到 V1）
+- [core.py](../../raw/vllm/vllm/v1/engine/core.py) — EngineCore 核心循环
+- [scheduler.py](../../raw/vllm/vllm/v1/core/sched/scheduler.py) — 调度器
+- [gpu_model_runner.py](../../raw/vllm/vllm/v1/worker/gpu_model_runner.py) — GPU 执行
 
 整个 V1 核心代码在 `vllm/v1/` 目录下，`vllm/engine/llm_engine.py` 只是一个向后兼容的别名：`LLMEngine = V1LLMEngine`。
 
@@ -39,8 +39,8 @@ Worker / GPUModelRunner ← 实际在 GPU 上跑 forward
 传统做法给每个请求预留一整块连续的 KV cache 显存——即使请求只需要很少 token，显存也被占满。PagedAttention 的解决思路：
 
 1. KV cache 被切成固定大小的 **block**（通常是 16 个 token 一组）
-2. **BlockPool**（[block_pool.py](../../raw/wiki/vllm/vllm/v1/core/block_pool.py)）管理所有 block 的分配和回收
-3. **KVCacheManager**（[kv_cache_manager.py](../../raw/wiki/vllm/vllm/v1/core/kv_cache_manager.py)）为每个请求维护一个 **block table**——逻辑 block 到物理 block 的映射
+2. **BlockPool**（[block_pool.py](../../raw/vllm/vllm/v1/core/block_pool.py)）管理所有 block 的分配和回收
+3. **KVCacheManager**（[kv_cache_manager.py](../../raw/vllm/vllm/v1/core/kv_cache_manager.py)）为每个请求维护一个 **block table**——逻辑 block 到物理 block 的映射
 4. 请求不需要连续显存，需要时分配 block，用完释放
 
 这和操作系统的虚拟内存分页是同一思路：程序看到的是连续地址空间（逻辑 block），背后是离散的物理页（物理 block），通过页表（block table）做映射。
@@ -74,4 +74,4 @@ $$\text{BlockTable}[req] = [\text{physical\_block}_0, \text{physical\_block}_1, 
 ## 关联
 
 - [Continuous Batching 与调度器](continuous-batching-scheduler.md) — 调度器如何利用 PagedAttention 的 block 分配机制做混合调度
-- 源码：[vLLM 仓库](../../raw/wiki/vllm/) — `vllm/v1/core/` 和 `vllm/v1/worker/` 为核心目录
+- 源码：[vLLM 仓库](../../raw/vllm/) — `vllm/v1/core/` 和 `vllm/v1/worker/` 为核心目录

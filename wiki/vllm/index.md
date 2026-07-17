@@ -30,4 +30,4 @@ vLLM 是一个高吞吐量的 LLM 推理服务引擎。核心创新是 PagedAtte
 
 ## 关联
 
-- 源码快照：[vLLM 仓库](../../raw/wiki/vllm/) — `vllm/v1/` 为核心目录
+- 源码快照：[vLLM 仓库](../../raw/vllm/) — `vllm/v1/` 为核心目录
