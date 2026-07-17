@@ -10,9 +10,9 @@
 ## 铁律
 
 1. **绝不编造**：不确定的内容明确说"我不确定"，不要假装确定。
-2. **改动即 commit + push**：每次对 wiki/ 或 raw/ 的改动，立即 `git commit` 然后 `git push`。commit message 格式：`<skill> <topic>: <一句话>`（如 `learn deep-learning: 注意力机制笔记`）。
-3. **互链防孤儿**：笔记之间、笔记与 raw 之间用标准 Markdown 相对路径互链（如 `[Dropout](../deep-learning/dropout.md)`）。
-4. **主题自主生长**：列 `wiki/` 即发现所有主题；无合适主题时新建 `<topic>/` 目录，新建主题必须同时创建 `_overview.md`。
+2. **改动即 commit + push**：每次对 `wiki/`、`paper/`、`video/` 或 `raw/` 的改动，立即 `git commit` 然后 `git push`。commit message 格式：`<skill> <topic>: <一句话>`（如 `learn deep-learning: 注意力机制笔记`）。
+3. **互链防孤儿**：`wiki/` 内笔记之间、笔记与 `raw/wiki/` 之间用标准 Markdown 相对路径互链（如 `[Dropout](../deep-learning/dropout.md)`）。`paper/` 和 `video/` **不参与互链**。
+4. **主题自主生长**：列 `wiki/`（或 `paper/`）即发现所有主题；无合适主题时新建 `<topic>/` 目录，新建主题必须同时创建 `_overview.md`。
 
 ---
 
@@ -23,13 +23,23 @@ grounds/
 ├── AGENTS.md              # 本文件（唯一入口，Claude Code 和 Codex 都读）
 ├── CLAUDE.md → AGENTS.md  # 符号链接
 ├── README.md
-├── wiki/                  # 学习笔记
+├── wiki/                  # 学习笔记（learn/capture/query/lint 产出）
 │   └── <topic>/
 │       ├── _overview.md
 │       └── <note>.md
-├── raw/                   # 原始资料（只增不删）
+├── paper/                 # 论文笔记（paper-learn 产出）
+│   └── <topic>/
+│       └── <论文标题>.md
+├── video/                 # 视频笔记成品（video skill 产出，仅 .tex + .pdf）
+│   └── <视频标题>/
+│       ├── <basename>.tex
+│       └── <basename>.pdf
+├── raw/                   # 原始资料（只增不删，分三类）
+│   ├── wiki/              # learn/capture/query 引用的资料
+│   ├── paper/             # 论文 PDF
+│   └── video/             # 视频工作目录（含 sources/figures/ocr/）
 ├── .agents/               # 技能、规范、归档
-│   ├── conventions.md     # 笔记模板（写笔记前必读）
+│   ├── conventions.md     # wiki 笔记模板（写笔记前必读）
 │   ├── skills/
 │   └── archive/
 ├── .claude → .agents      # 符号链接（Claude Code 技能发现）
@@ -38,23 +48,27 @@ grounds/
 
 ---
 
-## 四个 Skill
+## 七个 Skill
 
-所有 skill 在 `.agents/skills/<name>/SKILL.md`。识别到触发词后，**必须先 Read 对应的 SKILL.md 文件**再执行——表格只是索引，SKILL.md 里的详细流程、Gotchas、质量示例才是执行标准。
+所有 skill 在 `.agents/skills/<name>/SKILL.md`。**必须先 Read 对应的 SKILL.md 文件**再执行——表格只是索引，SKILL.md 里的详细流程、Gotchas、质量示例才是执行标准。
 
-| Skill | 触发词 | 文件 | 产出 |
-|-------|--------|------|------|
-| `learn` | "讲讲 X"、"什么是 Y"、"帮我理解 Z" | `.agents/skills/learn/SKILL.md` | 全景概览（地图）→ 选方向深入 → 检验 → 补漏 → 沉淀 |
-| `capture` | "整理一下"、"沉淀"、"记下来" | `.agents/skills/capture/SKILL.md` | 蒸馏 → 归位 → 面经搜索 → 批量写入 |
-| `lint` | "体检"、"检查仓库" | `.agents/skills/lint/SKILL.md` | 问题清单（默认只读） |
-| `query` | "复习一下 X"、"之前学的 Y" | `.agents/skills/query/SKILL.md` | summary 扫描 → 精准加载 → 综合作答 |
+| Skill | 触发方式 | 文件 | 产出 |
+|-------|----------|------|------|
+| `learn` | 语义触发（"讲讲 X"、"什么是 Y"） | `.agents/skills/learn/SKILL.md` | wiki 笔记 |
+| `capture` | 语义触发（"整理一下"、"沉淀"） | `.agents/skills/capture/SKILL.md` | wiki 笔记 |
+| `lint` | 语义触发（"体检"、"检查仓库"） | `.agents/skills/lint/SKILL.md` | 问题清单（默认只读） |
+| `query` | 语义触发（"复习一下 X"） | `.agents/skills/query/SKILL.md` | 综合作答 |
+| `paper-learn` | **手动 / `$` 触发**（不接受语义触发） | `.agents/skills/paper-learn/SKILL.md` | paper/ 论文笔记 |
+| `bilibili-render-pdf` | **手动 / `$` 触发**（不接受语义触发） | `.agents/skills/bilibili-render-pdf/SKILL.md` | video/<标题>/ LaTeX+PDF |
+| `youtube-render-pdf` | **手动 / `$` 触发**（不接受语义触发） | `.agents/skills/youtube-render-pdf/SKILL.md` | video/<标题>/ LaTeX+PDF |
 
 ### 调度规则（跨 agent 通用）
 
-1. 识别用户意图，匹配上表触发词。
-2. **用 Read 工具读取对应的 SKILL.md 文件**。不要跳过——表格只是索引。
-3. 严格按 SKILL.md 中的流程执行，包括校验步骤。
-4. 写笔记前必须再读 `.agents/conventions.md`。
+1. **前 4 个 skill（learn/capture/lint/query）**：识别用户意图，匹配触发词后自动调度。
+2. **后 3 个 skill（paper-learn/bilibili-render-pdf/youtube-render-pdf）**：**只接受手动触发或 `$` 触发**——agent 不得基于用户消息内容自动调用它们，即使用户提供了 arxiv/BV/YouTube 链接。用户必须显式说"用 paper-learn skill 读这篇论文"或输入 `$paper-learn <url>` 才会触发。
+3. **用 Read 工具读取对应的 SKILL.md 文件**。不要跳过——表格只是索引。
+4. 严格按 SKILL.md 中的流程执行，包括校验步骤。
+5. 写 wiki 笔记前必须再读 `.agents/conventions.md`。写 paper 笔记前读 paper-learn SKILL.md 内的模板说明。
 
 ---
 
@@ -80,19 +94,43 @@ grounds/
 
 **流程**：扫描（孤儿页/断链/矛盾/过时/缺 _overview/模板合规/Topic 健康度/草稿提醒）→ 报告清单 → 用户决定是否修复
 
-**注意**：默认只报告不修改。
+**注意**：默认只报告不修改。**只扫 `wiki/`，不扫 `paper/` 和 `video/`**——后两者结构不同，不套用 wiki 的 lint 规则。
 
 ### query — 复习已有知识
 
 **触发**："复习一下 X"、"之前学的 Y"、"对比 A 和 B"
 
-**流程**：第一遍扫 summaries（不加载正文）→ 精准加载命中笔记 → 综合引用作答 → 内容不足时明说并建议 learn/learn
+**流程**：第一遍扫 summaries（不加载正文）→ 精准加载命中笔记 → 综合引用作答 → 内容不足时明说并建议 learn
+
+### paper-learn — 读论文
+
+**触发**：手动 / `$` 触发。用户说"用 paper-learn 读 X"或 `$paper-learn <url>`。
+
+**流程**：准备（下载 PDF 到 `raw/papers/`，查 paper/ 是否已有）→ 论文全景（问题/方法/贡献/定位，2-3 段）→ 分章节深入（Abstract→Intro→Related Work→Method→Experiments→Discussion，每章含核心内容+论证逻辑+key claims+误区，可选论文-代码对照）→ 检验（论文版：复述方法/实验设计/局限/复现可行性）→ 补漏 → 沉淀到 `paper/<topic>/<论文标题>.md` → commit
+
+**关键原则**：以**学习者**视角为主、**批判性读者**为辅。不是 reviewer 在做 Accept/Reject 评审，是学习者吃透一篇论文。一篇论文一个 md 文件，文件名即论文标题，不合并不拆分。
+
+### bilibili-render-pdf — B 站视频转 PDF
+
+**触发**：手动 / `$` 触发。用户说"用 bilibili-render-pdf 处理 X"或 `$bilibili-render-pdf <BV链接>`。
+
+**流程**：环境检查 → 元数据+字幕获取（CC→Whisper→OCR 三级回退）→ 视频/封面下载 → 帧选择（密集候选+评估）→ 写 `.tex`（封面+章节+图+公式+小结+总结）→ xelatex 编译 PDF → 工作目录留在 `raw/videos/<标题>/`，成品 `.tex`+`.pdf` 复制到 `video/<标题>/` → commit
+
+**产出位置**：完整工作目录（含 sources/figures/ocr/）在 `raw/videos/<标题>/`（不进 git）；成品 `.tex`+`.pdf` 复制到 `video/<标题>/`（进 git）。
+
+### youtube-render-pdf — YouTube 视频转 PDF
+
+**触发**：手动 / `$` 触发。用户说"用 youtube-render-pdf 处理 X"或 `$youtube-render-pdf <链接>`。
+
+**流程**：同 bilibili-render-pdf，但省略 B 站专属适配（登录 cookies、分P、SiliconFlow API 等）。字幕获取优先级：CC→Whisper→OCR。
+
+**产出位置**：同 bilibili-render-pdf。
 
 ---
 
 ## 笔记规范
 
-写笔记前必须先读 `.agents/conventions.md`。核心要点：
+写 wiki 笔记前必须先读 `.agents/conventions.md`。核心要点：
 
 - **原子性**：一篇笔记只讲一个概念
 - **标题是概念名**："Dropout"，不是"Dropout 笔记"
@@ -104,29 +142,43 @@ grounds/
 - **Topic 分配**：选一个 topic 放，tags 补其他维度。不确定时先放再调——结构会演化。
 - **参考范例**：`wiki/grounds/example-note.md`
 
+paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `conventions.md`。
+
 ---
 
 ## 提交规范
 
 - commit message 格式：`<skill> <topic>: <一句话>`，commit 之后必须 `git push`
-- 示例：`learn deep-learning: 注意力机制笔记`、`lint: 修复孤儿页`、`capture grounds: 沉淀对话笔记`
+- 示例：
+  - `learn deep-learning: 注意力机制笔记`
+  - `lint: 修复孤儿页`
+  - `capture grounds: 沉淀对话笔记`
+  - `paper-learn llm: Attention Is All You Need`
+  - `bilibili-render-pdf: <视频标题>`
+  - `youtube-render-pdf: <视频标题>`
 
 ---
 
 ## Gotchas（agent 最常犯的错）
 
-- **不读 conventions 就写笔记** → frontmatter 缺字段。写之前必须 Read `.agents/conventions.md`。
-- **不读 SKILL.md 就执行** → 遗漏关键步骤（如 learn 的检验、答疑循环、外部资料处理；capture 的面经搜索）。触发后必须先 Read 对应 SKILL.md。
-- **忘记更新 _overview.md** → 笔记变孤儿页。
+- **不读 conventions 就写笔记** → frontmatter 缺字段。写 wiki 笔记前必须 Read `.agents/conventions.md`。
+- **不读 SKILL.md 就执行** → 遗漏关键步骤（如 learn 的检验、答疑循环、外部资料处理；capture 的面经搜索；paper-learn 的论文-代码对照）。触发后必须先 Read 对应 SKILL.md。
+- **忘记更新 _overview.md** → wiki 笔记变孤儿页。
 - **讲完忘 commit + push** → 下次打开仓库状态不一致。commit 之后不 push，换个机器就看不到。
 - **把 query 当 learn 用** → 用户问已有知识时应该查笔记作答。
 - **learn 讲完跳过检验** → 检验是固定阶段，讲完必须主动出题。
 - **有公式不写** → 不能说"用 softmax 归一化"而不给 softmax 公式。
 - **重复建笔记** → 讲之前先查仓库，已有笔记走更新模式。
+- **自动触发手动 skill** → 后 3 个 skill（paper-learn/bilibili-render-pdf/youtube-render-pdf）只接受手动 / `$` 触发，agent 不得基于用户提供的链接自动调用。
+- **在 paper/ 或 video/ 建互链** → 互链只管 wiki/。paper 笔记可单向引用 wiki，但 wiki 不反向链接 paper/video。
 
 ---
 
 ## 注意事项
 
 - 废弃笔记移入 `.agents/archive/`，不要直接删除。
-- raw/ 只增不删。
+- `raw/` 只增不删，分三个子目录：`raw/wiki/`（learn/capture/query 资料）、`raw/papers/`（论文 PDF）、`raw/videos/`（视频工作目录，含中间产物）。
+- `paper/` 笔记按主题分目录，但**不存在合并拆分问题**——一篇论文一个 md 文件，文件名即论文标题，论文不会移动。
+- `video/` 只追踪成品 `.tex` + `.pdf`；`raw/videos/` 下的 `sources/`、`figures/`、`ocr/` 中间产物不进 git（见 `.gitignore`）。
+- `lint` 只扫 `wiki/`，不扫 `paper/` 和 `video/`。
+- 互链只管 `wiki/`：wiki 笔记之间互链，wiki 笔记可引用 `raw/wiki/` 资料。`paper/` 和 `video/` 不参与互链（paper 笔记可单向引用 wiki，但不建立反链）。

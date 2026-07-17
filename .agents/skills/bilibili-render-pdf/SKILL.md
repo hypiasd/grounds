@@ -1,0 +1,787 @@
+---
+name: bilibili-render-pdf
+description: 用户手动或用 `$bilibili-render-pdf <BV链接>` 触发，把一个 Bilibili 视频（讲座/教程/技术演讲）转换成结构化中文 LaTeX 笔记并编译为 PDF。不接受语义触发——即使用户贴了 BV 链接，没有显式调用本 skill 也不得自动启动。工作目录在 raw/videos/<标题>/，成品 .tex+.pdf 复制到 video/<标题>/。
+disable-model-invocation: true
+allowed-tools: Read, Write, Edit, Bash
+---
+
+# bilibili-render-pdf
+
+把一个 Bilibili 视频转成完整可编译的 `.tex` 笔记 + 渲染好的 PDF。
+
+本 skill 是 `youtube-render-pdf` 的 B 站特化扩展，针对 B 站的字幕稀缺、登录门控高清、分P 视频、平台特定非教学内容做了适配。
+
+## 何时用（触发）
+
+**只接受手动触发**：
+- 用户明确说"用 bilibili-render-pdf 处理 X"、"走 bilibili-render-pdf"
+- 用户输入 `$bilibili-render-pdf <BV链接>`
+
+**不得自动触发**：即使用户贴了 BV/b23.tv 链接，没有显式调用本 skill，agent 不得自行启动。可以先问"要用 bilibili-render-pdf 处理吗？"。
+
+## 目标（完成时仓库应处于的状态）
+
+- `raw/videos/<视频标题>/` 下有完整工作目录（cover.jpg + .tex + .pdf + sources/ + figures/ + ocr/）
+- `video/<视频标题>/` 下有成品 `.tex` 和 `.pdf` 备份（进 git）
+- 已 `git commit + push`，commit message：`bilibili-render-pdf: <视频标题>`
+
+## Bilibili vs YouTube: 关键差异
+
+| 方面 | 处理 |
+|------|------|
+| **字幕稀缺** | **始终**尝试 CC 字幕下载，即使 metadata 显示 `NA`。先 CC → 回退 Whisper → 视觉模式 OCR。B 站 metadata 经常误报 `NA` 但实际可下载 |
+| **登录门控高清** | 1080P+ 需要 cookies；提示用户用 `yt-dlp --cookies-from-browser chrome` |
+| **分P 视频** | 检测分P 并问用户处理哪些 P |
+| **URL 格式** | 支持 `bilibili.com/video/BVxxxxxxx` 和 `b23.tv` 短链 |
+| **弹幕** | 不用弹幕作教学内容源（噪声太大）；只用 CC 字幕或 Whisper 输出 |
+
+---
+
+## 环境检查（首先运行）
+
+下载任何内容前，先确定最快的内容提取路径，避免在硬件不支持的方法上浪费 30+ 分钟。
+
+### 1. 硬件检查
+
+```bash
+python3 -c "import torch; print('GPU available:', torch.cuda.is_available())" 2>/dev/null || echo "torch not available"
+sysctl -n hw.ncpu  # CPU 核心数
+```
+
+- **GPU 可用**：用更大更快的 Whisper 模型
+- **仅 CPU（Mac 常见）**：优先小模型或视觉模式
+
+### 2. 工具可用性检查
+
+```bash
+which whisper                                        # OpenAI Whisper CLI
+python3 -c "import faster_whisper; print('ok')" 2>/dev/null   # faster-whisper: CTranslate2 后端，CPU 快 3-5×
+which tesseract && tesseract --list-langs 2>&1 | grep chi_sim  # 视觉模式 OCR 回退
+which magick || which montage                                   # ImageMagick 帧拼接
+which xelatex                                                   # LaTeX → PDF 编译
+which ffmpeg                                                    # 视频/音频/帧提取
+```
+
+### 2b. Visual API 帧评估检查（盲模式环境推荐）
+
+当 `view_image` 不可用时，本地 tesseract OCR 在 CPU 上批量评估太慢，远程视觉/OCR API 是可靠回退。
+
+```bash
+# 检查 SiliconFlow API key（或等价 OpenAI 兼容端点）
+[ -f ~/.config/bilibili-render-pdf/siliconflow_key ] && echo "SiliconFlow key: FOUND" || echo "SiliconFlow key: MISSING"
+python3 -c "from openai import OpenAI; print('openai package: ok')" 2>/dev/null || echo "openai package: MISSING (pip install openai)"
+# 检查本 skill 自带的帧评估脚本
+[ -f .agents/skills/bilibili-render-pdf/scripts/frame_assess.py ] && echo "frame_assess.py: FOUND" || echo "frame_assess.py: MISSING"
+```
+
+key 缺失时，请用户创建 `~/.config/bilibili-render-pdf/siliconflow_key`（一行纯文本 API key）。脚本用 OpenAI 兼容的 SiliconFlow 端点 + `deepseek-ai/DeepSeek-OCR` 做中文 OCR，~1.5s/帧。
+
+### 3. 模型缓存检查
+
+```bash
+ls ~/.cache/whisper/                                                  # 缓存的 OpenAI Whisper 模型
+ls ~/.cache/huggingface/hub/models--Systran--faster-whisper-*/        # 缓存的 faster-whisper 模型
+```
+
+### 5. 工作区状态检测（检查上次运行的残留）
+
+```bash
+for f in sources/video.mp4 sources/audio.wav sources/subtitles.srt cover.jpg; do
+  [ -f "$f" ] && echo "EXISTS: $f ($(wc -c < "$f" | tr -d ' ') bytes)" || echo "MISSING: $f"
+done
+[ -f sources/subtitles.srt ] && python3 -c "
+with open('sources/subtitles.srt') as f:
+    lines = f.read().strip().split('\\n')
+entries = [l for l in lines if '-->' in l]
+print(f'{len(entries)} subtitle entries')
+if entries:
+    last_ts = entries[-1].split(' --> ')[1].replace(',',':').split(':')
+    last_sec = int(last_ts[0])*3600 + int(last_ts[1])*60 + int(last_ts[2])
+    print(f'Last timestamp: {last_sec}s')
+"
+```
+
+有残留时根据质量决定复用或替换，不要盲删。
+
+### 4. 转录策略选择
+
+基于检查结果选**一个**策略并坚持，不要中途切换——每次重试都耗时数分钟。
+
+| 条件 | 工具 | 模型 | 预期时间（10 分钟音频，CPU） |
+|------|------|------|------------------------------|
+| GPU 可用 | `faster-whisper` | `medium` 或 `large-v3` | ~30s |
+| CPU + `faster-whisper` 可用 + medium 已缓存 | `faster-whisper` | `medium`, `int8`, `local_files_only=True` | 3-8 分钟 |
+| CPU + `faster-whisper` 可用 | `faster-whisper` | `small`, `int8` | 1-3 分钟 |
+| CPU + 只有 `openai-whisper` + medium 已缓存 | `whisper` CLI | `medium` | 20-40 分钟——**跳过，用 `small` 或视觉模式** |
+| CPU + 只有 `openai-whisper` | `whisper` CLI | `tiny` 或 `small` | 2-5 分钟 |
+| 5 分钟内无转录或无工具 | 视觉模式 + OCR | 无 | N/A |
+
+**时间预算规则**：每 10 分钟音频 2 分钟预算，最少 5 分钟。从 `transcribe()` 调用起算（不含模型加载）。预算窗口内 SRT 文件每 30 秒必须增长，否则 kill 进程走视觉模式。
+
+**模型加载超时**：`transcribe()` 调用后 2 分钟内 SRT 仍为 0 字节，模型加载可能卡死，kill 并回退。
+
+**CPU-only Mac 注意**：`medium` 模型在 CPU 上转 10 分钟中文音频要 20-40 分钟。Mac 无 GPU 时默认 `small`/`tiny` 或走视觉模式。
+
+**SSL 变通**：模型下载报 `SSL: CERTIFICATE_VERIFY_FAILED` 时，运行 `/Applications/Python\ 3.12/Install\ Certificates.command`，或用 `faster-whisper`（依赖 `huggingface_hub`，SSL 路径不同）。
+
+---
+
+## 目标
+
+从 Bilibili URL 产出专业中文讲义 PDF。
+
+输出必须：
+- 用视频的实际教学内容，而非纯字幕转录
+- 把视频原始封面放在 `.tex` 和 PDF 首页（可用时）
+- 包含所有必要的高价值关键帧作为图，不加冗余截图
+- 以最终综合章节结尾，含讲者实质性的总结讨论 + 自己蒸馏的要点
+- 用 `\section{...}` 和 `\subsection{...}` 组织结构
+- 是从 `\documentclass` 到 `\end{document}` 的完整 `.tex` 文档
+- 成功编译为 PDF
+
+---
+
+## 源获取
+
+### 元数据检查
+
+1. 先检查视频元数据。优先标题、章节、时长、封面可用性、字幕可用性。
+
+   ```bash
+   yt-dlp --print "%(title)s|%(description)s|%(duration)s|%(thumbnail)s|%(chapters)s|%(subtitles)s" --skip-download "<URL>"
+   ```
+
+   **重要——B 站字幕元数据不可靠**：`--print subtitles` 经常返回 `NA` 即使 CC 字幕实际可下载（ai-zh 轨观察到）。**无论元数据结果如何，都要尝试 CC 字幕下载**（下方 Priority 1）。确认字幕缺失的唯一方法是尝试下载并检查 `.srt` 是否生成。
+
+2. 检测分P 视频。列出所有 P 并问用户处理哪些 P。
+
+3. **下载后验证实际时长**。yt-dlp 元数据时长可能不准（观察到元数据报 59 分钟，实际 104 分钟）。下载后用 ffprobe 交叉检查：
+   ```bash
+   ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 sources/video.mp4
+   ```
+   差超 10% 时用 ffprobe 值并重新评估内容结构。
+
+### 工作区设置
+
+检查元数据后，创建以视频标题命名的专用输出目录。所有后续工作在此目录内。
+
+目录：`raw/videos/<视频标题>/`。标题含文件系统问题字符（`/`、`:`、`?`）时替换为 `-`。保留中文，不要音译。
+
+```bash
+# 从元数据取标题并清洗
+TITLE="$(yt-dlp --print "%(title)s" --skip-download "<URL>" | sed 's/[/:?*"<>|]/-/g')"
+mkdir -p "raw/videos/$TITLE"/{sources,figures,ocr}
+cd "raw/videos/$TITLE"
+```
+
+必需内部结构：
+```
+raw/videos/<视频标题>/
+├── cover.jpg              # 视频封面
+├── <basename>.tex         # LaTeX 源文件
+├── <basename>.pdf         # 编译后的 PDF
+├── sources/               # 下载的原始素材
+│   ├── video.mp4
+│   ├── audio.wav
+│   └── subtitles.srt
+├── figures/               # 提取的帧和生成的图
+│   ├── talk_05min.jpg
+│   ├── candidates/        # 帧选择候选（用完可清理）
+│   ├── dense/             # 视觉模式密集帧
+│   └── scene/             # 视觉模式场景切换帧
+└── ocr/                   # OCR 输出（视觉模式）
+    └── frame_ocr.json
+```
+
+### 字幕获取
+
+#### Priority 1: CC 字幕（平台内嵌）—— 目标 ≤ 30s
+
+有手动字幕优先于自动生成。优先 `zh-Hans`、`zh-CN`、`zh`、`ai-zh` 轨。保留时间戳，图定位需要时不要过早扁平化。
+
+```bash
+yt-dlp --cookies-from-browser chrome --write-subs --sub-langs "zh-Hans,zh-CN,zh,ai-zh" --convert-subs srt \
+  --skip-download -o "%(title)s.%(ext)s" "<URL>"
+```
+
+`chrome` 失败时试 `safari` 或 `edge`。都失败时请用户先在浏览器登录 B 站再重试。cookies 路径几秒内成功并产出准确简体中文字幕——应在 Whisper 回退前始终尝试。
+
+无 cookies 回退（B 站几乎必失败，但快）：
+```bash
+yt-dlp --write-subs --sub-langs "zh-Hans,zh-CN,zh,ai-zh" --convert-subs srt \
+  --skip-download -o "%(title)s.%(ext)s" "<URL>"
+```
+
+两种都试后仍无 `.srt` 才走 Priority 2。放弃 CC 前确认下载确实失败：
+```bash
+ls -la sources/*.srt 2>/dev/null || echo "No SRT file found — CC subtitles unavailable"
+```
+不要用 `zh-Hans,zh-CN,zh,ai-zh` 之外的语言码重试。
+
+#### Priority 2: Whisper 语音转文字 —— 目标 ≤ 5 分钟总耗时
+
+1. 提取音频为 WAV：
+   ```bash
+   yt-dlp -x --audio-format wav -o "sources/audio.%(ext)s" "<URL>"
+   ```
+
+2. 按上面的[策略表](#4-转录策略选择)选工具和模型。
+
+   **首选 `faster-whisper`**（用 Python API 而非 CLI，便于看进度）：
+   ```python
+   from faster_whisper import WhisperModel
+   import time, os
+
+   # 已缓存 medium 模型时用显式缓存路径：
+   # cache = os.path.expanduser("~/.cache/huggingface/hub/models--Systran--faster-whisper-medium/snapshots/<hash>")
+   # model = WhisperModel(cache, device="cpu", compute_type="int8", local_files_only=True)
+
+   model = WhisperModel("small", device="cpu", compute_type="int8")  # CPU 安全默认
+   segments, info = model.transcribe("sources/audio.wav", language="zh", beam_size=5)
+   # SRT 写入模板见 Troubleshooting
+   ```
+
+   **回退 `openai-whisper` CLI**（仅 `faster-whisper` 不可用时）：
+   ```bash
+   whisper sources/audio.wav --model small --language zh --output_format srt --output_dir sources/
+   ```
+
+3. **中止条件**：`transcribe()` 调用后 5 分钟仍无 SRT 文件，kill 进程走 Priority 3。
+
+#### Priority 3: 视觉模式 + OCR
+
+转录不可用或太慢时，跳过音频。用 Tesseract OCR 从视频帧提取屏幕文字。对讲者读幻灯片或注释幻灯片的讲座型视频有效。
+
+1. **提取密集帧**（每 10 秒）：
+   ```bash
+   mkdir -p figures/dense
+   ffmpeg -i sources/video.mp4 -vf "fps=1/10" -q:v 3 figures/dense/frame_%04d.jpg
+   ```
+
+2. **检测场景切换**找幻灯片过渡：
+   ```bash
+   mkdir -p figures/scene
+   ffmpeg -i sources/video.mp4 -vf "select='gt(scene,0.15)'" -vsync vfr figures/scene/scene_%04d.jpg 2>&1 | grep "frame="
+   ```
+   `frame=0`（静态背景的 talking-head 视频常见）时回退到步骤 1 的密集帧。
+
+3. **OCR 关键帧**——只对有实质文字内容的帧：
+   ```python
+   import subprocess, json, os, glob
+
+   files = sorted(glob.glob("figures/dense/frame_*.jpg"))
+   # 先每 3 帧取样评估内容密度
+   for f in files[::3]:
+       r = subprocess.run(["tesseract", f, "stdout", "-l", "chi_sim+eng", "--psm", "6"],
+                          capture_output=True, text=True, timeout=15)
+       text = r.stdout.strip()
+       if len(text) > 20:  # 跳过近乎空白的帧
+           # 存 {timestamp, text} 供内容组装
+           pass
+   ```
+   - `--psm 6`：假设统一文本块（最适合幻灯片）
+   - 跳过返回少于 20 字符的帧
+   - 结果存 JSON 供后续内容组装
+
+4. **组装内容时间线**：把 OCR 文字映射到近似时间戳（帧号 × 帧间隔）。用作章节边界。
+
+5. **补充领域知识**：中文幻灯片 OCR 输出常碎片化。用视频标题、描述和你的领域知识填补语义空缺。目标是连贯讲义，不是幻灯片文字逐字转录。
+
+### Visual API 帧评估（Priority 0.5——可用时）
+
+`view_image` 不可用且本地 tesseract 批量评估太慢（CPU >30s/帧）时，用远程 OCR/视觉 API 评估帧质量。把帧选择从盲启发式变成数据驱动。
+
+**前置条件**（见上面环境检查 2b）：
+- `~/.config/bilibili-render-pdf/siliconflow_key` 含有效 SiliconFlow API key
+- `openai` Python 包装好
+- `.agents/skills/bilibili-render-pdf/scripts/frame_assess.py` 自带脚本
+
+**帧评估模型选择**：
+
+| 模型 | 速度 | 最适合 |
+|------|------|--------|
+| `deepseek-ai/DeepSeek-OCR` | ~1.5s/帧 | 纯中文幻灯片文字提取。返回原始 OCR 文本；info-score 本地从字符数算。**推荐默认。** |
+| `PaddlePaddle/PaddleOCR-VL-1.5` | ~5-10s/帧 | 带 JSON 输出的结构化评估。能分类帧类型（幻灯片/代码/图表）。需要帧类型分类时用。 |
+| `Qwen/Qwen3-VL-8B-Instruct` | ~3-5s/帧 | 通用视觉语言模型。混合内容（图+文+码）好。幻灯片含 OCR 会漏的图时用。 |
+
+**工作流**：
+
+1. 在字幕分析识别的每个关键片段内以 1 fps 提取候选帧：
+   ```bash
+   mkdir -p figures/candidates
+   # 对每个片段（start_sec 到 end_sec）：
+   ffmpeg -ss <start> -to <end> -i sources/video.mp4 -vf "fps=1" -q:v 2 figures/candidates/seg_N_%04d.jpg
+   ```
+
+2. 批量评估一个片段的所有候选，只保留 top-ranked 帧：
+   ```bash
+   python3 .agents/skills/bilibili-render-pdf/scripts/frame_assess.py --batch "figures/candidates/seg_1_*.jpg" --top 1
+   ```
+
+   脚本输出 JSON：`info_score` (1-5)、`char_count`、`suitable_for_notes`、提取的 `ocr_text`。score ≥3 且 `suitable_for_notes: true` 的帧适合纳入。
+
+3. 最终 `.tex` 里，把每个片段的 top-ranked 帧复制到 `figures/`：
+   ```bash
+   cp figures/candidates/seg_1_0042.jpg figures/talk_arch.jpg
+   ```
+
+4. 片段 top 帧评分 <3 时跳过该片段的图（内容可能是纯 talking-head）。
+
+**回退**：API 不可用或所有候选 <3 分时，提取片段中点的单帧继续，不做评估。帧可能非最优，但优先完成交付。
+
+**限流**：片段多（>15）时按 5-10 个一批处理，避免 API 限流。
+
+### 视频和封面下载
+
+1. 写 `.tex` 前先获取视频原始封面，存为工作目录下的 `cover.jpg`，首页引用。
+
+   ```bash
+   # 从元数据提取封面 URL，然后：
+   curl -L -o cover.jpg "<thumbnail_url>"
+   ```
+
+2. 优先最高可用视频源做图提取。探查格式选当前环境实际可下载的最高分辨率：
+   ```bash
+   yt-dlp -F "<URL>"  # 列格式
+   ```
+   B 站 1080P+ 通常需登录 cookies。720P 在 1920×1080 显示器上做图提取通常足够。
+
+3. 下载视频用于帧提取：
+   ```bash
+   yt-dlp -f "bestvideo[height<=720]+bestaudio" --merge-output-format mp4 -o "sources/video.mp4" "<URL>"
+   ```
+
+4. 源文件留在 `raw/videos/<标题>/sources/`（不进 git）。
+
+---
+
+## 教学内容规则
+
+可用时从以下构建笔记：
+- 视频标题和章节结构
+- 视频原始封面和关键元数据
+- 屏幕上的图、公式、表、图、架构幻灯片
+- 字幕讲解、例子、口头强调
+- 讲座中展示或描述的代码片段
+
+跳过不贡献实际教学的内容：
+- 问候、寒暄
+- 赞助、频道运营（一键三连、关注投币等）
+- 结束客套
+
+讲者的结尾讨论有实际教学价值时保留（综合、局限、未来工作、权衡、建议、开放问题）。
+
+---
+
+## 写作规则
+
+1. 除非用户明确要求其他语言，用中文写笔记。
+
+2. 用 `\section{...}` 和 `\subsection{...}` 组织。需要时重建教学流程，不盲目镜像字幕顺序。
+
+3. 从 `.agents/skills/bilibili-render-pdf/assets/notes-template.tex` 开始。填元数据块（含本地封面路径），替换正文内容块。
+
+4. 首页必须含视频原始封面（可用时）。放第一页而非埋在后面。与正文教学图视觉区分。
+
+5. 图实质上改善讲解时使用。教学清晰需要多少图就放多少，即使整篇很多图。不优化图数量少，优化讲解覆盖和可读性。好图：关键公式、图、表、图、视觉对比、pipeline 调度、架构视图、分阶段视觉进展。
+
+6. 不要把图片放在自定义消息框内。
+
+7. 数学公式出现时：
+   - 用 `$$...$$` 显示
+   - 紧接一个扁平列表解释每个符号
+
+8. 代码示例出现时：
+   - 包在 `lstlisting` 内
+   - 含描述性 `caption`
+
+9. 内容值得时故意且反复高亮教学信号：
+   - `importantbox` 用于读者必须带走的核心概念：形式定义、中心主张、关键机制总结、定理式陈述、关键算法步骤、密集讲解后的紧凑重述
+   - `knowledgebox` 用于背景和旁知识：前置提醒、历史脉络、工程上下文、设计权衡、术语对比、直觉构建类比
+   - `warningbox` 用于常见误解和失败点：符号重载、隐藏假设、误导启发式、易犯实现错误、因果混淆、off-by-one 推理错误、讲者对比错误直觉与正确直觉的地方
+   - 不强制每节一个框；材料含多个不同教学信号时可多框
+   - 每个框应带具体教学载荷而非通用强调
+   - 优先放在激发它的段落、推导或例子之后
+   - 常规阐述留在正常散文；框是高信号要点，不是装饰
+   - 图必须留在 `importantbox`、`knowledgebox`、`warningbox` 外
+
+10. **每个主要 `\section{...}` 以 `\subsection{本章小结}` 结尾**。
+    有 1-2 个值得的外链时，在 `\section{总结与延伸}` 最后加 `\subsection{拓展阅读}`。
+
+11. 文档以最终顶级章节 `\section{总结与延伸}` 结尾。该章节必须含：
+    - 讲者实质性结尾讨论（排除例行告别）
+    - 你自己结构化蒸馏的核心主张、机制、实践含义
+    - 你的扩展综合：概念压缩、章节间交叉链接、忠实于视频的谨慎泛化
+    - 具体要点、开放问题或下一步（材料支持时）
+
+12. LaTeX 中不要发 `[cite]`-式占位符。
+
+13. **LaTeX 中文标点**：`ctex` 包 UTF-8 原生处理中文标点，直接用标准中文标点。中文字符间不要用空格作词分隔（中文无词间空格）。不要用 regex 后处理注入中文标点——会在拉丁技术术语间产生尴尬结果（如逗号）。混排中英文时，中文和英文术语间放一个常规空格。
+
+### 编译前必检结构清单
+
+跑 `xelatex` 前确认以下**每一项**。缺一项降级输出质量：
+
+- [ ] `\videocoverpath` 已设且 `cover.jpg` 存在
+- [ ] 每个 `\section{...}`（除总结与延伸）以 `\subsection{本章小结}` 结尾
+- [ ] 文档以 `\section{总结与延伸}` 结尾，含：讲者结尾 + 综合 + 具体要点
+- [ ] 有外链时 `\subsection{拓展阅读}` 存在（在总结与延伸内）
+- [ ] 每个 `\includegraphics` 来自视频帧的有 `\footnotetext{视频画面时间区间：HH:MM:SS--HH:MM:SS}` 在同页
+- [ ] 图时间区间来自字幕对齐片段，非粗估或 ffmpeg `-ss` 值
+- [ ] 无图在 `importantbox`、`knowledgebox`、`warningbox` 内
+- [ ] 至少一个 TikZ 或脚本生成的可视化用于架构/流程/流概念（非仅截图）
+- [ ] 无 `[cite]` 占位符
+- [ ] 所有 `\ref`、`\cite`、`\href` 引用已解析（PDF 无 `??`）
+
+---
+
+## 图处理
+
+按必要性和教学价值选图，不按任意配额或偏稀疏的偏好。
+
+定位候选帧时，偏召回高于精度。多看附近候选优于错过幻灯片/公式/表/图最终完整可读的那一帧。
+
+### 帧选择工作流
+
+1. **定位内容跨度**：用带时间戳的字幕文件（CC 或 Whisper SRT）作主要定位器。识别对应讨论概念的片段。
+
+2. **生成密集候选**：在字幕对齐时间窗（两侧加小缓冲）内以 1-2 秒间隔提取帧。不要在猜的时间戳提单帧。
+   ```bash
+   ffmpeg -ss <start> -to <end> -i sources/video.mp4 -vf "fps=1" -q:v 2 figures/candidates/frame_%04d.jpg
+   ```
+
+3. **检查并下选**：用 contact sheet 或 montage 比较候选。
+   ```bash
+   # 首选：montage 显式字体路径（macOS）
+   montage figures/candidates/*.jpg -font /System/Library/Fonts/Helvetica.ttc -geometry 320x180+2+2 -tile 5x figures/montage.jpg
+
+   # 回退：Python/PIL montage（无字体依赖）
+   ```
+
+4. **选最有信息量的帧**：
+   - 渐进 PPT 揭示：持续检查直到找到**最终完全填充状态**
+   - 动画构建或白板累积：捕获端点；仅在教真正不同的步骤时加中间帧
+   - 同窗内稀疏早帧 vs 密集晚帧犹豫时：晚帧实质更完整则偏好晚帧
+
+5. **包含所有必要图**。一节内含多图可接受且常理想（视频分阶段构建想法时）。仅省略重复或低信息帧。
+
+### 盲模式帧选择（无法看图时）
+
+三层，按序试：
+
+**Tier 1——Visual API 帧评估（首选）**：
+用上面 **Visual API 帧评估** 的远程 OCR/视觉 API pipeline。~1.5s/帧，可靠数据驱动排名。SiliconFlow key 配置时始终用此。
+
+**Tier 2——单帧中点提取（回退）**：
+API 不可用时，每关键片段中点提一帧：
+```bash
+ffmpeg -ss <mid_sec> -i sources/video.mp4 -vframes 1 -q:v 2 figures/talk_topic.jpg
+```
+不要提 1 fps 密集候选——无快速评估法时，60-120 候选/片段是浪费（存了也不评估）。
+
+**Tier 3——完全跳过帧（最后手段）**：
+视频格式阻止帧提取或所有提取帧空白/损坏时，跳过该片段图。字幕单独可承载教学内容。无图笔记优于不完整笔记。
+
+**本地 OCR 注意**：CPU-only Mac 上对单帧跑 `tesseract chi_sim` **不推荐**盲模式批量评估——2+ 分钟/帧，100+ 候选跨 8-10 片段 >3 小时。用 API（Tier 1）或中点提取（Tier 2）。
+
+---
+
+## 图时间溯源
+
+`.tex` 或 PDF 引用具体视频帧或其裁剪时，在同页底部脚注记录源时间区间。
+
+- 脚注显示具体时间区间，如 `00:12:31--00:12:46`
+- 区间来自**字幕对齐片段**，非模糊章节估计或 ffmpeg `-ss` 参数
+- 裁剪图脚注仍指源帧或片段的原始视频时间区间
+- 同一字幕区间内多帧一个清晰脚注够
+- 图和时间脚注锚同页；优先 `[H]` 放置：
+  ```latex
+  \begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{figures/example.jpg}
+  \caption{... \protect\footnotemark}
+  \end{figure}
+  \footnotetext{视频画面时间区间：00:12:31--00:12:46。}
+  ```
+
+---
+
+## 可视化
+
+仅截图和散文不足以讲清的概念，加准确可视化。截图对架构密集技术内容很少够用。
+
+两条路：
+- 用 TikZ 或 PGFPlots 生成 LaTeX 原生可视化
+- 用 Python 脚本预生成图，作为图片纳入
+
+可视化用于：
+- 流程和 pipeline 阶段
+- 架构层图（如推理引擎栈）
+- scaling-law 图
+- 总结图和决策树
+- 作为图比散文更清晰的对比
+
+不加不教学的装饰图。
+
+### TikZ 速查模式
+
+**架构层图**——展示系统栈有用（推理引擎、调度层等）：
+```latex
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=0.6cm, auto]
+  \tikzstyle{layer}=[rectangle, draw, minimum width=10cm, minimum height=0.8cm,
+                     align=center, font=\small, rounded corners=1pt]
+  \node [layer, fill=blue!10] (api)    {API / 交互层};
+  \node [layer, fill=green!10, below of=api] (sched) {动态调度器 (Scheduler)};
+  \node [layer, fill=yellow!10, below of=sched] (vm) {VM 块管理器 (PagedAttention)};
+  \node [layer, fill=red!10, below of=vm] (backend) {模型后端适配 (Backend)};
+\end{tikzpicture}
+\caption{推理框架架构层级}
+\end{figure}
+```
+
+**流程图**——展示推理 pipeline、数据流、算法步骤有用：
+```latex
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=2.5cm, auto]
+  \tikzstyle{block}=[rectangle, draw, minimum width=2.5cm, minimum height=1cm,
+                     align=center, font=\small]
+  \tikzstyle{arrow}=[thick,->,>=stealth]
+  \node [block] (input)  {输入 Token};
+  \node [block, right of=input] (prefill) {Prefill};
+  \node [block, right of=prefill] (decode) {Decode};
+  \node [block, right of=decode] (output) {输出 Token};
+  \draw [arrow] (input) -- (prefill);
+  \draw [arrow] (prefill) -- (decode);
+  \draw [arrow] (decode) -- (output);
+\end{tikzpicture}
+\caption{LLM 推理流水线}
+\end{figure}
+```
+
+---
+
+## 交付
+
+工作目录 `raw/videos/<视频标题>/` 交付所有产物（不进 git）：
+
+| 产物 | 位置 | 描述 |
+|------|------|------|
+| `.tex` 文件 | `./<basename>.tex` | 完整 LaTeX 源，`xelatex` 可编译 |
+| `.pdf` 文件 | `./<basename>.pdf` | 编译 PDF（跑两次 `xelatex` 出 TOC 和交叉引用） |
+| `cover.jpg` | `./cover.jpg` | 首页视频封面 |
+| `figures/` | `./figures/` | 所有提取帧和生成可视化 |
+| `sources/` | `./sources/` | 原始下载：视频、音频、字幕 |
+| `ocr/` | `./ocr/frame_ocr.json` | OCR 输出时间线（视觉模式时） |
+
+**成品备份到 `video/<视频标题>/`（进 git）**：
+```bash
+# 回到仓库根
+cd <grounds 根>
+mkdir -p "video/<视频标题>"
+cp "raw/videos/<视频标题>/<basename>.tex" "video/<视频标题>/"
+cp "raw/videos/<视频标题>/<basename>.pdf" "video/<视频标题>/"
+
+# 在 video/ 下的 .tex 顶部加注释说明源工作目录
+# % 源工作目录：../../raw/videos/<视频标题>/，如需重新编译请在该目录下执行 xelatex
+```
+
+提交：
+```bash
+git add video/<视频标题>/
+git commit -m "bilibili-render-pdf: <视频标题>"
+git push
+```
+
+---
+
+## Troubleshooting
+
+### SSL 证书错误（下载模型时）
+
+**症状**：`whisper` 或 `faster-whisper` 下载权重时 `SSL: CERTIFICATE_VERIFY_FAILED`。
+
+**openai-whisper 修复**：
+```bash
+/Applications/Python\ 3.12/Install\ Certificates.command
+```
+按 Python 版本调路径。
+
+**faster-whisper 修复**：faster-whisper 用 `huggingface_hub` 下载，证书链不同。仍失败时：
+```bash
+export HF_HUB_ENABLE_HF_TRANSFER=0
+```
+
+### faster-whisper 模型加载卡住（>60s 无输出）
+
+**症状**：打印 "Loading model..." 后卡住，或脚本无输出（import/CTranslate2 原生库加载时静默崩溃）。
+
+**提交长转录前跑 30 秒烟雾测试**：
+```bash
+python3 << 'PYEOF'
+import time, os, sys
+cache = os.path.expanduser("~/.cache/huggingface/hub/models--Systran--faster-whisper-medium/snapshots/<hash>")
+print("import...", flush=True)
+from faster_whisper import WhisperModel
+print("load...", flush=True)
+m = WhisperModel(cache, device="cpu", compute_type="int8", local_files_only=True)
+print("transcribe...", flush=True)
+segments, info = m.transcribe("sources/audio.wav", language="zh")
+first = next(segments)
+print(f"OK: {first.text[:60]}", flush=True)
+PYEOF
+```
+30 秒内无输出 → 工具链坏，直接走视觉模式，别花时间调 Python 环境。
+
+**可能原因**：`faster-whisper` 尽管设了 `local_files_only=True` 仍试图连 HuggingFace Hub，或缓存快照损坏/不完整。
+
+**修复——验证缓存并用显式路径**：
+```bash
+ls ~/.cache/huggingface/hub/models--Systran--faster-whisper-medium/snapshots/*/
+
+# 已缓存时记 hash 用显式路径：
+python3 << 'PYEOF'
+import os
+cache = os.path.expanduser(
+    "~/.cache/huggingface/hub/models--Systran--faster-whisper-medium/snapshots/<hash>"
+)
+from faster_whisper import WhisperModel
+model = WhisperModel(cache, device="cpu", compute_type="int8", local_files_only=True)
+PYEOF
+```
+
+**修复——未缓存时单独下载**：
+```bash
+python3 -c "
+from huggingface_hub import snapshot_download
+snapshot_download('Systran/faster-whisper-small')
+"
+```
+然后用 `local_files_only=True` 重试。
+
+### openai-whisper Medium 模型 CPU >20 分钟
+
+CPU-only 机器预期行为。medium 模型 ~1.5GB，CPU FP32 推理慢。
+
+**不要等**。kill 进程，任选：
+- 用更小模型（`tiny` 或 `small`）
+- 换 `faster-whisper`（int8 量化 CPU 显著更快）
+- 走视觉模式（Priority 3）
+
+### ImageMagick Montage macOS 字体错误
+
+**症状**：`montage: unable to read font`。
+
+**修复——显式指定系统字体**：
+```bash
+montage *.jpg -font /System/Library/Fonts/Helvetica.ttc -geometry 320x180+2+2 -tile 5x montage.jpg
+```
+
+**回退——Python/PIL**：
+```python
+from PIL import Image
+import glob, os
+
+files = sorted(glob.glob("candidates/*.jpg"))
+cols, rows = 5, 4
+thumb_w, thumb_h = 320, 180
+canvas = Image.new("RGB", (cols*(thumb_w+2)+2, rows*(thumb_h+2)+2), (30,30,30))
+for i, f in enumerate(files[:cols*rows]):
+    img = Image.open(f).resize((thumb_w, thumb_h))
+    r, c = i // cols, i % cols
+    canvas.paste(img, (2+c*(thumb_w+2), 2+r*(thumb_h+2)))
+canvas.save("figures/montage.jpg", quality=85)
+```
+
+### SRT 写入模板（faster-whisper）
+
+用 `faster-whisper` Python API 时用此模板写 SRT：
+```python
+def fmt_ts(t):
+    h = int(t // 3600)
+    m = int((t % 3600) // 60)
+    s = int(t % 60)
+    ms = int((t - int(t)) * 1000)
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+lines = []
+for i, seg in enumerate(segments, 1):
+    lines.append(f"{i}")
+    lines.append(f"{fmt_ts(seg.start)} --> {fmt_ts(seg.end)}")
+    lines.append(seg.text.strip())
+    lines.append("")
+
+with open("sources/subtitles.srt", "w", encoding="utf-8") as f:
+    f.write("\n".join(lines))
+```
+
+### 本地 Tesseract OCR 批量帧评估太慢
+
+**症状**：CPU-only Mac 上 `tesseract frame.jpg stdout -l chi_sim+eng --psm 6` 每帧 60-120+ 秒。数百候选跨多片段批量 OCR 不可行。
+
+**修复——改用 Visual API**：自带脚本调 `deepseek-ai/DeepSeek-OCR` 经 SiliconFlow API，~1.5s/帧。见 **Visual API 帧评估** 章节。
+
+**备选——少提帧**：无 API 时每片段中点仅提 1 帧。无快速评估法时不要 1 fps 密集提取。
+
+### 写大 LaTeX 文件（>400 行）
+
+**症状**：`apply_patch` 加 `*** Add File` 每行需 `+` 前缀，500+ 行 LaTeX 不现实。
+
+**首选——bash heredoc**：
+```bash
+cat > document.tex << 'LATEXEOF'
+\documentclass[a4paper]{article}
+... (整个 LaTeX 内容)
+LATEXEOF
+```
+`LATEXEOF` 单引号防 shell 展开 LaTeX 反斜杠。
+
+**备选——Python heredoc**（含特殊字符时）：
+```python
+python3 << 'PYEOF'
+content = r''' ... '''
+with open('document.tex', 'w') as f:
+    f.write(content)
+PYEOF
+```
+
+**拆分大文档**：700+ 行时分 2-3 部分拼接：
+```bash
+cat part1.tex part2.tex part3.tex > document.tex
+```
+
+### DeepSeek-OCR 返回原始文本而非 JSON
+
+**症状**：`deepseek-ai/DeepSeek-OCR` 返回自然语言描述或带特殊 token 的 OCR 文本而非结构化 JSON。
+
+**这是预期行为**：DeepSeek-OCR 是纯 OCR 引擎，非 chat 模型。擅长文字提取但不可靠地遵循 JSON 格式指令。
+
+**修复——用自带脚本**：`.agents/skills/bilibili-render-pdf/scripts/frame_assess.py` 处理 API 调用和后处理（token 清理、字符计数、本地 info-score 计算）。不要裸调 API——用脚本。
+
+**需要 JSON 格式评估时**：改用 `PaddlePaddle/PaddleOCR-VL-1.5`，有视觉语言能力能遵循结构化输出指令。代价：比 DeepSeek-OCR 慢 3-5×。
+
+---
+
+## 资产
+
+- `.agents/skills/bilibili-render-pdf/assets/notes-template.tex`：默认 LaTeX 模板，复制并填充
+- `.agents/skills/bilibili-render-pdf/scripts/frame_assess.py`：Visual API 帧评估脚本
+
+## Gotchas
+
+- **不接受语义触发**：用户贴 BV 链接但没说"用 bilibili-render-pdf"→ 不得自动开跑。先问"要用 bilibili-render-pdf 处理吗？"。
+- **B 站字幕元数据不可靠**：`--print subtitles` 返回 `NA` 不代表没字幕，始终尝试 CC 下载。
+- **CPU-only Mac 别用 medium 模型**：20-40 分钟/10 分钟音频。用 `small`/`tiny` 或走视觉模式。
+- **转录卡住要 kill，不要等**：5 分钟预算内 SRT 不增长就 kill 走视觉模式，不重试同方法。
+- **帧选择偏召回高于精度**：多看候选优于错过关键帧。
+- **盲模式别用本地 tesseract 批量评估**：2+ 分钟/帧，用 API 或中点提取。
+- **成品必须复制到 video/**：`raw/videos/` 不进 git，`video/` 才进 git。忘记复制 = 换机器看不到。
+- **commit 之后必须 push**。
+
+## 注意
+
+- 工作目录在 `raw/videos/<标题>/`（不进 git），成品 `.tex`+`.pdf` 复制到 `video/<标题>/`（进 git）。
+- `video/` 下的 `.tex` 是源码备份，顶部注释说明源工作目录；如需重新编译去 `raw/videos/` 下执行。
+- 关联：`AGENTS.md`、`.agents/skills/youtube-render-pdf/SKILL.md`（YouTube 版，本 skill 的简化版）
