@@ -7,18 +7,26 @@ const dateString = z.union([
   z.coerce.string(),  // Date → "2026-07-15T00:00:00.000Z"，后续截前 10 位
 ])
 
-const notes = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: '../wiki' }),
-  schema: z.object({
-    title: z.string().optional(),
-    topic: z.string().optional(),
-    tags: z.array(z.string()).default([]),
-    summary: z.string().default(''),
-    created: dateString.optional(),
-    updated: dateString.optional(),
-    sources: z.array(z.string()).optional(),
-    status: z.literal('draft').optional(),
-  }),
+// wiki 笔记和 paper 笔记共用同一套 frontmatter schema
+const noteSchema = z.object({
+  title: z.string().optional(),
+  topic: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+  summary: z.string().default(''),
+  created: dateString.optional(),
+  updated: dateString.optional(),
+  sources: z.array(z.string()).optional(),
+  status: z.literal('draft').optional(),
 })
 
-export const collections = { notes }
+const notes = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: '../wiki' }),
+  schema: noteSchema,
+})
+
+const papers = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: '../paper' }),
+  schema: noteSchema,
+})
+
+export const collections = { notes, papers }

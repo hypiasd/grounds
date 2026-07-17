@@ -1,0 +1,20 @@
+---
+import { getCollection } from 'astro:content'
+import Paper from '../../layouts/Paper.astro'
+
+export async function getStaticPaths() {
+  const papers = await getCollection('papers')
+  return papers.map(paper => {
+    const isOverview = paper.id.endsWith('/_overview')
+    // _overview 渲染到 /paper/<topic>，普通论文渲染到 /paper/<topic>/<标题>
+    const slug = isOverview ? paper.id.replace('/_overview', '') : paper.id
+    return {
+      params: { slug },
+      props: { paper },
+    }
+  })
+}
+
+const { paper } = Astro.props
+---
+<Paper paper={paper} />

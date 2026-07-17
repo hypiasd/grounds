@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'wiki/**'
+      - 'paper/**'
+      - 'video/**'
       - 'web/**'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
