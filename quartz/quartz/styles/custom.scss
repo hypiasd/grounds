@@ -23,3 +23,12 @@
 .folder-container div > button span {
   display: inline-block;
 }
+
+/* 限制正文最大宽度，避免大屏下中间过宽把右侧栏挤得难看 */
+@media all and (min-width: 1480px) {
+  .center > article {
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
