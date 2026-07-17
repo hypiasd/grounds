@@ -14,7 +14,7 @@ allowed-tools: Read, Write, Edit, Bash
 
 ## 目标（完成时仓库应处于的状态）
 - 用户对该概念有**全局认知**（知道它是什么、为什么存在、有哪些子方向、和什么相关），并能**在自己选择的方向上有深入理解**。
-- 若用户认可沉淀：仓库新增/更新一篇 `wiki/<topic>/<note>.md`，对应 `_overview.md` 已同步，且已 `git commit`。
+- 若用户认可沉淀：仓库新增/更新一篇 `wiki/<topic>/<note>.md`，对应 `_overview.md` 已同步，且已 `git commit && git push`。
 
 ## 流程
 

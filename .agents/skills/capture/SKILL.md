@@ -14,7 +14,7 @@ allowed-tools: Read, Write, Edit, Bash
 
 ## 目标（完成时仓库应处于的状态）
 - 对话中所有有价值的原子洞察已各归其位——每个洞察要么更新到已有笔记，要么新建笔记。
-- 所有涉及的 `_overview.md` 已同步，一次 `git commit` 覆盖全部变更。
+- 所有涉及的 `_overview.md` 已同步，一次 `git commit && git push` 覆盖全部变更。
 - **不**另存原始对话原文。
 
 ## 核心原则

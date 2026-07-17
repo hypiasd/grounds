@@ -10,7 +10,7 @@
 ## 铁律
 
 1. **绝不编造**：不确定的内容明确说"我不确定"，不要假装确定。
-2. **改动即 commit**：每次对 wiki/ 或 raw/ 的改动，立即 `git commit`。commit message 格式：`<skill> <topic>: <一句话>`（如 `learn deep-learning: 注意力机制笔记`）。
+2. **改动即 commit + push**：每次对 wiki/ 或 raw/ 的改动，立即 `git commit` 然后 `git push`。commit message 格式：`<skill> <topic>: <一句话>`（如 `learn deep-learning: 注意力机制笔记`）。
 3. **互链防孤儿**：笔记之间、笔记与 raw 之间用标准 Markdown 相对路径互链（如 `[Dropout](../deep-learning/dropout.md)`）。
 4. **主题自主生长**：列 `wiki/` 即发现所有主题；无合适主题时新建 `<topic>/` 目录，新建主题必须同时创建 `_overview.md`。
 
@@ -108,8 +108,8 @@ grounds/
 
 ## 提交规范
 
-- commit message 格式：`<skill> <topic>: <一句话>`
-- 示例：`learn deep-learning: 注意力机制笔记`、`lint: 修复孤儿页`、`capture grounds: 沉淀对话笔记`（capture 涉及多个 topic 时统一用 `grounds`）
+- commit message 格式：`<skill> <topic>: <一句话>`，commit 之后必须 `git push`
+- 示例：`learn deep-learning: 注意力机制笔记`、`lint: 修复孤儿页`、`capture grounds: 沉淀对话笔记`
 
 ---
 
@@ -118,7 +118,7 @@ grounds/
 - **不读 conventions 就写笔记** → frontmatter 缺字段。写之前必须 Read `.agents/conventions.md`。
 - **不读 SKILL.md 就执行** → 遗漏关键步骤（如 learn 的检验、答疑循环、外部资料处理；capture 的面经搜索）。触发后必须先 Read 对应 SKILL.md。
 - **忘记更新 _overview.md** → 笔记变孤儿页。
-- **讲完忘 commit** → 下次打开仓库状态不一致。
+- **讲完忘 commit + push** → 下次打开仓库状态不一致。commit 之后不 push，换个机器就看不到。
 - **把 query 当 learn 用** → 用户问已有知识时应该查笔记作答。
 - **learn 讲完跳过检验** → 检验是固定阶段，讲完必须主动出题。
 - **有公式不写** → 不能说"用 softmax 归一化"而不给 softmax 公式。
