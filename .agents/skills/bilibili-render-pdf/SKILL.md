@@ -438,25 +438,27 @@ ls -la sources/subtitles.srt 2>/dev/null && [ -s sources/subtitles.srt ] || echo
 
 1. 除非用户明确要求其他语言，用中文写笔记。
 
-2. 用 `\section{...}` 和 `\subsection{...}` 组织。需要时重建教学流程，不盲目镜像字幕顺序。
+2. **视频标题不做任何润色或改写**。`\notetitle` 必须原样使用 `yt-dlp --print "%(title)s"` 返回的标题，不得加空格、改标点、换说法、或缩写字句。
 
-3. 从 `.agents/skills/bilibili-render-pdf/assets/notes-template.tex` 开始。填元数据块（含本地封面路径），替换正文内容块。
+3. 用 `\section{...}` 和 `\subsection{...}` 组织。需要时重建教学流程，不盲目镜像字幕顺序。
 
-4. 首页必须含视频原始封面（可用时）。放第一页而非埋在后面。与正文教学图视觉区分。
+4. 从 `.agents/skills/bilibili-render-pdf/assets/notes-template.tex` 开始。填元数据块（含本地封面路径），替换正文内容块。
 
-5. 图实质上改善讲解时使用。教学清晰需要多少图就放多少，即使整篇很多图。不优化图数量少，优化讲解覆盖和可读性。好图：关键公式、图、表、图、视觉对比、pipeline 调度、架构视图、分阶段视觉进展。
+5. 首页必须含视频原始封面（可用时）。放第一页而非埋在后面。与正文教学图视觉区分。
 
-6. 不要把图片放在自定义消息框内。
+6. 图实质上改善讲解时使用。教学清晰需要多少图就放多少，即使整篇很多图。不优化图数量少，优化讲解覆盖和可读性。好图：关键公式、图、表、图、视觉对比、pipeline 调度、架构视图、分阶段视觉进展。
 
-7. 数学公式出现时：
+7. 不要把图片放在自定义消息框内。
+
+8. 数学公式出现时：
    - 用 `$$...$$` 显示
    - 紧接一个扁平列表解释每个符号
 
-8. 代码示例出现时：
+9. 代码示例出现时：
    - 包在 `lstlisting` 内
    - 含描述性 `caption`
 
-9. 内容值得时故意且反复高亮教学信号：
+10. 内容值得时故意且反复高亮教学信号：
    - `importantbox` 用于读者必须带走的核心概念：形式定义、中心主张、关键机制总结、定理式陈述、关键算法步骤、密集讲解后的紧凑重述
    - `knowledgebox` 用于背景和旁知识：前置提醒、历史脉络、工程上下文、设计权衡、术语对比、直觉构建类比
    - `warningbox` 用于常见误解和失败点：符号重载、隐藏假设、误导启发式、易犯实现错误、因果混淆、off-by-one 推理错误、讲者对比错误直觉与正确直觉的地方
@@ -466,16 +468,16 @@ ls -la sources/subtitles.srt 2>/dev/null && [ -s sources/subtitles.srt ] || echo
    - 常规阐述留在正常散文；框是高信号要点，不是装饰
    - 图必须留在 `importantbox`、`knowledgebox`、`warningbox` 外
 
-10. **每个主要 `\section{...}` 以 `\subsection{本章小结}` 结尾**。
+11. **每个主要 `\section{...}` 以 `\subsection{本章小结}` 结尾**。
     有 1-2 个值得的外链时，在 `\section{总结与延伸}` 最后加 `\subsection{拓展阅读}`。
 
-11. 文档以最终顶级章节 `\section{总结与延伸}` 结尾。该章节必须含：
+12. 文档以最终顶级章节 `\section{总结与延伸}` 结尾。该章节必须含：
     - 讲者实质性结尾讨论（排除例行告别）
     - 你自己结构化蒸馏的核心主张、机制、实践含义
     - 你的扩展综合：概念压缩、章节间交叉链接、忠实于视频的谨慎泛化
     - 具体要点、开放问题或下一步（材料支持时）
 
-12. LaTeX 中不要发 `[cite]`-式占位符。
+13. LaTeX 中不要发 `[cite]`-式占位符。
 
 13. **LaTeX 中文标点**：`ctex` 包 UTF-8 原生处理中文标点，直接用标准中文标点。中文字符间不要用空格作词分隔（中文无词间空格）。不要用 regex 后处理注入中文标点——会在拉丁技术术语间产生尴尬结果（如逗号）。混排中英文时，中文和英文术语间放一个常规空格。
 
@@ -540,12 +542,12 @@ ls -la sources/subtitles.srt 2>/dev/null && [ -s sources/subtitles.srt ] || echo
    ```
    agent 读聚合输出后手动划分关键片段，记录 `[(start_sec, end_sec, topic), ...]`。
 
-2. **生成密集候选**：在字幕对齐时间窗（两侧加小缓冲）内以 1-2 秒间隔提取帧。不要在猜的时间戳提单帧。
+3. **生成密集候选**：在字幕对齐时间窗（两侧加小缓冲）内以 1-2 秒间隔提取帧。不要在猜的时间戳提单帧。
    ```bash
    ffmpeg -ss <start> -to <end> -i sources/video.mp4 -vf "fps=1" -q:v 2 figures/candidates/frame_%04d.jpg
    ```
 
-3. **检查并下选**：用 contact sheet 或 montage 比较候选。
+4. **检查并下选**：用 contact sheet 或 montage 比较候选。
    ```bash
    # 首选：montage 显式字体路径（macOS）
    montage figures/candidates/*.jpg -font /System/Library/Fonts/Helvetica.ttc -geometry 320x180+2+2 -tile 5x figures/montage.jpg
@@ -553,12 +555,12 @@ ls -la sources/subtitles.srt 2>/dev/null && [ -s sources/subtitles.srt ] || echo
    # 回退：Python/PIL montage（无字体依赖）
    ```
 
-4. **选最有信息量的帧**：
+5. **选最有信息量的帧**：
    - 渐进 PPT 揭示：持续检查直到找到**最终完全填充状态**
    - 动画构建或白板累积：捕获端点；仅在教真正不同的步骤时加中间帧
    - 同窗内稀疏早帧 vs 密集晚帧犹豫时：晚帧实质更完整则偏好晚帧
 
-5. **包含所有必要图**。一节内含多图可接受且常理想（视频分阶段构建想法时）。仅省略重复或低信息帧。
+6. **包含所有必要图**。一节内含多图可接受且常理想（视频分阶段构建想法时）。仅省略重复或低信息帧。
 
 ### 盲模式帧选择（无法看图时）
 
@@ -921,6 +923,7 @@ cat part1.tex part2.tex part3.tex > document.tex
 ## Gotchas
 
 - **不接受语义触发**：用户贴 BV 链接但没说"用 bilibili-render-pdf"→ 不得自动开跑。先问"要用 bilibili-render-pdf 处理吗？"。
+- **不要改写视频标题**：`\notetitle` 和工作目录名必须原样使用 yt-dlp 返回的标题。不要润色、加空格、换说法、缩写字句。标题是视频的一部分，笔记只是转述者。
 - **B 站字幕元数据不可靠**：`--print subtitles` 返回 `NA` 不代表没字幕，始终尝试 CC 下载。
 - **CPU-only Mac 别用 medium 模型**：20-40 分钟/10 分钟音频。用 `small`/`tiny` 或走视觉模式。
 - **转录卡住要 kill，不要等**：5 分钟预算内 SRT 不增长就 kill 走视觉模式，不重试同方法。

@@ -1,5 +1,5 @@
 ---
-title: "AI-Infra 规划课和模拟面——vLLM 大模型推理优化岗面试策略"
+title: "AI-Infra规划课和模拟面—vLLM大模型推理优化岗我会怎么面？"
 topic: video
 tags: [video]
 summary: "视频笔记 — 五道口纳什"
