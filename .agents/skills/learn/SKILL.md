@@ -154,8 +154,8 @@ learn 分五个阶段：**查仓库 → 全景概览 → 选方向深入 → 检
    - **新建模式**：列 `wiki/` 判断主题（沿用或新建，新建须带 `index.md`）→ 读 `.agents/conventions.md` → 新建 `<note>.md` → 更新 `index.md`。
    - **更新模式**：读 `.agents/conventions.md` → 读已有笔记 → 将新内容融入现有结构 → 刷新 `updated` 日期 → 若新内容改变了核心理解则同步更新 frontmatter 的 `summary` 和 `tags` → 更新 `index.md`。
    - **关键原则**：同一概念永远只有一篇笔记。两次学 Dropout 是一篇笔记的两次迭代。
-3. **校验（必做）**：`wc -l <note.md>` 确认非空；确认 frontmatter 完整；确认 `index.md` 的"包含笔记"列表已包含本笔记条目（新建时新增，更新时确认条目存在且说明文字未过期）；`git status` 确认改动符合预期；检查笔记内链接目标存在。
-4. **提交**：先 `git status` 确认仅本笔记 + `index.md` 改动；显式 `git add <note.md> <topic>/index.md`（不要 `git add -A`，避免误带其他未完成改动）；`git commit -m "learn <topic>: <一句话>" && git push`。
+3. **校验（必做）**：`wc -l <note.md>` 确认非空（建议 ≥ 30 行含 frontmatter，frontmatter-only 视为异常）；确认 frontmatter 完整；确认 `index.md` 的"包含笔记"列表已包含本笔记条目（新建时新增，更新时确认条目存在且说明文字未过期）；`git status` 确认改动符合预期；检查笔记内链接目标存在。
+4. **提交**：先 `git status` 确认仅本笔记 + `index.md` 改动；显式 `git add "wiki/<topic>/<note>.md" "wiki/<topic>/index.md"`（用仓库根相对路径 + 引号，笔记标题含中文/空格时安全；不要 `git add -A`，避免误带其他未完成改动）；`git commit -m "learn <topic>: <一句话>" && git push`。
 
 ---
 

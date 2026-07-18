@@ -13,10 +13,11 @@ const Body: QuartzComponent = ({ children }: QuartzComponentProps) => {
 // 的子节点，旧页面的 <button class="sidebar-toggle"> 与新页面的 <header> 不匹配，
 // 按钮会被移除。postscript.js 以 spaPreserve 不重新执行，所以 IIFE 只跑一次——
 // 必须靠 nav 事件监听重新注入。参考 popover.inline.ts 的 setupPopovers + nav 范式。
+//
+// 断点统一用 800px（与 variables.scss 的 $mobile 一致），避免 769-800px 怪区
+// （移动端单列已激活但 toggle 仍可见，点击无 :has() 重排效果）。
 Body.afterDOMLoaded = `
 (function () {
-  if (window.matchMedia('(max-width: 768px)').matches) return;
-
   var STORAGE_KEY = 'grounds:sidebar-hidden';
 
   function applyState(btn, leftSidebar, hidden) {
@@ -32,7 +33,6 @@ Body.afterDOMLoaded = `
   }
 
   function injectToggle() {
-    if (window.matchMedia('(max-width: 768px)').matches) return;
     var leftSidebar = document.querySelector('.left.sidebar');
     var pageHeader = document.querySelector('.center > .page-header');
     if (!leftSidebar || !pageHeader) return;
@@ -43,7 +43,11 @@ Body.afterDOMLoaded = `
     btn.type = 'button';
     btn.setAttribute('aria-label', '隐藏/显示左侧栏');
     btn.setAttribute('aria-expanded', 'true');
+    btn.setAttribute('aria-controls', 'left-sidebar');
     btn.textContent = '◀';
+
+    // 先插入按钮再应用持久化状态，避免"侧栏先消失按钮后出现"的视觉闪烁
+    pageHeader.insertBefore(btn, pageHeader.firstChild);
 
     try {
       var stored = localStorage.getItem(STORAGE_KEY);
@@ -56,12 +60,28 @@ Body.afterDOMLoaded = `
       applyState(btn, leftSidebar, next);
       try { localStorage.setItem(STORAGE_KEY, String(next)); } catch (e) {}
     });
-
-    pageHeader.insertBefore(btn, pageHeader.firstChild);
   }
 
+  // 初始注入 + SPA 导航后重新注入
   injectToggle();
   document.addEventListener('nav', injectToggle);
+
+  // 移动端 ↔ 桌面端跨越时补注入（修复在移动端加载后 resize 到桌面端 toggle 永久丢失）
+  var mql = window.matchMedia('(min-width: 801px)');
+  if (mql.addEventListener) {
+    mql.addEventListener('change', function (e) { if (e.matches) injectToggle(); });
+  } else if (mql.addListener) {
+    mql.addListener(function (e) { if (e.matches) injectToggle(); });
+  }
+
+  // 跨 tab 同步：另一个 tab 改了 localStorage，本 tab 立即响应（不必等下次 nav）
+  window.addEventListener('storage', function (e) {
+    if (e.key !== STORAGE_KEY) return;
+    var btn = document.querySelector('.sidebar-toggle');
+    var leftSidebar = document.querySelector('.left.sidebar');
+    if (!btn || !leftSidebar) return;
+    applyState(btn, leftSidebar, e.newValue === 'true');
+  });
 })();
 `
 

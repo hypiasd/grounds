@@ -16,6 +16,11 @@ permissions:
   pages: write
   id-token: write
 
+# 并发控制：连续 push 只跑最新一次，避免竞态部署和 CI 配额浪费
+concurrency:
+  group: "pages-deploy"
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest

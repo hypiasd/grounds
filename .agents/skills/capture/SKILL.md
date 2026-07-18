@@ -98,8 +98,8 @@ opencli zhihu search "测试" --limit 1 -f yaml 2>&1 | head -5
 面经搜索**限定中文互联网**，搜索关键词用中文。对每个涉及的笔记，**必须搜完以下三个源，一个都不能跳过。** 禁止搜到一个满意的就停。
 
 - **小红书** → `opencli xiaohongshu search "[中文概念名] 面试" --limit 5 -f yaml`
-- **知乎** → `opencli zhihu search "[中文概念名] 面试" -f yaml`
-- **牛客** → `opencli nowcoder search "[中文概念名] 面试" -f yaml`
+- **知乎** → `opencli zhihu search "[中文概念名] 面试" --limit 5 -f yaml`
+- **牛客** → `opencli nowcoder search "[中文概念名] 面试" --limit 5 -f yaml`
 每个源单独搜，各自返回结果。不要用通用网页搜索（Exa/Jina 等）去搜 `site:zhihu.com`——会被反爬拦死，必须走 OpenCLI。
 
 **第二步：深入阅读**

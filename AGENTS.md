@@ -161,9 +161,9 @@ paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `con
 | `faster-whisper` / `whisper` | 语音转字幕（CC 字幕失败时回退；优先 faster-whisper） | bilibili-render-pdf / youtube-render-pdf | `python3 -c "import faster_whisper"` 或 `which whisper` |
 | `tesseract` | OCR 回退（视觉模式） | bilibili-render-pdf / youtube-render-pdf | `which tesseract` |
 | `pdftotext` / `pdfinfo` | PDF 文本提取 / 元数据 | paper-learn；bilibili-render-pdf / youtube-render-pdf（成品 PDF 抽查） | `which pdfinfo` |
-| `qpdf` / `ocrmypdf` | PDF 解密 / OCR（扫描版论文） | paper-learn | `which qpdf` |
+| `qpdf` / `ocrmypdf` / `pdftoppm` | PDF 解密 / OCR / 转图片（扫描版论文） | paper-learn | `which qpdf && which ocrmypdf && which pdftoppm` |
 | `gh`（GitHub CLI） | 论文-代码对照搜仓库（可选） | paper-learn | `which gh` |
-| `ImageMagick`（`magick` / `montage`） | 帧拼接缩略图（视觉模式） | bilibili-render-pdf / youtube-render-pdf | `which magick` |
+| `ImageMagick`（`montage` / `magick`） | 帧拼接缩略图（视觉模式） | bilibili-render-pdf / youtube-render-pdf | `which montage \|\| which magick` |
 | `openai` Python 包 | 视觉模型 API 调用（SiliconFlow 兼容） | bilibili-render-pdf / youtube-render-pdf | `python3 -c "import openai"` |
 | `torch` | GPU 可用性检测（CUDA / MPS） | bilibili-render-pdf / youtube-render-pdf | `python3 -c "import torch"` |
 

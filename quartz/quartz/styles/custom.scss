@@ -65,8 +65,9 @@
   }
 }
 
-/* 移动端默认不显示 toggle（移动端本来就用 hamburger 菜单） */
-@media all and (max-width: 768px) {
+/* 移动端默认不显示 toggle（移动端本来就用 hamburger 菜单）
+ * 断点用 800px 与 variables.scss 的 $mobile 一致，避免 769-800px 怪区 */
+@media all and (max-width: 800px) {
   .sidebar-toggle {
     display: none;
   }
@@ -111,5 +112,41 @@
     max-width: 800px;
     margin-left: auto;
     margin-right: auto;
+  }
+}
+
+/* 打印样式：隐藏侧栏/toggle/popover/导航进度，正文占满 */
+@media print {
+  .sidebar-toggle,
+  .sidebar.left,
+  .sidebar.right,
+  .popover,
+  .navigation-progress,
+  .search-button,
+  .darkmode,
+  .page-header > button {
+    display: none !important;
+  }
+
+  #quartz-body {
+    display: block !important;
+    grid-template-columns: auto !important;
+    grid-template-areas: "grid-center" !important;
+  }
+
+  .center > article {
+    max-width: 100% !important;
+  }
+
+  a[href]:after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #555;
+  }
+
+  /* 锚点和 JS 链接不打印 href */
+  a[href^="#"]:after,
+  a[href^="javascript:"]:after {
+    content: "";
   }
 }

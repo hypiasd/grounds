@@ -34,9 +34,12 @@ allowed-tools: Read, Write, Edit, Bash
 ### 1. 硬件检查
 
 ```bash
-python3 -c "import torch; print('GPU available:', torch.cuda.is_available())" 2>/dev/null || echo "torch not available"
+python3 -c "import torch; gpu = torch.cuda.is_available() or torch.backends.mps.is_available(); print('GPU available:', gpu)" 2>/dev/null || echo "torch not available"
 sysctl -n hw.ncpu  # CPU 核心数
 ```
+
+- **GPU 可用**（CUDA 或 MPS）：用更大更快的 Whisper 模型。Mac Apple Silicon 上 MPS 对 faster-whisper 加速有限，仍优先 `small` 模型。
+- **仅 CPU（Mac 常见）**：优先小模型或视觉模式
 
 ### 2. 工具可用性检查
 
@@ -44,9 +47,10 @@ sysctl -n hw.ncpu  # CPU 核心数
 which whisper                                        # OpenAI Whisper CLI
 python3 -c "import faster_whisper; print('ok')" 2>/dev/null   # faster-whisper: CTranslate2 后端，CPU 快 3-5×
 which tesseract && tesseract --list-langs 2>&1 | grep chi_sim  # 视觉模式 OCR 回退
-which magick || which montage                                   # ImageMagick 帧拼接
+which montage || which magick                                   # ImageMagick 帧拼接（实际命令用 montage，只有 magick 时改用 `magick montage`）
 which xelatex                                                   # LaTeX → PDF 编译
 which ffmpeg                                                    # 视频/音频/帧提取
+which pdftotext                                                 # 成品 PDF 抽查（缺失时跳过抽查但需在交付时说明）
 ```
 
 ### 3. 模型缓存检查
@@ -160,20 +164,49 @@ yt-dlp --write-subs --write-auto-subs --sub-langs "zh-Hans,zh-CN,zh,en" --conver
 
 2. 按上面的[策略表](#4-转录策略选择)选工具和模型。
 
-   **首选 `faster-whisper`**：
+   **首选 `faster-whisper`**（用 Python API 而非 CLI）。把完整转录 + SRT 写入脚本保存为 `transcribe.py`，用 `timeout` 命令包裹执行——faster-whisper 的 `model.transcribe()` 是同步阻塞 API（返回 generator，迭代才产出），无法用"每 30 秒检查 SRT 增长"做中止条件：
+
    ```python
+   # transcribe.py —— 完整可执行，写入 sources/subtitles.srt
+   import sys
    from faster_whisper import WhisperModel
-   model = WhisperModel("small", device="cpu", compute_type="int8")
-   segments, info = model.transcribe("sources/audio.wav", language="zh", beam_size=5)
-   # SRT 写入模板见 bilibili-render-pdf SKILL.md 的 Troubleshooting
+
+   audio_path = sys.argv[1]      # sources/audio.wav
+   srt_path = sys.argv[2]        # sources/subtitles.srt
+   model_size = sys.argv[3] if len(sys.argv) > 3 else "small"
+
+   model = WhisperModel(model_size, device="cpu", compute_type="int8")
+   segments, info = model.transcribe(audio_path, language="zh", beam_size=5)
+
+   def fmt(ts):
+       h = int(ts // 3600); m = int((ts % 3600) // 60)
+       s = int(ts % 60); ms = int((ts - int(ts)) * 1000)
+       return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+   with open(srt_path, "w", encoding="utf-8") as f:
+       for i, seg in enumerate(segments, 1):
+           f.write(f"{i}\n{fmt(seg.start)} --> {fmt(seg.end)}\n{seg.text.strip()}\n\n")
    ```
 
-   **回退 `openai-whisper` CLI**：
    ```bash
-   whisper sources/audio.wav --model small --language zh --output_format srt --output_dir sources/
+   # 用 timeout 包裹，超时直接 kill 走 Priority 3
+   BUDGET=$((5 * 60))  # 5 分钟（按预算规则调整）
+   timeout "$BUDGET" python3 transcribe.py sources/audio.wav sources/subtitles.srt small
+   if [ $? -eq 124 ]; then
+     echo "Whisper 超时，回退到 Priority 3"
+     rm -f sources/subtitles.srt
+   fi
    ```
 
-3. **中止条件**：`transcribe()` 调用后 5 分钟仍无 SRT 文件，kill 进程走 Priority 3。
+   **回退 `openai-whisper` CLI**（仅 `faster-whisper` 不可用时，同样用 timeout 包裹）：
+   ```bash
+   BUDGET=$((5 * 60))
+   timeout "$BUDGET" whisper sources/audio.wav --model small --language zh \
+     --output_format srt --output_dir sources/
+   [ -f sources/audio.srt ] && mv sources/audio.srt sources/subtitles.srt
+   ```
+
+3. **中止条件**：`timeout` 命令退出码 124 表示超时已 kill；其他非零退出码表示转录失败。两种情况都清空 `sources/subtitles.srt` 走 Priority 3。
 
 #### Priority 3: 视觉模式 + OCR
 
@@ -271,7 +304,7 @@ yt-dlp -f "bestvideo[height<=720]+bestaudio" --merge-output-format mp4 -o "sourc
 - [ ] 每个 `\includegraphics` 来自视频帧的有 `\footnotetext{视频画面时间区间：HH:MM:SS--HH:MM:SS}` 在同页
 - [ ] 图时间区间来自字幕对齐片段，非粗估或 ffmpeg `-ss` 值
 - [ ] 无图在 `importantbox`、`knowledgebox`、`warningbox` 内
-- [ ] 至少一个 TikZ 或脚本生成的可视化用于架构/流程/流概念（非仅截图）
+- [ ] 视频内容涉及架构/流程/流概念时，至少一个 TikZ 或脚本生成的可视化（非仅截图）；纯推导/纯代码视频可豁免
 - [ ] 无 `[cite]` 占位符
 - [ ] 所有 `\ref`、`\cite`、`\href` 引用已解析（PDF 无 `??`）
 
@@ -359,7 +392,22 @@ TikZ 速查模式见 `bilibili-render-pdf` SKILL.md。
 | `sources/` | `./sources/` | 原始下载：视频、音频、字幕 |
 | `ocr/` | `./ocr/frame_ocr.json` | OCR 输出时间线（视觉模式时） |
 
-**tex → md 转换**（前端接入需要）：
+**PDF 编译 + 失败检测**（必做，在 tex_to_md 转换前）：
+```bash
+# 跑两次出 TOC 和交叉引用
+xelatex -interaction=nonstopmode "<basename>.tex" > /dev/null 2>&1
+xelatex -interaction=nonstopmode "<basename>.tex" 2>&1 | tail -30
+# 确认 PDF 存在且 mtime 新于 .tex；失败时不进入 tex_to_md 转换，先修 .tex 重编译
+ls -la "<basename>.pdf" && [ "<basename>.pdf" -nt "<basename>.tex" ] || {
+  echo "PDF 编译失败，检查 .log"
+  tail -50 "<basename>.log" | grep -E '^! |^l\.[0-9]+'
+  exit 1
+}
+```
+
+**Overfull/Underfull 警告是正常的**：`Overfull \hbox` / `Underfull \hbox` 是 LaTeX 排版警告，不影响 PDF 生成。只有 `.log` 里以 `! ` 开头的行才是真错误。
+
+**tex → md 转换**（前端接入需要，PDF 编译成功后执行）：
 
 video/ 下的 .tex 在网页上无法渲染，需要转成 .md 给前端渲染。用共享脚本 `.agents/skills/_shared/scripts/tex_to_md.py`：
 

@@ -174,11 +174,79 @@ def strip_latex_wrappers(tex: str) -> str:
     tex = re.sub(r"\\end\{document\}.*$", "", tex, flags=re.DOTALL)
     tex = re.sub(r"\\begin\{titlepage\}.*?\\end\{titlepage\}", "", tex, flags=re.DOTALL)
     tex = re.sub(r"\\(tableofcontents|newpage|clearpage)\b", "", tex)
-    # 删除 \newcommand 定义行
-    tex = re.sub(r"\\newcommand\{\\[^}]+\}\{[^}]*\}", "", tex)
+    # 删除 \newcommand 定义：手动扫描，支持嵌套大括号（如 \newcommand{\foo}{some {nested} text}）
+    tex = _strip_newcommands(tex)
     # 删除 \usepackage{...} 等残留 preamble 命令
     tex = re.sub(r"\\(usepackage|input|include)\{[^}]*\}", "", tex)
     return tex
+
+
+def _strip_newcommands(tex: str) -> str:
+    """删除所有 \\newcommand{\\name}{body}，支持 body 含嵌套大括号。"""
+    out = []
+    i = 0
+    n = len(tex)
+    while i < n:
+        m = re.match(r"\\newcommand\b", tex[i:])
+        if m:
+            j = i + m.end()
+            # 跳过可选参数如 [2]
+            while j < n and tex[j] in " \t":
+                j += 1
+            if j < n and tex[j] == "[":
+                while j < n and tex[j] != "]":
+                    j += 1
+                j += 1  # 跳过 ]
+                while j < n and tex[j] in " \t":
+                    j += 1
+            # 第一个 {...}：\newcommand 名（如 \foo）
+            j_end = _find_balanced_end(tex, j)
+            if j_end is None:
+                out.append(tex[i])
+                i += 1
+                continue
+            j = j_end
+            # 跳过空白
+            while j < n and tex[j] in " \t":
+                j += 1
+            # 第二个 {...}：body（可能含嵌套大括号）
+            body_end = _find_balanced_end(tex, j)
+            if body_end is None:
+                out.append(tex[i])
+                i += 1
+                continue
+            # 整个 \newcommand{...}{...} 已消费，跳过
+            i = body_end
+        else:
+            out.append(tex[i])
+            i += 1
+    return "".join(out)
+
+
+def _find_balanced_end(tex: str, start: int) -> int | None:
+    """从 tex[start] 开始找 {...} 的闭括号位置（返回下一个字符位置）。
+    支持 \\{ \\} 转义和任意层嵌套。与 _extract_balanced_brace 配套使用。"""
+    i = start
+    n = len(tex)
+    while i < n and tex[i] in " \t":
+        i += 1
+    if i >= n or tex[i] != "{":
+        return None
+    i += 1
+    depth = 1
+    while i < n and depth > 0:
+        c = tex[i]
+        if c == "\\" and i + 1 < n:
+            i += 2
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
+    return None
 
 
 def strip_comments(tex: str) -> str:
@@ -306,28 +374,12 @@ def convert_sections(tex: str) -> str:
             val = _extract_balanced_brace(tex, m.end())
             if val is None:
                 continue
-            # 找到闭括号位置以消费整个 {...}
-            j = m.end()
-            while j < n and tex[j] in " \t":
-                j += 1
-            if j >= n or tex[j] != "{":
+            # 用 _find_balanced_end 拿到闭括号位置，避免重复手写扫描
+            j_end = _find_balanced_end(tex, m.end())
+            if j_end is None:
                 continue
-            depth = 1
-            j += 1
-            while j < n and depth > 0:
-                c = tex[j]
-                if c == "\\" and j + 1 < n:
-                    j += 2
-                    continue
-                if c == "{":
-                    depth += 1
-                elif c == "}":
-                    depth -= 1
-                    if depth == 0:
-                        break
-                j += 1
             result.append(f"{prefix} {val}")
-            i = j + 1
+            i = j_end
             matched = True
             break
         if not matched:
