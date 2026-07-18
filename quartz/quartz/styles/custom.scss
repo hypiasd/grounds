@@ -9,6 +9,47 @@
   scrollbar-gutter: stable;
 }
 
+/* 左侧栏隐藏 toggle 按钮（由 Body.afterDOMLoaded 注入到 .page-header） */
+.sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--lightgray);
+  border-radius: 6px;
+  background: var(--light);
+  color: var(--dark);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-toggle:hover {
+  background: var(--lightgray);
+}
+
+.sidebar-toggle:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+/* 隐藏左栏状态：左栏消失，主内容居中 */
+.left.sidebar.hidden {
+  display: none;
+}
+
+/* 移动端默认不显示 toggle（移动端本来就用 hamburger 菜单） */
+@media all and (max-width: 768px) {
+  .sidebar-toggle {
+    display: none;
+  }
+}
+
 .explorer {
   overflow: visible;
 }
