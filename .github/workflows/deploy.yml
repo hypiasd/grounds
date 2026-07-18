@@ -34,9 +34,15 @@ jobs:
       - name: Install dependencies
         working-directory: quartz
         run: npm ci
+      - name: Install plugins
+        working-directory: quartz
+        # 必须显式调用：.quartz/ 在 .gitignore 中，CI 全新 checkout 时
+        # .quartz/plugins/index.ts 不存在，会导致 import 解析失败。
+        # npx quartz build 不触发 npm prebuild 钩子（只有 npm run build 才触发）。
+        run: npx quartz plugin install --from-config
       - name: Build (quartz)
         working-directory: quartz
-        run: npx quartz build  # prebuild 钩子会自动跑 install-plugins
+        run: npx quartz build
       - uses: actions/upload-pages-artifact@v4
         with:
           path: quartz/public
