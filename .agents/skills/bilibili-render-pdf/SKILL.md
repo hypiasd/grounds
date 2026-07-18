@@ -368,10 +368,16 @@ ls -la sources/subtitles.srt 2>/dev/null && [ -s sources/subtitles.srt ] || echo
 
 2. 批量评估一个片段的所有候选，只保留 top-ranked 帧：
    ```bash
-   # 用绝对路径调用脚本（已 cd 到工作目录）
+   # 按片段分组，每组选 Top-1（推荐：每个关键片段只留最佳帧）
+   python3 "$(git rev-parse --show-toplevel)/.agents/skills/bilibili-render-pdf/scripts/frame_assess.py" \
+     --batch "figures/candidates/*.jpg" --top 1 --group
+
+   # 全局 Top-1（跨所有帧，单一片段时用）
    python3 "$(git rev-parse --show-toplevel)/.agents/skills/bilibili-render-pdf/scripts/frame_assess.py" \
      --batch "figures/candidates/seg_1_*.jpg" --top 1
    ```
+
+   `--group` 按文件名前缀（去除 `_+N` / `_-N` 偏移后缀）自动分组，每组独立排序取 Top-N。输出为 `{"group_name": {...}, ...}` JSON 格式。
 
    脚本输出 JSON：`info_score` (1-5)、`char_count`、`suitable_for_notes`、提取的 `ocr_text`。score ≥3 且 `suitable_for_notes: true` 的帧适合纳入。
 
@@ -919,6 +925,8 @@ cat part1.tex part2.tex part3.tex > document.tex
 - **盲模式别用本地 tesseract 批量评估**：2+ 分钟/帧，用 API 或中点提取。
 - **成品必须 commit 进 git**：`.tex`+`.pdf`+`index.md` 进 git，`sources/figures/ocr/cover.jpg` 不进 git（.gitignore 自动排除）。换机器后需要 `video/<标题>/sources/` 等中间产物需重新下载。
 - **commit 之后必须 push**。
+- **Shell 管道截断视频标题**：`$(yt-dlp --print title ... | sed ...)` 中的 `|` 会被 Shell 解释为管道而非传给 sed。当标题含 `|` 时，用 Python 清洗标题更可靠：`TITLE=$(python3 -c "import sys; t=sys.argv[1]; print(''.join(c if c not in "/:?*\"<>|" else "-" for c in t))" "$(yt-dlp --print "%(title)s" --skip-download "<URL>")")`。
+- **`\ifdefempty` 不在 `etoolbox` 中**：笔记模板 `notes-template.tex` 里的 `\ifdefempty{\cmd}{true}{false}` 不是标准 `etoolbox` 命令。模板已修正为 `\ifx\cmd\empty ... \else ... \fi`。如果从旧模板分支建笔记，务必用新模板。
 
 ## 注意
 

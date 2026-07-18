@@ -74,11 +74,11 @@
 {\large \notedate\par}
 \vspace{1.2cm}
 
-\ifdefempty{\videocoverpath}{
+\ifx\videocoverpath\empty
 {\small 请在生成笔记时填入视频封面图的本地路径。\par}
-}{
+\else
 \includegraphics[width=0.82\textwidth,height=0.45\textheight,keepaspectratio]{\videocoverpath}\par
-}
+\fi
 
 \vfill
 \begin{tcolorbox}[width=0.9\textwidth, colback=black!2!white, colframe=black!60, sharp corners]
@@ -86,11 +86,11 @@
 \textbf{发布日期}：\videopublishdate\par
 \textbf{视频时长}：\videoduration\par
 \textbf{视频链接}：
-\ifdefempty{\videourl}{
+\ifx\videourl\empty
 未填写
-}{
+\else
 \href{\videourl}{\nolinkurl{\videourl}}
-}
+\fi
 \end{tcolorbox}
 \end{titlepage}
 

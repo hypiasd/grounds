@@ -4,7 +4,8 @@
 Usage:
     python3 frame_assess.py <image_path>              # assess a single frame
     python3 frame_assess.py --batch <glob_pattern>    # assess multiple, rank by score
-    python3 frame_assess.py --batch <pattern> --top 3 # keep top N only
+    python3 frame_assess.py --batch <pattern> --top 3          # keep top N globally
+    python3 frame_assess.py --batch <pattern> --top 1 --group # top 1 per segment
 
 API key: write it into ~/.config/bilibili-render-pdf/siliconflow_key
 (one line, plain text).  Falls back to ./.config/siliconflow_key.
@@ -115,7 +116,8 @@ def main():
     parser = argparse.ArgumentParser(description="Frame quality assessment via OCR")
     parser.add_argument("path", nargs="?", help="Single image path")
     parser.add_argument("--batch", help="Glob pattern for batch assessment")
-    parser.add_argument("--top", type=int, default=0, help="Keep only top N frames")
+    parser.add_argument("--top", type=int, default=0, help="Keep only top N frames (per-group when --group set)")
+    parser.add_argument("--group", action="store_true", help="Group frames by common prefix (before first offset marker) and apply --top per group")
     args = parser.parse_args()
 
     from openai import OpenAI
@@ -137,10 +139,30 @@ def main():
             chars = r["char_count"]
             suitable = "YES" if r["suitable_for_notes"] else "no"
             print(f"  [{i+1}/{len(files)}] [{score}/5] [{suitable}] {chars}c {stype:14s} {Path(f).name}", file=sys.stderr)
-        results.sort(key=lambda r: r.get("info_score", 0), reverse=True)
-        if args.top > 0:
-            results = results[:args.top]
-        print(json.dumps(results, ensure_ascii=False, indent=2))
+        if args.group:
+            # Group by filename prefix (strip trailing _+N / _-N offset, or last _token)
+            groups = {}
+            for r in results:
+                name = Path(r["_file"]).stem
+                # Strip offset suffix: opening_-1 -> opening, dp_parallel_+1 -> dp_parallel
+                base = re.sub(r'_[+-]\d+$', '', name)
+                groups.setdefault(base, []).append(r)
+            for g in groups:
+                groups[g].sort(key=lambda r: r.get("info_score", 0), reverse=True)
+            if args.top > 0:
+                output = {}
+                for g in sorted(groups):
+                    top_items = groups[g][:args.top]
+                    output[g] = top_items if len(top_items) > 1 else top_items[0]
+                print(json.dumps(output, ensure_ascii=False, indent=2))
+            else:
+                output = {g: groups[g] for g in sorted(groups)}
+                print(json.dumps(output, ensure_ascii=False, indent=2))
+        else:
+            results.sort(key=lambda r: r.get("info_score", 0), reverse=True)
+            if args.top > 0:
+                results = results[:args.top]
+            print(json.dumps(results, ensure_ascii=False, indent=2))
     elif args.path:
         r = assess_frame(args.path, client)
         print(json.dumps(r, ensure_ascii=False, indent=2))
