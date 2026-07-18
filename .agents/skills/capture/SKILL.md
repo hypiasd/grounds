@@ -148,9 +148,10 @@ opencli zhihu search "测试" --limit 1 -f yaml 2>&1 | head -5
 
 1. **检查完整性**：每个涉及的 `index.md` 是否已同步（新建的笔记是否已加入索引？更新的笔记如果核心内容变了，index.md 的介绍是否同步？）。
 2. **批量校验**：`wc -l` 确认每个涉及的文件非空；确认所有新增/修改的笔记 frontmatter 完整（`title`、`topic`、`tags`、`summary`、`created`/`updated`）；检查所有新增相对链接目标存在。
-3. **一次提交**：所有变更一个 commit，不拆多个。
+3. **一次提交**：所有变更一个 commit，不拆多个。先 `git status` 确认仅本批笔记 + 涉及的 `index.md` 改动；显式 `git add` 每个涉及的文件（不要 `git add -A`，避免误带其他未完成改动）：
    ```
-   git add -A && git commit -m "capture grounds: 沉淀对话笔记 <YYYY-MM-DDTHH-MM>" && git push
+   git add wiki/<topic>/<note1>.md wiki/<topic>/<note2>.md wiki/<topic>/index.md && \
+   git commit -m "capture grounds: 沉淀对话笔记 <YYYY-MM-DDTHH-MM>" && git push
    ```
    如果所有洞察都落在同一个 topic，commit message 可以用 `capture <topic>: ...`；否则统一用 `grounds`。
 

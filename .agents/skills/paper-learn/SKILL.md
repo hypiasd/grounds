@@ -36,6 +36,20 @@ paper-learn 分六个阶段：**准备 → 论文全景 → 分章节深入 → 
 
 ### 阶段零：准备
 
+#### 环境检查（首先运行）
+
+```bash
+which pdfinfo && which pdftotext        # PDF 元数据 + 文本提取（必需）
+which qpdf                               # PDF 解密（加密 PDF 时需要）
+which ocrmypdf                           # 扫描版 PDF OCR（扫描版论文时需要）
+which gh                                 # GitHub CLI（论文-代码对照时可选，缺失时走 WebSearch）
+```
+
+- `pdfinfo` / `pdftotext` 缺失 → **必需**，缺失时报告用户安装（`brew install poppler`）后退出，不要硬抠 PDF
+- `qpdf` / `ocrmypdf` 缺失 → 仅在 PDF 加密/扫描版时需要，缺失时跳过对应处理分支
+- `gh` 缺失 → 论文-代码对照改用 WebSearch 搜 `"<论文标题>" github`，不影响主流程
+
+
 1. **获取论文**：
    - 用户提供 arxiv URL → 下载 PDF 到 `raw/papers/<arxiv-id>.pdf`（如 `raw/papers/1706.03762.pdf`）
    - 用户提供 DOI/其他 URL → 下载 PDF，文件名用论文短标题（小写中划线）
@@ -59,13 +73,30 @@ paper-learn 分六个阶段：**准备 → 论文全景 → 分章节深入 → 
    - **没有笔记** → 「这是个新论文，我按新建模式来」→ 进入阶段一。
 
 3. **提取 metadata**：标题 / 作者 / venue / 年份 / arxiv_id。
-   - **arxiv 论文**（推荐）：查 arxiv API 获取结构化 metadata（venue 难自动提取，需手动从 PDF 首页读）：
+   - **arxiv 论文**（推荐）：查 arxiv API 获取结构化 metadata（venue 难自动提取，需手动从 PDF 首页读）。返回的 XML 中**第一个 `<title>` 是 feed title（如 "arXiv Query: ..."），第二个才是论文 title**；`<summary>` 标签是 abstract；`<name>` 是作者。
      ```bash
      # 必须用 https:// + -L 跟随重定向，http:// 会静默返回 0 字节
-     curl -sL "https://export.arxiv.org/api/query?id_list=<arxiv_id>" | grep -E '<title>|<name>|<published>'
+     # -f 在 HTTP 错误时返回非零 exit code，避免把网络错误当"论文不存在"
+     # 用 python 解析 XML 比 grep 稳健（避免双 <title> 干扰、自动去标签）
+     curl -fsL "https://export.arxiv.org/api/query?id_list=<arxiv_id>" -o /tmp/arxiv_<id>.xml \
+       && python3 -c "
+import xml.etree.ElementTree as ET
+ns = {'a': 'http://www.w3.org/2005/Atom'}
+tree = ET.parse('/tmp/arxiv_<id>.xml')
+entry = tree.find('a:entry', ns)
+if entry is None: raise SystemExit('entry not found')
+print('title:', entry.find('a:title', ns).text.strip().replace('\n', ' '))
+print('abstract:', entry.find('a:summary', ns).text.strip().replace('\n', ' ')[:300])
+print('published:', entry.find('a:published', ns).text[:10])
+authors = [a.find('a:name', ns).text for a in entry.findall('a:author', ns)]
+print('authors:', '; '.join(authors))
+" || echo "arxiv API fetch failed"
      ```
    - **非 arxiv**：用 `pdfinfo raw/papers/<file>.pdf` 提取 PDF 元数据（标题/作者可能为空）；标题/作者手动从 PDF 首页读
-   - **venue 难自动提取**：arxiv v2+ 版本通常无 venue 标识，从 PDF 首页/footnote 找会议标识（如 "Published in NeurIPS 2024"）；找不到时用 WebSearch 搜 `"<论文标题>" NeurIPS OR ICML OR ICLR site:proceedings.neurips.cc` 确认；仍找不到时填 N/A，不要臆造
+   - **venue 难自动提取**：arxiv v2+ 版本通常无 venue 标识，从 PDF 首页/footnote 找会议标识（如 "Published in NeurIPS 2024"）；找不到时分 venue 查询：
+     - `"<论文标题>" site:proceedings.neurips.cc`（NeurIPS）
+     - `"<论文标题>" site:openreview.net`（ICLR/ICML 等部分会议）
+     - 仍找不到时填 N/A，不要臆造
 
 ---
 
@@ -140,7 +171,9 @@ paper-learn 分六个阶段：**准备 → 论文全景 → 分章节深入 → 
 
 一个章节讲完后——
 
-「关于 [章节名]，有什么疑问吗？清楚了的话，检验一下这个章节的理解？还是继续下一章？」
+「关于 [章节名]，有什么疑问吗？」
+
+等用户回答后，再问下一个单一问题：「要检验一下这个章节的理解，还是继续下一章？」
 
 ---
 
@@ -195,14 +228,21 @@ paper-learn 分六个阶段：**准备 → 论文全景 → 分章节深入 → 
    - **新建模式**：列 `paper/` 判断主题（沿用或新建 `<topic>/`，新建须带 `index.md`）→ 新建 `<论文标题>.md` → 更新 `index.md`。
    - **更新模式**：读已有笔记 → 将新内容融入现有结构 → 刷新 `updated` 日期。
    - **关键原则**：一篇论文一个 md 文件，文件名即论文标题。两次读同一篇论文是同一篇笔记的两次迭代。
-3. **校验（必做）**：`wc -l <note.md>` 确认非空；确认 frontmatter 完整；确认 `index.md` 的"包含论文"列表已包含本笔记条目（新建时新增，更新时确认条目存在且说明文字未过期）；`git status` 确认改动符合预期。
+3. **校验（必做）**：
+   - `wc -l <note.md>` 确认非空（建议 ≥ 50 行，frontmatter-only 视为异常）
+   - 确认 frontmatter 完整（`title/topic/tags/summary/created/updated/sources`）
+   - 确认 `index.md` 的"包含论文"列表已包含本笔记条目（新建时新增，更新时确认条目存在且说明文字未过期）
+   - **校验所有内部链接目标存在**（lint 不扫 paper/，必须自检）：对笔记内所有 `[...](path)` 链接执行 `test -f <相对路径基准>/path && echo OK`，未通过的删除或改写。重点关注：
+     - 引用 wiki 的链接（如 `../../wiki/cuda/triton.md`）——wiki 笔记可能被改名/移动
+     - `sources` 字段指向的 `raw/papers/` PDF——本机存在即可（raw/ 不进 git）
+   - `git status` 确认改动符合预期
 4. **提交**：先 `git status` 确认仅本笔记 + `index.md` 改动；显式 `git add <论文标题>.md <topic>/index.md`（不要 `git add -A`，避免误带其他未完成改动）；`git commit -m "paper-learn <topic>: <一句话>" && git push`。
 
 ---
 
 ## paper 笔记模板
 
-frontmatter 用 conventions 基础字段（不扩展），论文专属信息放正文。`sources` 是 paper 笔记专属字段，指向 `raw/papers/` 下的源 PDF（注意：`raw/papers/` 受 .gitignore 保护不进 git，跨机器需重新下载 PDF，sources 链接仅本机有效）。
+frontmatter 字段命名沿用 conventions.md 惯例（`title/topic/tags/summary/created/updated/sources`），但**正文结构不套用 conventions.md，按本 SKILL.md 模板走**（conventions.md 是 wiki 笔记规范）。`sources` 是 paper 笔记专属字段，指向 `raw/papers/` 下的源 PDF（注意：`raw/papers/` 受 .gitignore 保护不进 git，跨机器需重新下载 PDF，sources 链接仅本机有效）。
 
 **YAML 特殊字符规则**（论文 title 常含冒号，必须用引号包裹）：
 - `title` 含 `:` `"` `'` `#` 等特殊字符时，整个值用双引号包裹（如 `title: "FlashAttention: Fast and ..."`）
@@ -284,8 +324,11 @@ sources:
 ## 关联
 
 - 相关 wiki 笔记（单向引用，不建反链）：[笔记名](../../wiki/<topic>/<note>.md) — 关系说明
+- 相关 paper 笔记（单向引用，不建反链）：[论文标题](../<topic>/<论文标题>.md) — 关系说明（如 FlashAttention v2 笔记可单向引用 v1 笔记；v1 不反向链接 v2）
 - 同期/后续工作（可附 arxiv 链接）
 ```
+
+> **paper-to-paper 链接规则**：AGENTS.md 铁律 3 说 paper/ 不参与互链——这意味着**双向互链禁止**，但**单向引用允许**（与 paper→wiki 单向同逻辑）。FlashAttention.md 列了 v2/v3/PagedAttention 但都是 arxiv 链接不是 paper/ 内链——如果以后写了 v2 笔记，可在 v2 笔记里单向链接 v1 笔记，v1 不必反向链接 v2。
 
 > 结构为建议，非强制。但 TL;DR、核心方法（含公式）、实验设计与关键结果、局限与改进方向四者**至少要有三个**——缺了它们，笔记退化成论文摘要搬运。
 
@@ -360,5 +403,7 @@ updated: YYYY-MM-DD
 ## 注意
 
 - paper 笔记和 wiki 笔记物理隔离，不参与互链。paper 笔记可单向引用 wiki，但 wiki 不反向链接 paper。
+- **paper-to-paper 单向引用允许，双向互链禁止**（如 v2 笔记可单向链接 v1，v1 不反向链接 v2）。
 - 主题结构沿用 wiki 的 topic 划分（如 `paper/llm/`、`paper/cv/`），但**不合并不拆分**——一篇论文一个文件，论文不会移动。
+- **lint 不扫 paper/**：paper 笔记的孤儿页、断链、index.md 缺失等问题没有 lint 兜底，写笔记时必须自检（见阶段五校验步骤）。
 - 关联：`AGENTS.md`、`.agents/conventions.md`（wiki 笔记规范，paper 不套用但可参考）
