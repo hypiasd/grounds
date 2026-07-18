@@ -73,6 +73,7 @@ E2M1（2 位指数 + 1 位尾数），只有 4 位。能表示的数值极其有
 - [GPU 执行模型](gpu-execution-model.md) — SM 内部的 Tensor Core 是这些浮点格式的硬件消费者；混合精度原理详见第四节
 - [Triton](triton.md) — Triton 的 `tl.float8` 等类型直接映射到这些格式
 - [CUTLASS](cutlass.md) — CUTLASS 的模板参数显式指定 MMA 指令的输入/输出精度
+- [TileLang](tilelang.md) — TileLang 的 `T.alloc_fragment` 涉及精度选择，底层 TVM 编译链映射到对应浮点格式的硬件指令
 
 ## 面试常见问题
 

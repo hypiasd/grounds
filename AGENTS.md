@@ -76,59 +76,19 @@ grounds/
 
 ---
 
-## Skill 详解
+## Skill 一览
 
-### learn — 学新知识
+所有 Skill 的完整流程、Gotchas、质量示例在各自 SKILL.md 中。以下仅列触发词和关键原则——执行前**必须先 Read 对应 SKILL.md**。
 
-**触发**："讲讲 X"、"什么是 Y"、"帮我理解 Z"
-
-**流程**：先查仓库 → **全景概览**（概念地图：是什么、为什么、有哪些子方向、和其他概念的关系）→ 用户选方向 → 针对性深入讲解 → 检验 → 补漏 → 可继续选其他方向或沉淀 → commit
-
-**关键原则**：先给地图再走路——用户看到全貌后自己决定深入哪个方向，不由 agent 判断什么重要。同一概念永远只有一篇笔记。
-
-### capture — 沉淀对话收获
-
-**触发**："整理一下"、"记下来"、"沉淀"
-
-**流程**：蒸馏对话 → 列出所有原子洞察给用户确认 → 每个洞察各归其位（匹配已有笔记则增量更新，新概念则新建）→ **面经搜索**（对每个概念搜网络面试题，追加到笔记）→ 批量写入 → 一次 commit
-
-### lint — 仓库体检
-
-**触发**："体检"、"lint"、"检查仓库"
-
-**流程**：扫描（孤儿页/断链/矛盾/过时/缺 index.md/模板合规/Topic 健康度/草稿提醒）→ 报告清单 → 用户决定是否修复
-
-**注意**：默认只报告不修改。**只扫 `wiki/`，不扫 `paper/` 和 `video/`**——后两者结构不同，不套用 wiki 的 lint 规则。
-
-### query — 复习已有知识
-
-**触发**："复习一下 X"、"之前学的 Y"、"对比 A 和 B"
-
-**流程**：第一遍扫 summaries（不加载正文）→ 精准加载命中笔记 → 综合引用作答 → 内容不足时明说并建议 learn
-
-### paper-learn — 读论文
-
-**触发**：手动 / `$` 触发。用户说"用 paper-learn 读 X"或 `$paper-learn <url>`。
-
-**流程**：准备（下载 PDF 到 `raw/papers/`，查 paper/ 是否已有）→ 论文全景（问题/方法/贡献/定位，2-3 段）→ 分章节深入（Abstract→Intro→Related Work→Method→Experiments→Discussion，每章含核心内容+论证逻辑+key claims+误区，可选论文-代码对照）→ 检验（论文版：复述方法/实验设计/局限/复现可行性）→ 补漏 → 沉淀到 `paper/<topic>/<论文标题>.md` → commit
-
-**关键原则**：以**学习者**视角为主、**批判性读者**为辅。不是 reviewer 在做 Accept/Reject 评审，是学习者吃透一篇论文。一篇论文一个 md 文件，文件名即论文标题，不合并不拆分。
-
-### bilibili-render-pdf — B 站视频转 PDF
-
-**触发**：手动 / `$` 触发。用户说"用 bilibili-render-pdf 处理 X"或 `$bilibili-render-pdf <BV链接>`。
-
-**流程**：环境检查 → 元数据+字幕获取（CC→Whisper→OCR 三级回退）→ 视频/封面下载 → 帧选择（密集候选+评估）→ 写 `.tex`（封面+章节+图+公式+小结+总结）→ xelatex 编译 PDF → `tex_to_md.py` 转 `index.md` → 三个文件（`.tex`+`.pdf`+`index.md`）留在 `video/<标题>/` → commit
-
-**产出位置**：`video/<标题>/` 是工作目录与成品目录合一的单一目录。`.tex`+`.pdf`+`index.md` 进 git；`cover.jpg`、`sources/`、`figures/`、`ocr/` 由 `.gitignore` 排除不进 git。
-
-### youtube-render-pdf — YouTube 视频转 PDF
-
-**触发**：手动 / `$` 触发。用户说"用 youtube-render-pdf 处理 X"或 `$youtube-render-pdf <链接>`。
-
-**流程**：同 bilibili-render-pdf，但省略 B 站专属适配（登录 cookies、分P、SiliconFlow API 等）。字幕获取优先级：CC→Whisper→OCR。
-
-**产出位置**：同 bilibili-render-pdf。
+| Skill | 触发 | 关键原则 |
+|-------|------|---------|
+| `learn` | "讲讲 X"、"什么是 Y" | 先给地图再走路——全景概览列所有方向，用户自己选深入哪个。同一概念永远只有一篇笔记。 |
+| `capture` | "整理一下"、"沉淀" | 一次对话 → 多个原子洞察 → 各归其位。面经搜索三个源（小红书/知乎/牛客）必须全搜完。 |
+| `lint` | "体检"、"检查仓库" | 默认只报告不修改。**只扫 `wiki/`**，不扫 `paper/` 和 `video/`。 |
+| `query` | "复习一下 X"、"对比 A 和 B" | 先扫 summaries 定位，再精准加载。答案必须可溯源到仓库笔记。内容不足时明说并建议 learn。 |
+| `paper-learn` | **手动 / `$` 触发** | 学习者视角为主、批判性读者为辅。一篇论文一个 md 文件。 |
+| `bilibili-render-pdf` | **手动 / `$` 触发** | 字幕三级回退（CC→Whisper→OCR）。产出 `.tex`+`.pdf`+`index.md`，工作目录与成品目录合一。 |
+| `youtube-render-pdf` | **手动 / `$` 触发** | 同 bilibili-render-pdf，省略 B 站专属适配。 |
 
 ---
 
