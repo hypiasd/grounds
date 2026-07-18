@@ -1,6 +1,9 @@
 \documentclass[a4paper]{article}
 
 % Basic packages
+% Fandol is a free CJK font set; it lacks some specialized Chinese characters
+% (e.g., 「昇」「騰」in 昇騰/昇思). On macOS prefer fontset=mac; on other
+% platforms the missing glyphs render as blank. Switch fontset if needed.
 \usepackage[fontset=fandol]{ctex}
 \usepackage{amsmath, amssymb}
 \usepackage{graphicx}
@@ -13,6 +16,7 @@
 \usepackage{subcaption}
 \usepackage{float}
 \usepackage{tikz}
+\usetikzlibrary{positioning}
 \IfFileExists{pgfplots.sty}{
     \usepackage{pgfplots}
     \pgfplotsset{compat=1.18}

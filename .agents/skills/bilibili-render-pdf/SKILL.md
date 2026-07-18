@@ -515,6 +515,9 @@ ls -la sources/subtitles.srt 2>/dev/null && [ -s sources/subtitles.srt ] || echo
    - **PPT/屏幕共享**（幻灯片或代码占大部分画面）→ 候选密度 1 fps，按字幕片段逐段提取
    - **混合型**（talking-head + 频繁切 PPT）→ 候选密度 1 fps，但优先选 PPT 帧
 
+   - **纯口头内容**（模拟面试、圆桌讨论、职业规划课等无幻灯片的纯对话场景）→ 跳过密集帧提取，仅在中点提 1-2 个代表性场景帧（如开场、关键方法论阐述时刻）。教学内容主要来自字幕文字，TikZ 可视化比截图更适合承载结构化知识。
+
+
 1. **定位内容跨度**：用带时间戳的字幕文件（CC 或 Whisper SRT）作主要定位器。识别对应讨论概念的片段。**关键片段识别方法**：按 60 秒窗口聚合字幕文本，agent 读聚合后的文本判断概念边界（每片段 30 秒-3 分钟）。可用 Python 脚本辅助：
    ```python
    import re
@@ -925,6 +928,13 @@ cat part1.tex part2.tex part3.tex > document.tex
 - **盲模式别用本地 tesseract 批量评估**：2+ 分钟/帧，用 API 或中点提取。
 - **成品必须 commit 进 git**：`.tex`+`.pdf`+`index.md` 进 git，`sources/figures/ocr/cover.jpg` 不进 git（.gitignore 自动排除）。换机器后需要 `video/<标题>/sources/` 等中间产物需重新下载。
 - **commit 之后必须 push**。
+
+- **Fandol 字体缺部分专业汉字**：`昇`（U+6607，在昇腾/昇思中高频）、`騰` 等字在 Fandol 字体集中缺失，编译时显示为空白。macOS 上切 `fontset=mac` 即可解决；Linux 上需确认系统已安装含全 CJK 字符的字体。AI 芯片/华为生态话题尤其容易触发。
+
+- **TikZ `positioning` 库遗漏**：使用 `above=...cm of node` 语法时需 `\usetikzlibrary{positioning}`，否则报 `Unknown operator 'of'`。模板已带，但从旧模板分支建笔记时可能缺。
+
+- **纯口头内容视频不要强求帧数量**：模拟面试、圆桌讨论、职业规划课等无幻灯片的视频，帧的信息密度极低。教学重点在字幕文字——放精力在文字结构和 TikZ 可视化上，帧仅作场景锚点即可。
+
 - **Shell 管道截断视频标题**：`$(yt-dlp --print title ... | sed ...)` 中的 `|` 会被 Shell 解释为管道而非传给 sed。当标题含 `|` 时，用 Python 清洗标题更可靠：`TITLE=$(python3 -c "import sys; t=sys.argv[1]; print(''.join(c if c not in "/:?*\"<>|" else "-" for c in t))" "$(yt-dlp --print "%(title)s" --skip-download "<URL>")")`。
 - **`\ifdefempty` 不在 `etoolbox` 中**：笔记模板 `notes-template.tex` 里的 `\ifdefempty{\cmd}{true}{false}` 不是标准 `etoolbox` 命令。模板已修正为 `\ifx\cmd\empty ... \else ... \fi`。如果从旧模板分支建笔记，务必用新模板。
 
