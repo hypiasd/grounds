@@ -26,6 +26,12 @@ import { loadComponentsFromPackage } from "./componentLoader"
 import { loadFramesFromPackage } from "./frameLoader"
 import { componentRegistry } from "../../components/registry"
 import { getCondition } from "./conditions"
+// 静态 import 替代 require()：避免 ESM 上下文（package.json type:module）下 require 未定义。
+// 这些组件都是内部模块，无循环依赖风险（已通过 require 在运行时验证）。
+import FlexConstructor from "../../components/Flex"
+import MobileOnlyConstructor from "../../components/MobileOnly"
+import DesktopOnlyConstructor from "../../components/DesktopOnly"
+import ConditionalRenderConstructor from "../../components/ConditionalRender"
 
 const CONFIG_YAML_PATH = path.join(process.cwd(), "quartz.config.yaml")
 const DEFAULT_CONFIG_YAML_PATH = path.join(process.cwd(), "quartz.config.default.yaml")
@@ -890,9 +896,8 @@ function resolveGroups(
         justify: m.groupOptions?.justify,
       }))
 
-      // Dynamically import Flex to avoid circular dependencies
-      const FlexModule = require("../../components/Flex")
-      const Flex = FlexModule.default as Function
+      // 静态 import 已在文件顶部完成
+      const Flex = FlexConstructor as Function
       const flexComponent = Flex({
         components: flexComponents,
         direction: groupConfig.direction ?? "row",
@@ -917,10 +922,10 @@ function applyDisplayWrapper(
   display: "mobile-only" | "desktop-only",
 ): QuartzComponent {
   if (display === "mobile-only") {
-    const MobileOnly = require("../../components/MobileOnly").default as Function
+    const MobileOnly = MobileOnlyConstructor as Function
     return MobileOnly(component) as QuartzComponent
   } else {
-    const DesktopOnly = require("../../components/DesktopOnly").default as Function
+    const DesktopOnly = DesktopOnlyConstructor as Function
     return DesktopOnly(component) as QuartzComponent
   }
 }
@@ -935,7 +940,7 @@ function applyConditionWrapper(component: QuartzComponent, conditionName: string
     return component
   }
 
-  const ConditionalRender = require("../../components/ConditionalRender").default as Function
+  const ConditionalRender = ConditionalRenderConstructor as Function
   return ConditionalRender({
     component,
     condition: predicate,

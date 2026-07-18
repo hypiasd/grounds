@@ -38,9 +38,31 @@
   outline-offset: 2px;
 }
 
-/* 隐藏左栏状态：左栏消失，主内容居中 */
+/* 隐藏左栏状态：左栏从 grid 布局中移除，主内容自动占满左侧空间
+ * 用 :has() 让 #quartz-body 感知子元素 .left.sidebar.hidden 状态，
+ * 调整 grid-template-columns 让 .center 居中。
+ * :has() 在 Chrome 105+/Safari 15.4+/Firefox 121+ 支持，覆盖 2026 年绝大多数浏览器。 */
 .left.sidebar.hidden {
   display: none;
+}
+
+/* 桌面端隐藏左栏时，把左栏列宽从 280px 改为 0，center 列自动居中 */
+@media all and (min-width: 1400px) {
+  #quartz-body:has(.left.sidebar.hidden) {
+    grid-template-columns: 0 auto 280px;
+  }
+}
+
+/* 平板端隐藏左栏时，从两列变单列 */
+@media all and (min-width: 800px) and (max-width: 1400px) {
+  #quartz-body:has(.left.sidebar.hidden) {
+    grid-template-columns: auto;
+    grid-template-areas:
+      '"grid-header"\
+        "grid-center"\
+        "grid-sidebar-right"\
+        "grid-footer"';
+  }
 }
 
 /* 移动端默认不显示 toggle（移动端本来就用 hamburger 菜单） */

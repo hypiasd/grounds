@@ -120,11 +120,11 @@ if entries:
 | CPU + 只有 `openai-whisper` | `whisper` CLI | `tiny` 或 `small` | 2-5 分钟 |
 | 5 分钟内无转录或无工具 | 视觉模式 + OCR | 无 | N/A |
 
-**时间预算规则**：预算 = `max(5 分钟, 2 分钟 × 音频时长/10)`。从 `transcribe()` 调用起算（不含模型加载）。预算窗口内 SRT 文件每 30 秒必须增长，否则 kill 进程走视觉模式。
+**时间预算规则**：预算 = `max(5 分钟, 2 分钟 × 音频时长/10)`。从 `transcribe()` 调用起算（不含模型加载）。用 `timeout` 命令包裹同步调用，超时直接 kill 进程走视觉模式——不要尝试"每 30 秒检查 SRT 增长"（faster-whisper 的 `transcribe()` 是同步阻塞 API，必须用 `subprocess.Popen` + `signal`/`terminate` 才能中途 kill）。
 
 **模型加载超时**：`transcribe()` 调用后 2 分钟内 SRT 仍为 0 字节，模型加载可能卡死，kill 并回退。
 
-> 注意：上面"预算"是总时长上限（如 30 分钟音频预算 6 分钟），"每 30 秒必须增长"是中途健康检查。两者不冲突——任一触发都 kill。
+> 注意：上面"预算"是总时长上限（如 30 分钟音频预算 6 分钟）。简单粗暴用 `timeout` 命令比"中途健康检查"更可靠——faster-whisper 的同步 API 不支持中途查询进度。
 
 **CPU-only Mac 注意**：`medium` 模型在 CPU 上转 10 分钟中文音频要 20-40 分钟。Mac 无 GPU 时默认 `small`/`tiny` 或走视觉模式。
 
@@ -169,8 +169,9 @@ yt-dlp 下载/元数据获取失败时，先检查错误信息区分原因：
 
 2. 检测分P 视频。列出所有 P 并问用户处理哪些 P。**多 P 时每个 P 独立工作目录** `raw/videos/<标题>-P<n>/`，各自产出独立 PDF，互不干扰。单 P 时工作目录就是 `raw/videos/<标题>/`。
 
-3. **下载后验证实际时长**。yt-dlp 元数据时长可能不准（观察到元数据报 59 分钟，实际 104 分钟）。下载后用 ffprobe 交叉检查：
+3. **下载后验证实际时长**（本步骤的执行时机在"视频和封面下载"小节之后，不是现在执行）。yt-dlp 元数据时长可能不准（观察到元数据报 59 分钟，实际 104 分钟）。视频下载完成后用 ffprobe 交叉检查：
    ```bash
+   # 在工作目录下执行（sources/video.mp4 已存在时）
    ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 sources/video.mp4
    ```
    差超 10% 时用 ffprobe 值并重新评估内容结构。
@@ -249,26 +250,50 @@ ls -la sources/subtitles.srt 2>/dev/null && [ -s sources/subtitles.srt ] || echo
 
 2. 按上面的[策略表](#4-转录策略选择)选工具和模型。
 
-   **首选 `faster-whisper`**（用 Python API 而非 CLI，便于看进度）：
+   **首选 `faster-whisper`**（用 Python API 而非 CLI，便于看进度）。把整个转录 + SRT 写入脚本保存为 `transcribe.py`，用 `timeout` 命令包裹执行：
+
    ```python
+   # transcribe.py —— 完整可执行，写入 sources/subtitles.srt
+   import sys, time
    from faster_whisper import WhisperModel
-   import time, os
 
-   # 已缓存 medium 模型时用显式缓存路径：
-   # cache = os.path.expanduser("~/.cache/huggingface/hub/models--Systran--faster-whisper-medium/snapshots/<hash>")
-   # model = WhisperModel(cache, device="cpu", compute_type="int8", local_files_only=True)
+   audio_path = sys.argv[1]      # sources/audio.wav
+   srt_path = sys.argv[2]        # sources/subtitles.srt
+   model_size = sys.argv[3] if len(sys.argv) > 3 else "small"
 
-   model = WhisperModel("small", device="cpu", compute_type="int8")  # CPU 安全默认
-   segments, info = model.transcribe("sources/audio.wav", language="zh", beam_size=5)
-   # SRT 写入模板见 Troubleshooting
+   model = WhisperModel(model_size, device="cpu", compute_type="int8")
+   segments, info = model.transcribe(audio_path, language="zh", beam_size=5)
+
+   def fmt(ts):
+       h = int(ts // 3600); m = int((ts % 3600) // 60)
+       s = int(ts % 60); ms = int((ts - int(ts)) * 1000)
+       return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+   with open(srt_path, "w", encoding="utf-8") as f:
+       for i, seg in enumerate(segments, 1):
+           f.write(f"{i}\n{fmt(seg.start)} --> {fmt(seg.end)}\n{seg.text.strip()}\n\n")
+   ```
+
+   ```bash
+   # 用 timeout 包裹，超时直接 kill 走 Priority 3
+   BUDGET=$((5 * 60))  # 5 分钟（按预算规则调整）
+   timeout "$BUDGET" python3 transcribe.py sources/audio.wav sources/subtitles.srt small
+   if [ $? -eq 124 ]; then
+     echo "Whisper 超时，回退到 Priority 3"
+     rm -f sources/subtitles.srt
+   fi
    ```
 
    **回退 `openai-whisper` CLI**（仅 `faster-whisper` 不可用时）：
    ```bash
-   whisper sources/audio.wav --model small --language zh --output_format srt --output_dir sources/
+   BUDGET=$((5 * 60))
+   timeout "$BUDGET" whisper sources/audio.wav --model small --language zh \
+     --output_format srt --output_dir sources/
+   # openai-whisper 输出 sources/audio.srt，统一改名
+   [ -f sources/audio.srt ] && mv sources/audio.srt sources/subtitles.srt
    ```
 
-3. **中止条件**：按上面的[时间预算规则](#5-转录策略选择)执行——预算窗口内 SRT 每 30 秒必须增长，否则 kill 进程走 Priority 3。模型加载超时（2 分钟无输出）也 kill。
+3. **中止条件**：`timeout` 命令的退出码 124 表示超时已 kill；其他非零退出码表示转录失败。两种情况都清空 `sources/subtitles.srt` 走 Priority 3。
 
 #### Priority 3: 视觉模式 + OCR
 

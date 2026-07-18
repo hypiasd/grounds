@@ -65,7 +65,7 @@ grounds/
 
 ### 调度规则（跨 agent 通用）
 
-1. **前 4 个 skill（learn/capture/lint/query）**：识别用户意图，匹配触发词后自动调度。
+1. **前 4 个 skill（learn/capture/lint/query）**：识别用户意图，匹配触发词后自动调度。SKILL.md frontmatter 里的 `disable-model-invocation: true` 是 Claude Code 语义（指"禁止模型无用户触发时自动调用"），不影响"用户消息触发后自动调度"——其他 agent 按本调度规则手动执行即可。
 2. **后 3 个 skill（paper-learn/bilibili-render-pdf/youtube-render-pdf）**：**只接受手动触发或 `$` 触发**——agent 不得基于用户消息内容自动调用它们，即使用户提供了 arxiv/BV/YouTube 链接。用户必须显式说"用 paper-learn skill 读这篇论文"或输入 `$paper-learn <url>` 才会触发。
 3. **用 Read 工具读取对应的 SKILL.md 文件**。不要跳过——表格只是索引。
 4. 严格按 SKILL.md 中的流程执行，包括校验步骤。
@@ -158,11 +158,14 @@ paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `con
 | `yt-dlp` | 视频/字幕下载 | bilibili-render-pdf / youtube-render-pdf | `which yt-dlp` |
 | `ffmpeg` / `ffprobe` | 音频提取、帧提取、视频时长校验 | bilibili-render-pdf / youtube-render-pdf | `which ffmpeg` |
 | `xelatex` | LaTeX → PDF 编译 | bilibili-render-pdf / youtube-render-pdf | `which xelatex` |
-| `whisper` / `faster-whisper` | 语音转字幕（CC 字幕失败时回退） | bilibili-render-pdf / youtube-render-pdf | `which whisper` 或 `python3 -c "import faster_whisper"` |
+| `faster-whisper` / `whisper` | 语音转字幕（CC 字幕失败时回退；优先 faster-whisper） | bilibili-render-pdf / youtube-render-pdf | `python3 -c "import faster_whisper"` 或 `which whisper` |
 | `tesseract` | OCR 回退（视觉模式） | bilibili-render-pdf / youtube-render-pdf | `which tesseract` |
-| `pdftotext` / `pdfinfo` | PDF 文本提取 / 元数据 | paper-learn | `which pdfinfo` |
+| `pdftotext` / `pdfinfo` | PDF 文本提取 / 元数据 | paper-learn；bilibili-render-pdf / youtube-render-pdf（成品 PDF 抽查） | `which pdfinfo` |
 | `qpdf` / `ocrmypdf` | PDF 解密 / OCR（扫描版论文） | paper-learn | `which qpdf` |
 | `gh`（GitHub CLI） | 论文-代码对照搜仓库（可选） | paper-learn | `which gh` |
+| `ImageMagick`（`magick` / `montage`） | 帧拼接缩略图（视觉模式） | bilibili-render-pdf / youtube-render-pdf | `which magick` |
+| `openai` Python 包 | 视觉模型 API 调用（SiliconFlow 兼容） | bilibili-render-pdf / youtube-render-pdf | `python3 -c "import openai"` |
+| `torch` | GPU 可用性检测（CUDA / MPS） | bilibili-render-pdf / youtube-render-pdf | `python3 -c "import torch"` |
 
 工具缺失时：对应 skill 需在 SKILL.md 的环境检查小节说明替代方案或报告用户——不要静默跳过必需步骤（如 capture 缺 `opencli` 时面经补充无法执行，必须问用户是否跳过）。
 

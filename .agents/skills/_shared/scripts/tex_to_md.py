@@ -105,22 +105,63 @@ def extract_metadata(tex: str) -> dict:
         return s
 
     meta = {}
+    # 用平衡大括号匹配替代 [^}]+，支持 \notetitle{标题含 \textbf{粗体}} 等嵌套。
     patterns = {
-        "title": r"\\newcommand\{\\notetitle\}\{(.+?)\}",
-        "channel": r"\\newcommand\{\\videochannel\}\{(.+?)\}",
-        "publish_date": r"\\newcommand\{\\videopublishdate\}\{(.+?)\}",
-        "duration": r"\\newcommand\{\\videoduration\}\{(.+?)\}",
-        "url": r"\\newcommand\{\\videourl\}\{(.+?)\}",
+        "title": r"\\newcommand\{\\notetitle\}",
+        "channel": r"\\newcommand\{\\videochannel\}",
+        "publish_date": r"\\newcommand\{\\videopublishdate\}",
+        "duration": r"\\newcommand\{\\videoduration\}",
+        "url": r"\\newcommand\{\\videourl\}",
     }
     for key, pat in patterns.items():
         m = re.search(pat, tex)
-        if m:
-            val = m.group(1).strip()
-            if val and not val.startswith("[在此填写"):
-                if key == "publish_date":
-                    val = normalize_date(val)
-                meta[key] = val
+        if not m:
+            continue
+        val = _extract_balanced_brace(tex, m.end())
+        if val is None:
+            continue
+        val = val.strip()
+        if val and not val.startswith("[在此填写"):
+            if key == "publish_date":
+                val = normalize_date(val)
+            meta[key] = val
     return meta
+
+
+def _extract_balanced_brace(tex: str, start: int) -> str | None:
+    """从 tex[start] 开始匹配一个平衡的 {...}，返回内部内容（不含外层大括号）。
+    支持 \\{ \\} 转义和任意层嵌套。start 位置必须是 { 或前置空白后的 {。"""
+    i = start
+    n = len(tex)
+    # 跳过空白
+    while i < n and tex[i] in " \t":
+        i += 1
+    if i >= n or tex[i] != "{":
+        return None
+    i += 1  # 跳过开括号
+    depth = 1
+    out = []
+    while i < n and depth > 0:
+        c = tex[i]
+        if c == "\\" and i + 1 < n:
+            # 转义字符（\{ \} \\ 等）原样保留
+            out.append(tex[i : i + 2])
+            i += 2
+            continue
+        if c == "{":
+            depth += 1
+            out.append(c)
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                break
+            out.append(c)
+        else:
+            out.append(c)
+        i += 1
+    if depth != 0:
+        return None
+    return "".join(out)
 
 
 # ---------------------------------------------------------------------------
@@ -243,12 +284,56 @@ def convert_quote(tex: str) -> str:
 # ---------------------------------------------------------------------------
 
 def convert_sections(tex: str) -> str:
-    """转换章节命令."""
-    tex = re.sub(r"\\section\*?\{([^}]*)\}", r"## \1", tex)
-    tex = re.sub(r"\\subsection\*?\{([^}]*)\}", r"### \1", tex)
-    tex = re.sub(r"\\subsubsection\*?\{([^}]*)\}", r"#### \1", tex)
-    tex = re.sub(r"\\paragraph\*?\{([^}]*)\}", r"##### \1", tex)
-    return tex
+    r"""转换章节命令. 用平衡大括号匹配支持 \section{标题含 \textbf{粗体}}。
+
+    Python re 不支持递归/平衡组，改用手动扫描：匹配 \section\*? 然后用
+    _extract_balanced_brace 吃掉 {...}。"""
+    result = []
+    i = 0
+    n = len(tex)
+    section_patterns = [
+        (re.compile(r"\\section\*?"), "##"),
+        (re.compile(r"\\subsection\*?"), "###"),
+        (re.compile(r"\\subsubsection\*?"), "####"),
+        (re.compile(r"\\paragraph\*?"), "#####"),
+    ]
+    while i < n:
+        matched = False
+        for pat, prefix in section_patterns:
+            m = pat.match(tex, i)
+            if not m:
+                continue
+            val = _extract_balanced_brace(tex, m.end())
+            if val is None:
+                continue
+            # 找到闭括号位置以消费整个 {...}
+            j = m.end()
+            while j < n and tex[j] in " \t":
+                j += 1
+            if j >= n or tex[j] != "{":
+                continue
+            depth = 1
+            j += 1
+            while j < n and depth > 0:
+                c = tex[j]
+                if c == "\\" and j + 1 < n:
+                    j += 2
+                    continue
+                if c == "{":
+                    depth += 1
+                elif c == "}":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                j += 1
+            result.append(f"{prefix} {val}")
+            i = j + 1
+            matched = True
+            break
+        if not matched:
+            result.append(tex[i])
+            i += 1
+    return "".join(result)
 
 
 # ---------------------------------------------------------------------------
@@ -569,18 +654,28 @@ def cleanup(tex: str) -> str:
 # Frontmatter
 # ---------------------------------------------------------------------------
 
+def yaml_quote(value: str) -> str:
+    """把字符串转成 YAML 双引号字面量，转义内部双引号和反斜杠。
+    所有字符串字段统一用双引号包裹，避免 title 含冒号/破折号时 YAML 解析失败。"""
+    if value is None:
+        return '""'
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
 def build_frontmatter(meta: dict, tex_path: Path) -> str:
-    """构建 frontmatter."""
+    """构建 frontmatter。所有 string 字段用双引号包裹以容忍特殊字符。"""
     title = meta.get("title", "")
     if title.startswith("课程笔记："):
         title = title.replace("课程笔记：", "").strip()
 
     fm = ["---"]
-    fm.append(f"title: {title}")
+    fm.append(f"title: {yaml_quote(title)}")
     fm.append("topic: video")
     fm.append("tags: [video]")
     if meta.get("channel"):
-        fm.append(f"summary: 视频笔记 — {meta['channel']}")
+        summary_value = f"视频笔记 — {meta['channel']}"
+        fm.append(f"summary: {yaml_quote(summary_value)}")
     else:
         fm.append("summary: 视频笔记")
     if meta.get("publish_date"):
@@ -592,11 +687,11 @@ def build_frontmatter(meta: dict, tex_path: Path) -> str:
         fm.append(f"created: {today}")
         fm.append(f"updated: {today}")
     if meta.get("url"):
-        fm.append(f'video_url: "{meta["url"]}"')
+        fm.append(f"video_url: {yaml_quote(meta['url'])}")
     if meta.get("channel"):
-        fm.append(f'video_channel: "{meta["channel"]}"')
+        fm.append(f"video_channel: {yaml_quote(meta['channel'])}")
     if meta.get("duration"):
-        fm.append(f'video_duration: "{meta["duration"]}"')
+        fm.append(f"video_duration: {yaml_quote(meta['duration'])}")
     pdf_name = tex_path.stem + ".pdf"
     fm.append("sources:")
     fm.append(f"  - {pdf_name}")

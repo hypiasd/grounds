@@ -8,27 +8,18 @@ const Body: QuartzComponent = ({ children }: QuartzComponentProps) => {
 // 左侧栏隐藏 toggle：注入到 .page-header（center 区域始终存在）
 // 用 inline script 而不是 Preact island，避免 Body 整个变成 client component
 // 持久化到 localStorage（key: grounds:sidebar-hidden），符合用户硬约束
+//
+// 关键：必须监听 SPA `nav` 事件。micromorph 在 SPA 导航时按标签名匹配 .page-header
+// 的子节点，旧页面的 <button class="sidebar-toggle"> 与新页面的 <header> 不匹配，
+// 按钮会被移除。postscript.js 以 spaPreserve 不重新执行，所以 IIFE 只跑一次——
+// 必须靠 nav 事件监听重新注入。参考 popover.inline.ts 的 setupPopovers + nav 范式。
 Body.afterDOMLoaded = `
 (function () {
-  // 仅桌面端启用（移动端用 hamburger 菜单）
   if (window.matchMedia('(max-width: 768px)').matches) return;
 
   var STORAGE_KEY = 'grounds:sidebar-hidden';
-  var leftSidebar = document.querySelector('.left.sidebar');
-  var pageHeader = document.querySelector('.center > .page-header');
-  if (!leftSidebar || !pageHeader) return;
 
-  // 防止重复注入（SPA 导航后 postscript 重新执行）
-  if (pageHeader.querySelector('.sidebar-toggle')) return;
-
-  var btn = document.createElement('button');
-  btn.className = 'sidebar-toggle';
-  btn.type = 'button';
-  btn.setAttribute('aria-label', '隐藏/显示左侧栏');
-  btn.setAttribute('aria-expanded', 'true');
-  btn.textContent = '◀';
-
-  function applyState(hidden) {
+  function applyState(btn, leftSidebar, hidden) {
     if (hidden) {
       leftSidebar.classList.add('hidden');
       btn.textContent = '▶';
@@ -40,23 +31,37 @@ Body.afterDOMLoaded = `
     }
   }
 
-  // 从 localStorage 恢复状态
-  try {
-    var stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'true') applyState(true);
-  } catch (e) {
-    // localStorage 不可用时静默失败（隐私模式等）
+  function injectToggle() {
+    if (window.matchMedia('(max-width: 768px)').matches) return;
+    var leftSidebar = document.querySelector('.left.sidebar');
+    var pageHeader = document.querySelector('.center > .page-header');
+    if (!leftSidebar || !pageHeader) return;
+    if (pageHeader.querySelector('.sidebar-toggle')) return;
+
+    var btn = document.createElement('button');
+    btn.className = 'sidebar-toggle';
+    btn.type = 'button';
+    btn.setAttribute('aria-label', '隐藏/显示左侧栏');
+    btn.setAttribute('aria-expanded', 'true');
+    btn.textContent = '◀';
+
+    try {
+      var stored = localStorage.getItem(STORAGE_KEY);
+      if (stored === 'true') applyState(btn, leftSidebar, true);
+    } catch (e) {}
+
+    btn.addEventListener('click', function () {
+      var hidden = leftSidebar.classList.contains('hidden');
+      var next = !hidden;
+      applyState(btn, leftSidebar, next);
+      try { localStorage.setItem(STORAGE_KEY, String(next)); } catch (e) {}
+    });
+
+    pageHeader.insertBefore(btn, pageHeader.firstChild);
   }
 
-  btn.addEventListener('click', function () {
-    var hidden = leftSidebar.classList.contains('hidden');
-    var next = !hidden;
-    applyState(next);
-    try { localStorage.setItem(STORAGE_KEY, String(next)); } catch (e) {}
-  });
-
-  // 插入到 page-header 最前面
-  pageHeader.insertBefore(btn, pageHeader.firstChild);
+  injectToggle();
+  document.addEventListener('nav', injectToggle);
 })();
 `
 

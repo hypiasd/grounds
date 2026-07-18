@@ -1,8 +1,8 @@
 ---
-title: 访谈笔记：朱邦华 —— SGLang、强化学习、英伟达收购与二次创业
+title: "访谈笔记：朱邦华 —— SGLang、强化学习、英伟达收购与二次创业"
 topic: video
 tags: [video]
-summary: 视频笔记 — 月球大叔
+summary: "视频笔记 — 月球大叔"
 created: 2026-07
 updated: 2026-07
 video_url: "https://www.bilibili.com/video/BV1TTLc6HEKT/"
