@@ -10,7 +10,7 @@
 ## 铁律
 
 1. **绝不编造**：不确定的内容明确说"我不确定"，不要假装确定。
-2. **改动即 commit + push**：对 `wiki/`、`paper/`、`video/` 的改动，立即 `git commit` 然后 `git push`。`raw/` 下所有内容（`raw/wiki/`、`raw/papers/`、`raw/videos/`）受 `.gitignore` 保护**不进 git**——笔记里的 `raw/` 链接视为本机参考资料，跨机器需重新下载/clone（论文 PDF 可从 arxiv 重下，源码快照可重新 clone）。`raw/videos/` 下的 `sources/`、`figures/`、`ocr/` 中间产物同样不进 git，只追踪最终复制到 `video/` 的成品。commit message 格式：`<skill> <topic>: <一句话>`（如 `learn deep-learning: 注意力机制笔记`）。video skill 无 topic 时可省略（如 `bilibili-render-pdf: <视频标题>`）；lint 修复可省略 topic（如 `lint: 修复孤儿页`）。
+2. **改动即 commit + push**：对 `wiki/`、`paper/`、`video/` 的改动，立即 `git commit` 然后 `git push`。`raw/` 下所有内容（`raw/wiki/`、`raw/papers/`）受 `.gitignore` 保护**不进 git**——笔记里的 `raw/` 链接视为本机参考资料，跨机器需重新下载/clone（论文 PDF 可从 arxiv 重下，源码快照可重新 clone）。`video/` 是工作目录与成品目录合一：`.tex`+`.pdf`+`index.md` 进 git，`sources/`、`figures/`、`ocr/`、`cover.jpg` 等中间产物不进 git（由 `.gitignore` 排除）。commit message 格式：`<skill> <topic>: <一句话>`（如 `learn deep-learning: 注意力机制笔记`）。video skill 无 topic 时可省略（如 `bilibili-render-pdf: <视频标题>`）；lint 修复可省略 topic（如 `lint: 修复孤儿页`）。
 3. **互链防孤儿**：`wiki/` 内笔记之间、笔记与 `raw/wiki/` 原始资料之间用标准 Markdown 相对路径互链（如 `[Dropout](../deep-learning/dropout.md)`、`[vLLM 源码](../../raw/wiki/vllm/vllm/v1/engine/llm_engine.py)`）。`paper/` 和 `video/` **不参与互链**。
 4. **主题自主生长**：列 `wiki/`（或 `paper/`）即发现所有主题；无合适主题时新建 `<topic>/` 目录，新建主题必须同时创建 `index.md`。
 
@@ -30,15 +30,18 @@ grounds/
 ├── paper/                 # 论文笔记（paper-learn 产出）
 │   └── <topic>/
 │       └── <论文标题>.md
-├── video/                 # 视频笔记成品（video skill 产出，.tex + .pdf + .md）
+├── video/                 # 视频笔记（video skill 产出；工作目录 = 成品目录）
 │   └── <视频标题>/
-│       ├── <basename>.tex
-│       ├── <basename>.pdf
-│       └── <basename>.md
-├── raw/                   # 原始资料（只增不删，分三类）
+│       ├── <basename>.tex   # 进 git
+│       ├── <basename>.pdf   # 进 git
+│       ├── index.md         # 进 git（Quartz folder note）
+│       ├── cover.jpg        # 不进 git
+│       ├── sources/         # 不进 git
+│       ├── figures/         # 不进 git
+│       └── ocr/             # 不进 git
+├── raw/                   # 原始资料（只增不删，分两类）
 │   ├── wiki/              # learn/capture/query 引用的资料
-│   ├── papers/            # 论文 PDF
-│   └── videos/             # 视频工作目录（含 sources/figures/ocr/）
+│   └── papers/            # 论文 PDF
 ├── .agents/               # 技能、规范、归档
 │   ├── conventions.md     # wiki 笔记模板（写笔记前必读）
 │   ├── skills/
@@ -115,9 +118,9 @@ grounds/
 
 **触发**：手动 / `$` 触发。用户说"用 bilibili-render-pdf 处理 X"或 `$bilibili-render-pdf <BV链接>`。
 
-**流程**：环境检查 → 元数据+字幕获取（CC→Whisper→OCR 三级回退）→ 视频/封面下载 → 帧选择（密集候选+评估）→ 写 `.tex`（封面+章节+图+公式+小结+总结）→ xelatex 编译 PDF → 工作目录留在 `raw/videos/<标题>/`，成品 `.tex`+`.pdf`+`.md` 复制到 `video/<标题>/` → commit
+**流程**：环境检查 → 元数据+字幕获取（CC→Whisper→OCR 三级回退）→ 视频/封面下载 → 帧选择（密集候选+评估）→ 写 `.tex`（封面+章节+图+公式+小结+总结）→ xelatex 编译 PDF → `tex_to_md.py` 转 `index.md` → 三个文件（`.tex`+`.pdf`+`index.md`）留在 `video/<标题>/` → commit
 
-**产出位置**：完整工作目录（含 sources/figures/ocr/）在 `raw/videos/<标题>/`（不进 git）；成品 `.tex`+`.pdf`+`.md` 复制到 `video/<标题>/`（进 git）。`.md` 由 `tex_to_md.py` 从 `.tex` 转换，给前端网页渲染用。
+**产出位置**：`video/<标题>/` 是工作目录与成品目录合一的单一目录。`.tex`+`.pdf`+`index.md` 进 git；`cover.jpg`、`sources/`、`figures/`、`ocr/` 由 `.gitignore` 排除不进 git。
 
 ### youtube-render-pdf — YouTube 视频转 PDF
 
@@ -203,9 +206,9 @@ paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `con
 ## 注意事项
 
 - 废弃笔记移入 `.agents/archive/`，不要直接删除。
-- `raw/` 只增不删，分三个子目录：`raw/wiki/`（learn/capture/query 资料）、`raw/papers/`（论文 PDF）、`raw/videos/`（视频工作目录，含中间产物）。
+- `raw/` 只增不删，分两个子目录：`raw/wiki/`（learn/capture/query 资料）、`raw/papers/`（论文 PDF）。
 - `paper/` 笔记按主题分目录，但**不存在合并拆分问题**——一篇论文一个 md 文件，文件名即论文标题，论文不会移动。
-- `video/` 只追踪成品 `.tex` + `.pdf` + `.md`；`raw/videos/` 下的 `sources/`、`figures/`、`ocr/` 中间产物不进 git（见 `.gitignore`）。
+- `video/` 是工作目录与成品目录合一：`.tex` + `.pdf` + `index.md` 进 git；`sources/`、`figures/`、`ocr/`、`cover.jpg` 由 `.gitignore` 排除不进 git。
 - `lint` 只扫 `wiki/`，不扫 `paper/` 和 `video/`。
 - `wiki/<topic>/index.md` 是 Quartz 的 folder note，访问 `/wiki/<topic>/` 时直接渲染。
 - 互链只管 `wiki/`：wiki 笔记之间互链，wiki 笔记可引用 `raw/wiki/` 资料。`paper/` 和 `video/` 不参与互链（paper 笔记可单向引用 wiki，但不建立反链）。
