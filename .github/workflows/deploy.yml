@@ -31,12 +31,12 @@ jobs:
           node-version: 22
           cache: 'npm'
           cache-dependency-path: quartz/package-lock.json
-      - name: Install plugins
+      - name: Install dependencies
         working-directory: quartz
-        run: npm ci && npx quartz plugin install --from-config
+        run: npm ci
       - name: Build (quartz)
         working-directory: quartz
-        run: npx quartz build
+        run: npx quartz build  # prebuild 钩子会自动跑 install-plugins
       - uses: actions/upload-pages-artifact@v4
         with:
           path: quartz/public

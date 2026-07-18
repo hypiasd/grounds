@@ -59,7 +59,7 @@ python3 -c "import faster_whisper; print('ok')" 2>/dev/null   # faster-whisper: 
 which tesseract && tesseract --list-langs 2>&1 | grep chi_sim  # 视觉模式 OCR 回退
 which montage || which magick                                   # ImageMagick 帧拼接（实际命令用 montage，只有 magick 时改用 `magick montage`）
 which xelatex                                                   # LaTeX → PDF 编译
-which ffmpeg                                                    # 视频/音频/帧提取
+which ffmpeg && which ffprobe                                   # 视频/音频/帧提取 + 时长校验（同包安装）
 which pdftotext                                                 # 成品 PDF 抽查（缺失时跳过抽查但需在交付时说明）
 ```
 
@@ -277,7 +277,11 @@ ls -la sources/subtitles.srt 2>/dev/null && [ -s sources/subtitles.srt ] || echo
 
    ```bash
    # 用 timeout 包裹，超时直接 kill 走 Priority 3
-   BUDGET=$((5 * 60))  # 5 分钟（按预算规则调整）
+   # BUDGET 按预算规则 max(5min, 2min × 音频时长/10) 计算
+   AUDIO_DUR=$(ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 sources/audio.wav)
+   AUDIO_DUR_INT=${AUDIO_DUR%.*}
+   BUDGET=$(( AUDIO_DUR_INT * 12 / 10 ))   # 2min × dur/10 = 12s × dur
+   [ "$BUDGET" -lt 300 ] && BUDGET=300     # 下限 5 分钟
    timeout "$BUDGET" python3 transcribe.py sources/audio.wav sources/subtitles.srt small
    if [ $? -eq 124 ]; then
      echo "Whisper 超时，回退到 Priority 3"
@@ -287,7 +291,7 @@ ls -la sources/subtitles.srt 2>/dev/null && [ -s sources/subtitles.srt ] || echo
 
    **回退 `openai-whisper` CLI**（仅 `faster-whisper` 不可用时）：
    ```bash
-   BUDGET=$((5 * 60))
+   # 复用上面算好的 BUDGET（基于 sources/audio.wav 时长）
    timeout "$BUDGET" whisper sources/audio.wav --model small --language zh \
      --output_format srt --output_dir sources/
    # openai-whisper 输出 sources/audio.srt，统一改名

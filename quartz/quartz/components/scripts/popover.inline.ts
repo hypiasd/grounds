@@ -138,4 +138,3 @@ function setupPopovers() {
 }
 
 document.addEventListener("nav", setupPopovers)
-document.addEventListener("render", setupPopovers)

@@ -128,16 +128,17 @@ def extract_metadata(tex: str) -> dict:
     return meta
 
 
-def _extract_balanced_brace(tex: str, start: int) -> str | None:
-    """从 tex[start] 开始匹配一个平衡的 {...}，返回内部内容（不含外层大括号）。
-    支持 \\{ \\} 转义和任意层嵌套。start 位置必须是 { 或前置空白后的 {。"""
+def _extract_balanced_brace_with_end(tex: str, start: int) -> tuple[str | None, int | None]:
+    """从 tex[start] 开始匹配一个平衡的 {...}，返回 (内部内容, 闭括号后位置)。
+    支持 \\{ \\} 转义、任意层嵌套、跨行（命令与 { 之间可有换行）。
+    两者同时为 None 或同时非 None。"""
     i = start
     n = len(tex)
-    # 跳过空白
-    while i < n and tex[i] in " \t":
+    # 跳过空白（含换行，LaTeX 允许命令与 { 跨行）
+    while i < n and tex[i] in " \t\n\r":
         i += 1
     if i >= n or tex[i] != "{":
-        return None
+        return None, None
     i += 1  # 跳过开括号
     depth = 1
     out = []
@@ -154,14 +155,24 @@ def _extract_balanced_brace(tex: str, start: int) -> str | None:
         elif c == "}":
             depth -= 1
             if depth == 0:
-                break
+                return "".join(out), i + 1
             out.append(c)
         else:
             out.append(c)
         i += 1
-    if depth != 0:
-        return None
-    return "".join(out)
+    return None, None
+
+
+def _extract_balanced_brace(tex: str, start: int) -> str | None:
+    """向后兼容薄包装：只返回内容。"""
+    content, _ = _extract_balanced_brace_with_end(tex, start)
+    return content
+
+
+def _find_balanced_end(tex: str, start: int) -> int | None:
+    """向后兼容薄包装：只返回结束位置。"""
+    _, end = _extract_balanced_brace_with_end(tex, start)
+    return end
 
 
 # ---------------------------------------------------------------------------
@@ -169,35 +180,56 @@ def _extract_balanced_brace(tex: str, start: int) -> str | None:
 # ---------------------------------------------------------------------------
 
 def strip_latex_wrappers(tex: str) -> str:
-    """删除 documentclass/preamble/titlepage/toc 等，只保留正文."""
+    """删除 documentclass/preamble/titlepage/toc 等，只保留正文.
+
+    注意：本函数**不**调 _strip_newcommands——\newcommand 删除由 convert() step 6.5
+    在 convert_lstlisting 之后统一执行，避免误删代码块内的 \\newcommand 字面文本。"""
     tex = re.sub(r"\\documentclass.*?\\begin\{document\}", "", tex, flags=re.DOTALL)
     tex = re.sub(r"\\end\{document\}.*$", "", tex, flags=re.DOTALL)
     tex = re.sub(r"\\begin\{titlepage\}.*?\\end\{titlepage\}", "", tex, flags=re.DOTALL)
     tex = re.sub(r"\\(tableofcontents|newpage|clearpage)\b", "", tex)
-    # 删除 \newcommand 定义：手动扫描，支持嵌套大括号（如 \newcommand{\foo}{some {nested} text}）
-    tex = _strip_newcommands(tex)
     # 删除 \usepackage{...} 等残留 preamble 命令
     tex = re.sub(r"\\(usepackage|input|include)\{[^}]*\}", "", tex)
     return tex
 
 
 def _strip_newcommands(tex: str) -> str:
-    """删除所有 \\newcommand{\\name}{body}，支持 body 含嵌套大括号。"""
+    """删除所有 \\newcommand{\\name}{body}（含 \\newcommand*、\\renewcommand、\\providecommand），
+    支持 body 含嵌套大括号、命令跨行、可选参数 [2]。
+
+    注意：本函数应在 convert_lstlisting 之后运行。同时跳过 markdown 围栏代码块
+    （``` ... ```），避免误删代码块内的 \\newcommand 字面文本。
+    """
+    # 先用占位符暂存 markdown 代码块，转换完再还原
+    code_blocks: list[str] = []
+
+    def stash_code(m: re.Match) -> str:
+        code_blocks.append(m.group(0))
+        return f"@@CODEBLOCK_{len(code_blocks) - 1}@@"
+
+    tex = re.sub(r"```[^\n`]*\n.*?```", stash_code, tex, flags=re.DOTALL)
+
     out = []
     i = 0
     n = len(tex)
+    # \newcommand / \newcommand* / \renewcommand / \providecommand
+    pat = re.compile(r"\\(?:new|renew|provide)command\b")
     while i < n:
-        m = re.match(r"\\newcommand\b", tex[i:])
+        m = pat.match(tex, i)
         if m:
-            j = i + m.end()
-            # 跳过可选参数如 [2]
-            while j < n and tex[j] in " \t":
+            j = m.end()
+            # 跳过可选的星号（\newcommand* 限制参数不含段落）
+            if j < n and tex[j] == "*":
                 j += 1
+            # 跳过空白（含换行）
+            while j < n and tex[j] in " \t\n\r":
+                j += 1
+            # 跳过可选参数如 [2]
             if j < n and tex[j] == "[":
                 while j < n and tex[j] != "]":
                     j += 1
                 j += 1  # 跳过 ]
-                while j < n and tex[j] in " \t":
+                while j < n and tex[j] in " \t\n\r":
                     j += 1
             # 第一个 {...}：\newcommand 名（如 \foo）
             j_end = _find_balanced_end(tex, j)
@@ -206,8 +238,8 @@ def _strip_newcommands(tex: str) -> str:
                 i += 1
                 continue
             j = j_end
-            # 跳过空白
-            while j < n and tex[j] in " \t":
+            # 跳过空白（含换行）
+            while j < n and tex[j] in " \t\n\r":
                 j += 1
             # 第二个 {...}：body（可能含嵌套大括号）
             body_end = _find_balanced_end(tex, j)
@@ -220,33 +252,12 @@ def _strip_newcommands(tex: str) -> str:
         else:
             out.append(tex[i])
             i += 1
-    return "".join(out)
+    tex = "".join(out)
 
-
-def _find_balanced_end(tex: str, start: int) -> int | None:
-    """从 tex[start] 开始找 {...} 的闭括号位置（返回下一个字符位置）。
-    支持 \\{ \\} 转义和任意层嵌套。与 _extract_balanced_brace 配套使用。"""
-    i = start
-    n = len(tex)
-    while i < n and tex[i] in " \t":
-        i += 1
-    if i >= n or tex[i] != "{":
-        return None
-    i += 1
-    depth = 1
-    while i < n and depth > 0:
-        c = tex[i]
-        if c == "\\" and i + 1 < n:
-            i += 2
-            continue
-        if c == "{":
-            depth += 1
-        elif c == "}":
-            depth -= 1
-            if depth == 0:
-                return i + 1
-        i += 1
-    return None
+    # 还原代码块
+    for idx, block in enumerate(code_blocks):
+        tex = tex.replace(f"@@CODEBLOCK_{idx}@@", block)
+    return tex
 
 
 def strip_comments(tex: str) -> str:
@@ -360,10 +371,10 @@ def convert_sections(tex: str) -> str:
     i = 0
     n = len(tex)
     section_patterns = [
-        (re.compile(r"\\section\*?"), "##"),
-        (re.compile(r"\\subsection\*?"), "###"),
-        (re.compile(r"\\subsubsection\*?"), "####"),
-        (re.compile(r"\\paragraph\*?"), "#####"),
+        (re.compile(r"\\section\*?(?:\[[^\]]*\])?"), "##"),
+        (re.compile(r"\\subsection\*?(?:\[[^\]]*\])?"), "###"),
+        (re.compile(r"\\subsubsection\*?(?:\[[^\]]*\])?"), "####"),
+        (re.compile(r"\\paragraph\*?(?:\[[^\]]*\])?"), "#####"),
     ]
     while i < n:
         matched = False
@@ -673,7 +684,19 @@ def convert_symbols(tex: str) -> str:
 # ---------------------------------------------------------------------------
 
 def strip_latex_commands(tex: str) -> str:
-    """清理剩余的 LaTeX 命令."""
+    """清理剩余的 LaTeX 命令.
+
+    用占位符暂存 markdown 代码块，避免代码块内的 \\xxx{...} 和 \\xxx 字面文本
+    被通用规则误删（如 Python 代码里的 \\newcommand{\\xxx}{yyy}）。
+    """
+    code_blocks: list[str] = []
+
+    def stash_code(m: re.Match) -> str:
+        code_blocks.append(m.group(0))
+        return f"@@CODEBLOCK_{len(code_blocks) - 1}@@"
+
+    tex = re.sub(r"```[^\n`]*\n.*?```", stash_code, tex, flags=re.DOTALL)
+
     tex = re.sub(r"\\textbf\{([^}]*)\}", r"**\1**", tex)
     tex = re.sub(r"\\textit\{([^}]*)\}", r"*\1*", tex)
     tex = re.sub(r"\\emph\{([^}]*)\}", r"*\1*", tex)
@@ -691,6 +714,9 @@ def strip_latex_commands(tex: str) -> str:
     tex = re.sub(r"\\[a-zA-Z]+\{([^}]*)\}", r"\1", tex)
     # 剩余的 \xxx（无参数）→ 删除
     tex = re.sub(r"\\[a-zA-Z]+\b", "", tex)
+
+    for idx, block in enumerate(code_blocks):
+        tex = tex.replace(f"@@CODEBLOCK_{idx}@@", block)
     return tex
 
 
@@ -765,7 +791,7 @@ def convert(tex_path: Path, md_path: Path) -> None:
     # 2. 保护数学公式
     body, math_store = protect_math(tex)
 
-    # 3. 删除 preamble/titlepage/toc/newcommand 定义
+    # 3. 删除 preamble/titlepage/toc（不删 \newcommand，由 step 6.5 在 lstlisting 后删）
     body = strip_latex_wrappers(body)
 
     # 4. 删除注释行
@@ -774,8 +800,12 @@ def convert(tex_path: Path, md_path: Path) -> None:
     # 5. 转换 quote/quotation/verse → blockquote（必须在 strip_latex_commands 前）
     body = convert_quote(body)
 
-    # 6. 转换代码块 lstlisting（必须在 convert_lists 前，避免代码内 \item 被误切分）
+    # 6. 转换代码块 lstlisting（必须在 _strip_newcommands + convert_lists 前，
+    #    避免 \newcommand 字面文本被误删、代码内 \item 被误切分）
     body = convert_lstlisting(body)
+
+    # 6.5 删除 \newcommand 定义（必须在 convert_lstlisting 后，保护代码块内的 \newcommand 字面文本）
+    body = _strip_newcommands(body)
 
     # 7. 转换列表（itemize/enumerate）—— 必须在 strip_latex_commands 前
     body = convert_lists(body)

@@ -65,18 +65,33 @@ def classify_frame(ocr_text: str, char_count: int) -> tuple:
 def assess_frame(path: str, client) -> dict:
     data_uri = image_to_data_uri(path)
 
-    resp = client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {"role": "system", "content": "你是一个 OCR 工具。只输出从图片中识别到的所有文字，不做任何解释。输出纯文本。"},
-            {"role": "user", "content": [
-                {"type": "image_url", "image_url": {"url": data_uri}},
-                {"type": "text", "text": "提取所有文字。"},
-            ]},
-        ],
-        temperature=0.0,
-        max_tokens=1024,
-    )
+    # timeout=30：单帧 OCR 通常 1-2s，30s 是 20 倍冗余；防 API 卡死拖垮整个 batch
+    try:
+        resp = client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": "你是一个 OCR 工具。只输出从图片中识别到的所有文字，不做任何解释。输出纯文本。"},
+                {"role": "user", "content": [
+                    {"type": "image_url", "image_url": {"url": data_uri}},
+                    {"type": "text", "text": "提取所有文字。"},
+                ]},
+            ],
+            temperature=0.0,
+            max_tokens=1024,
+            timeout=30,
+        )
+    except Exception as e:
+        # 单帧失败不让整个 batch 崩溃——记为 info_score=0 跳过
+        return {
+            "type": "error",
+            "info_score": 0,
+            "has_text": False,
+            "ocr_text": "",
+            "char_count": 0,
+            "suitable_for_notes": False,
+            "reason": f"API 调用失败：{e}",
+            "_file": path,
+        }
     raw_text = resp.choices[0].message.content or ""
     ocr_text = clean_ocr_text(raw_text)
     char_count = len(re.sub(r'[\s\n]', '', ocr_text))

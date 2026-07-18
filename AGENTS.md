@@ -156,15 +156,16 @@ paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `con
 | `opencli` | 中文面经搜索（小红书/知乎/牛客三大源统一入口） | capture | `which opencli` |
 | `mcporter`（含 Exa MCP） | 通用网页搜索（按需，非强制） | learn / capture / query | `mcporter tools list` |
 | `yt-dlp` | 视频/字幕下载 | bilibili-render-pdf / youtube-render-pdf | `which yt-dlp` |
-| `ffmpeg` / `ffprobe` | 音频提取、帧提取、视频时长校验 | bilibili-render-pdf / youtube-render-pdf | `which ffmpeg` |
+| `ffmpeg` / `ffprobe` | 音频提取、帧提取、视频时长校验 | bilibili-render-pdf / youtube-render-pdf | `which ffmpeg && which ffprobe` |
 | `xelatex` | LaTeX → PDF 编译 | bilibili-render-pdf / youtube-render-pdf | `which xelatex` |
 | `faster-whisper` / `whisper` | 语音转字幕（CC 字幕失败时回退；优先 faster-whisper） | bilibili-render-pdf / youtube-render-pdf | `python3 -c "import faster_whisper"` 或 `which whisper` |
 | `tesseract` | OCR 回退（视觉模式） | bilibili-render-pdf / youtube-render-pdf | `which tesseract` |
-| `pdftotext` / `pdfinfo` | PDF 文本提取 / 元数据 | paper-learn；bilibili-render-pdf / youtube-render-pdf（成品 PDF 抽查） | `which pdfinfo` |
+| `pdftotext` | PDF 文本提取（成品 PDF 抽查） | paper-learn；bilibili-render-pdf / youtube-render-pdf | `which pdftotext` |
+| `pdfinfo` | PDF 元数据 | paper-learn | `which pdfinfo` |
 | `qpdf` / `ocrmypdf` / `pdftoppm` | PDF 解密 / OCR / 转图片（扫描版论文） | paper-learn | `which qpdf && which ocrmypdf && which pdftoppm` |
 | `gh`（GitHub CLI） | 论文-代码对照搜仓库（可选） | paper-learn | `which gh` |
 | `ImageMagick`（`montage` / `magick`） | 帧拼接缩略图（视觉模式） | bilibili-render-pdf / youtube-render-pdf | `which montage \|\| which magick` |
-| `openai` Python 包 | 视觉模型 API 调用（SiliconFlow 兼容） | bilibili-render-pdf / youtube-render-pdf | `python3 -c "import openai"` |
+| `openai` Python 包 | 视觉模型 API 调用（SiliconFlow 兼容） | bilibili-render-pdf | `python3 -c "import openai"` |
 | `torch` | GPU 可用性检测（CUDA / MPS） | bilibili-render-pdf / youtube-render-pdf | `python3 -c "import torch"` |
 
 工具缺失时：对应 skill 需在 SKILL.md 的环境检查小节说明替代方案或报告用户——不要静默跳过必需步骤（如 capture 缺 `opencli` 时面经补充无法执行，必须问用户是否跳过）。

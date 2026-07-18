@@ -2,7 +2,7 @@
 name: learn
 description: 用户想搞懂某个概念/原理，或说"讲讲/什么是/帮我理解/讲一下 X"，且希望以老师模式讲解并可沉淀为笔记时触发。不要在用户仅闲聊、或明确不想保存笔记时使用。
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, Bash
+allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
 # learn

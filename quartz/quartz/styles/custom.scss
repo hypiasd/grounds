@@ -123,8 +123,7 @@
   .popover,
   .navigation-progress,
   .search-button,
-  .darkmode,
-  .page-header > button {
+  .darkmode {
     display: none !important;
   }
 
@@ -138,15 +137,12 @@
     max-width: 100% !important;
   }
 
-  a[href]:after {
+  /* 只对绝对 URL 追加 href——相对路径在纸质打印件上无法定位，污染阅读 */
+  a[href^="http://"]:after,
+  a[href^="https://"]:after,
+  a[href^="mailto:"]:after {
     content: " (" attr(href) ")";
     font-size: 0.8em;
     color: #555;
-  }
-
-  /* 锚点和 JS 链接不打印 href */
-  a[href^="#"]:after,
-  a[href^="javascript:"]:after {
-    content: "";
   }
 }
