@@ -132,6 +132,8 @@ opencli doctor --json 2>&1 || echo "BROKEN"
 - **知乎**：搜索结果中两类链接需要不同的命令：
   - `zhihu.com/question/xxx/answer/xxx`（问答）→ `opencli zhihu answer-detail <answer_id> -f json`
   - `zhuanlan.zhihu.com/p/xxx`（专栏文章）→ `opencli zhihu download --url "<完整 URL>" -f json`，返回 JSON 中 `saved` 字段指向导出的本地 Markdown 文件（如 `zhihu-articles/<标题>/<标题>.md`），**用 `cat` 直接读该文件获取正文**。专栏文章通常内容最长、质量最高，是知乎面经的主要载体，跳过等于浪费最大信息源。
+
+  **读取完毕后必须清理**：`zhihu-articles/` 是下载缓存目录，读完正文后立即删除整个目录——不留中间产物污染仓库，也避免下次 capture 读到旧缓存。
   - 不要用 `answer-detail` 去读专栏 URL——会直接报错且丢失内容。
 - **小红书**：对搜索结果中相关度高的笔记，用 `opencli xiaohongshu note "<完整 URL>" -f json` 读正文。注意小红书笔记如果是纯图片，正文可能为空——跳过
 - **牛客**：对搜索结果中相关度高的帖子，OpenCLI 返回的内容字段可能已包含完整正文，直接提取；如截断则跳过
