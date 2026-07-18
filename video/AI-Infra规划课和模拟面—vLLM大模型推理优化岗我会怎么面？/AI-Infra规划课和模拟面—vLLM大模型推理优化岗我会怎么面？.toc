@@ -1,0 +1,38 @@
+\contentsline {section}{\numberline {1}AI-Infra 行业格局与 vLLM 推理优化岗定位}{3}{section.1}%
+\contentsline {subsection}{\numberline {1.1}AI-Infra 是什么}{3}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}推理优化岗的市场格局}{3}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}推理框架生态速览}{3}{subsection.1.3}%
+\contentsline {subsection}{\numberline {1.4}本章小结}{4}{subsection.1.4}%
+\contentsline {section}{\numberline {2}vLLM 推理优化岗面试策略}{4}{section.2}%
+\contentsline {subsection}{\numberline {2.1}讲者的面试方法论}{4}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}PR 驱动面试的特殊路径}{4}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}本章小结}{5}{subsection.2.3}%
+\contentsline {section}{\numberline {3}项目经验与简历策略}{5}{section.3}%
+\contentsline {subsection}{\numberline {3.1}玩具项目的致命伤}{5}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}社区 PR 的含金量}{5}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}项目包装的边界}{6}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}芯片公司实习的「锁死效应」}{6}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}本章小结}{6}{subsection.3.5}%
+\contentsline {section}{\numberline {4}手撕与八股准备}{6}{section.4}%
+\contentsline {subsection}{\numberline {4.1}手撕的三类题型}{6}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}八股的定位}{7}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}本章小结}{7}{subsection.4.3}%
+\contentsline {section}{\numberline {5}学习路线与岗位选择}{7}{section.5}%
+\contentsline {subsection}{\numberline {5.1}推荐的入门路线}{7}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}CUDA 学到什么程度}{8}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Triton 要不要学}{8}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}算子开发 vs 推理优化：选哪个}{8}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}PD 分离与业务场景}{9}{subsection.5.5}%
+\contentsline {subsection}{\numberline {5.6}本章小结}{9}{subsection.5.6}%
+\contentsline {section}{\numberline {6}三位面试者案例全景}{9}{section.6}%
+\contentsline {subsection}{\numberline {6.1}案例一：社招转行者（6个月求职中）}{9}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}案例二：研一学生（PD 分离研究方向）}{10}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}案例三：研二学生（暑期实习求职中）}{11}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}本章小结}{12}{subsection.6.4}%
+\contentsline {section}{\numberline {7}总结与延伸}{12}{section.7}%
+\contentsline {subsection}{\numberline {7.1}讲者的结尾讨论}{12}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}核心主张与关键机制}{12}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}实践含义}{13}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}开放问题}{13}{subsection.7.4}%
+\contentsline {subsection}{\numberline {7.5}拓展阅读}{14}{subsection.7.5}%
+\contentsline {subsection}{\numberline {7.6}本章小结}{14}{subsection.7.6}%

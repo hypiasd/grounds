@@ -1,0 +1,47 @@
+\contentsline {section}{\numberline {1}vLLM 资源与生态}{3}{section.1}%
+\contentsline {subsection}{\numberline {1.1}本章小结}{3}{subsection.1.1}%
+\contentsline {section}{\numberline {2}vLLM 推理优化技术全景}{3}{section.2}%
+\contentsline {subsection}{\numberline {2.1}计算优化}{3}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}内存优化}{3}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}分布式并行}{4}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}调度优化}{4}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}架构层面}{4}{subsection.2.5}%
+\contentsline {subsection}{\numberline {2.6}本章小结}{5}{subsection.2.6}%
+\contentsline {section}{\numberline {3}vLLM 架构总览}{5}{section.3}%
+\contentsline {subsection}{\numberline {3.1}自上而下的分层架构}{5}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}数据并行与 Engine Core 的关系}{6}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}注意力后端}{7}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}本章小结}{8}{subsection.3.4}%
+\contentsline {section}{\numberline {4}内存管理优化：KV Cache 与 PagedAttention}{8}{section.4}%
+\contentsline {subsection}{\numberline {4.1}KV Cache 的必要性}{8}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}PagedAttention 原理}{9}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}前缀缓存}{10}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}本章小结}{11}{subsection.4.4}%
+\contentsline {section}{\numberline {5}分布式并行}{11}{section.5}%
+\contentsline {subsection}{\numberline {5.1}集合通信基础}{11}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}数据并行（Data Parallelism, DP）}{12}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}专家并行（Expert Parallelism, EP）}{13}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}张量并行（Tensor Parallelism, TP）}{14}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}上下文并行（Context Parallelism, CP）}{15}{subsection.5.5}%
+\contentsline {subsection}{\numberline {5.6}本章小结}{16}{subsection.5.6}%
+\contentsline {section}{\numberline {6}量化压缩}{16}{section.6}%
+\contentsline {subsection}{\numberline {6.1}量化方法概览}{16}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}vLLM 量化设计原理}{17}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}量化粒度}{18}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}本章小结}{19}{subsection.6.4}%
+\contentsline {section}{\numberline {7}投机解码}{19}{section.7}%
+\contentsline {subsection}{\numberline {7.1}投机解码的动机}{19}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Medusa 方案}{19}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Eagle 方案}{20}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}MTP 方案}{21}{subsection.7.4}%
+\contentsline {subsection}{\numberline {7.5}本章小结}{21}{subsection.7.5}%
+\contentsline {section}{\numberline {8}AI-Infra 学习路径与职业发展（答疑精选）}{22}{section.8}%
+\contentsline {subsection}{\numberline {8.1}从零开始学 AI-Infra}{22}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}转行与面试准备}{22}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}行业现状与趋势}{22}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}本章小结}{23}{subsection.8.4}%
+\contentsline {section}{\numberline {9}总结与延伸}{23}{section.9}%
+\contentsline {subsection}{\numberline {9.1}讲者结尾讨论}{23}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}核心知识综合}{23}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}实践要点}{24}{subsection.9.3}%
+\contentsline {subsection}{\numberline {9.4}拓展阅读}{24}{subsection.9.4}%
