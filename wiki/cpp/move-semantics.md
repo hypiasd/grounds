@@ -4,7 +4,7 @@ topic: cpp
 tags: [cpp11, performance, reference, rvalue]
 summary: 移动语义用指针交接代替深拷贝，将 vector 等资源的转移从 O(n) 降为 O(1)。std::move 本身是 cast 而非操作——它把左值转为右值引用，触发移动构造函数。移动后源对象处于 valid-but-unspecified 状态（标准库容器通常为空）。
 created: 2026-07-14
-updated: 2026-07-15
+updated: 2026-07-18
 ---
 
 
@@ -115,6 +115,67 @@ Buffer& operator=(Buffer&& other) noexcept {
 
 共同点：源对象活着、有名字、编译器默认保护它。`std::move` 是你向编译器签的"放弃所有权"声明。
 
+### 移动语义与智能指针所有权
+
+移动语义和智能指针的结合是所有权转移在 C++ 中最清晰的表达。
+
+**unique_ptr 的移动：所有权的类型级保证**
+
+```cpp
+std::unique_ptr<int> p = std::make_unique<int>(42);
+std::unique_ptr<int> q = p;             // 编译错误——不能拷贝
+std::unique_ptr<int> q = std::move(p);  // 所有权从 p 转移到 q
+// p == nullptr，*q == 42
+```
+
+裸指针时代，所有权传递靠注释：`/* caller takes ownership */`。unique_ptr 的 move 在类型层面强制——编译器不会让你不小心交出或复制所有权。
+
+**工厂函数：堆对象安全地飞过函数边界**
+
+```cpp
+std::unique_ptr<Widget> createWidget(int type) {
+    auto w = std::make_unique<Widget>(type);
+    // ... 初始化 ...
+    return w;  // 自动移动（隐式 move 或 NRVO）
+}
+
+void caller() {
+    auto w = createWidget(42);  // 所有权从工厂传到调用者
+    w->doStuff();
+}  // 离开作用域，自动 delete
+```
+
+工厂返回 unique_ptr 是现代 C++ 的标准模式——堆上创建，移动传出，调用者自动管理，零泄漏风险。
+
+**shared_ptr 的移动 vs 拷贝**
+
+```cpp
+auto p = std::make_shared<int>(42);
+auto q = p;                   // 拷贝：引用计数 1 → 2，一次原子操作
+auto r = std::move(p);        // 移动：p 变 nullptr，r 接管，引用计数不变
+```
+
+移动 shared_ptr 不碰引用计数——只是把内部的对象指针和控制块指针从源搬到目标，源置空。代价比拷贝低得多（零原子操作）。
+
+**智能指针做参数：传值还是传引用？**
+
+```cpp
+// 1. 只是看看，不要所有权
+void observe(const Widget& w);      // const 引用
+void observe(Widget* w);            // 裸指针（w 可能为 null）
+
+// 2. 我要接管所有权
+void takeOwnership(std::unique_ptr<Widget> w);  // 按值传——调用者必须 std::move
+
+// 3. 我要共享所有权
+void shareOwnership(std::shared_ptr<Widget> w); // 按值传——可选 std::move 省一次原子操作
+
+// 4. 我可能会接管也可能只是看看
+void maybeTake(Widget* w);          // 裸指针，文档说明所有权规则
+```
+
+按值传 unique_ptr = "我要你的东西"，调用者必须显式 `std::move`——编译器确保你不小心交出所有权。"只是看看"用 `const T&` 或 `T*`，不和任何智能指针类型耦合。
+
 ## 直觉 / 类比
 
 拷贝是复印一本书——费时费纸，原书还在。移动是直接把书从你桌上搬到我桌上——一秒搞定，你桌上空了。`std::move` 不是搬家工人，它只是你贴在书上的一张标签"此书可搬"——真正搬书的是接收方（移动构造函数）。
@@ -125,6 +186,9 @@ Buffer& operator=(Buffer&& other) noexcept {
 - **误区二：移动后继续使用源对象**——移动后源对象的状态不确定。标准库容器通常变空，但不应假设或依赖；唯一安全操作是销毁或重新赋值。
 - **误区三：对 const 对象用 `std::move`**——`std::move(const_obj)` 返回 `const T&&`，无法匹配 `T(T&&)` 移动构造（因为移动构造需要非 const 右值引用以修改源对象）。结果：静默退化为拷贝。
 - **误区四：range-based for 中不用 `&` 就想 move**——`for (auto [_, v] : m) ans.push_back(std::move(v))` 移动的是副本，原容器纹丝不动。必须先有 `auto&` 指到原数据。
+
+- **误区五：函数参数用 `const unique_ptr<T>&` 表示"我只是看看"。** — 既把调用者锁定在 unique_ptr 上（传不了裸指针或 shared_ptr），又没提供任何好处。正确的"只是看看"是 `const T&` 或 `T*`。
+- **误区六：传 shared_ptr 按值太贵，应该传 `const shared_ptr<T>&`。** — 看情况。如果函数内部一定会拷贝一份存储起来，传值反而更优——调用者可以 `std::move` 传进来，省掉一次引用计数操作。如果只是临时使用不存储，传 `const T&` 即可。
 
 ## 面试常见问题
 
@@ -156,3 +220,4 @@ Buffer& operator=(Buffer&& other) noexcept {
 - [noexcept](noexcept.md) — 移动构造/赋值必须加 noexcept 才能被 vector 使用，否则扩容退化为拷贝
 - [Perfect Forwarding](perfect-forwarding.md) — std::move 是无条件转换，std::forward 是条件转换，两者都是 cast
 - [unordered_set](unordered-set.md) — insert 的重载选择依赖参数是左值还是右值
+- [Smart Pointers](smart-pointers.md) — 移动语义是智能指针所有权转移的底层机制，unique_ptr 的可移动性是移动语义最经典的应用
