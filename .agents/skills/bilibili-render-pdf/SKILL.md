@@ -261,6 +261,36 @@ wc -l sources/subtitles.srt 2>/dev/null && [ -s sources/subtitles.srt ] || echo 
 
 **CC 成功后的退出条件**：`sources/subtitles.srt` 存在且非空（>100 字节）→ 直接跳到「视频和封面下载」，**不进入 Priority 2/3**。CC 字幕质量通常优于 Whisper 转录，无需对比验证。
 
+
+#### Priority 1.5: SiliconFlow ASR API 转录 —— 目标 ≤ 3 分钟总耗时
+
+CC 字幕不可用时，优先尝试 SiliconFlow 的 ASR API（`FunAudioLLM/SenseVoiceSmall`），而非直接回退本地 Whisper。API 转录速度快、中文质量好（有标点），但时间戳精度为分块级别（5 分钟），不适合需要精确帧定位的教学视频。
+
+**前置条件**：`~/.config/bilibili-render-pdf/siliconflow_key` 存在且有效（与 Visual API 帧评估共用同一 key）。
+
+**工作流**：
+
+1. 压缩音频为 MP3（32 kbps mono，降低上传大小）：
+   ```bash
+   ffmpeg -y -i sources/audio.wav -ac 1 -ar 16000 -b:a 32k sources/audio_compressed.mp3
+   ```
+
+2. 按 5 分钟切段，逐段调用 API，组装 SRT（参考脚本见 bilibili-render-pdf/scripts/api_transcribe.py）。
+
+3. **质量对比——API vs 本地 Whisper**：
+
+   | 维度 | SenseVoiceSmall API | 本地 Whisper (small) |
+   |------|---------------------|----------------------|
+   | 速度 | ~64× 实时（160 min → 2.5 min） | ~0.34× 实时（160 min → 55 min） |
+   | 中文标点 | 有逗号和句号 | 无标点 |
+   | 时间戳精度 | 分块级（5 min） | 逐句（毫秒级） |
+   | 适用场景 | 播客/访谈/纯对话（图少） | 教学视频（幻灯片密集，需精确帧定位） |
+
+4. **中止条件**：API key 缺失或 3 次重试均失败 → 回退 Priority 2（本地 Whisper）。不要用 `TeleAI/TeleSpeechASR` 模型——它比 SenseVoiceSmall 慢 ~10 倍且质量相当。
+
+5. **SRT 写入完成后跳到「视频和封面下载」**，不进入 Priority 2/3。
+
+
 #### Priority 2: Whisper 语音转文字 —— 目标 ≤ 5 分钟总耗时
 
 1. 提取音频为 WAV：
