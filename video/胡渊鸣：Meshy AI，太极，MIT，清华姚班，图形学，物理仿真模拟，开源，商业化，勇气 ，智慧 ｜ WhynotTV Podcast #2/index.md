@@ -3,6 +3,7 @@ title: ""
 topic: video
 tags: [video]
 summary: "视频笔记 — WhynotTV Podcast"
+published: 2026-07-19
 video_url: "https://www.bilibili.com/video/BV1XmtyzKEzQ/"
 video_channel: "WhynotTV Podcast"
 video_duration: "3小时04分钟"

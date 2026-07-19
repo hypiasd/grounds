@@ -3,6 +3,7 @@ title: "vLLM 推理优化技术全景与 AI-Infra 学习路径"
 topic: video
 tags: [video]
 summary: "视频笔记 — Bilibili：五道口纳什"
+published: 2026-07-18
 video_url: "https://www.bilibili.com/video/BV1FCLV6LEsu/"
 video_channel: "Bilibili：五道口纳什"
 video_duration: "约 2 小时 46 分钟"

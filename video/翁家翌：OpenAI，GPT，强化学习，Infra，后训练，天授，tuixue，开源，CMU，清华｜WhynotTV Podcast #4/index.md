@@ -3,6 +3,7 @@ title: "翁家翌：OpenAI，GPT，强化学习，Infra，后训练，天授，t
 topic: video
 tags: [video]
 summary: "视频笔记 — WhynotTV Podcast"
+published: 2026-07-19
 video_url: "https://www.bilibili.com/video/BV1darmBcE4A/"
 video_channel: "WhynotTV Podcast"
 video_duration: "2小时2分45秒"
