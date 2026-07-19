@@ -1,10 +1,10 @@
 \documentclass[a4paper]{article}
 
 % Basic packages
-% Fandol is a free CJK font set; it lacks some specialized Chinese characters
-% (e.g., 「昇」「騰」in 昇騰/昇思). On macOS prefer fontset=mac; on other
-% platforms the missing glyphs render as blank. Switch fontset if needed.
-\usepackage[fontset=fandol]{ctex}
+% Platform-aware CJK font selection: detects PingFang.ttc for macOS (fontset=mac),
+% falls back to fandol (free CJK; may lack 「昇」「騰」on non-macOS).
+% Override by editing fontset= manually if auto-detection picks wrong.
+\usepackage[fontset=\IfFileExists{/System/Library/Fonts/PingFang.ttc}{mac}{fandol}]{ctex}
 \usepackage{amsmath, amssymb}
 \usepackage{graphicx}
 \usepackage[margin=2.5cm]{geometry}

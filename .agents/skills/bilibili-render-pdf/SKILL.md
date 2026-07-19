@@ -259,7 +259,11 @@ wc -l sources/subtitles.srt 2>/dev/null && [ -s sources/subtitles.srt ] || echo 
 ```
 不要用 `zh-Hans,zh-CN,zh,ai-zh` 之外的语言码重试。
 
-**CC 成功后的退出条件**：`sources/subtitles.srt` 存在且非空（>100 字节）→ 直接跳到「视频和封面下载」，**不进入 Priority 2/3**。CC 字幕质量通常优于 Whisper 转录，无需对比验证。
+**CC 成功后的退出条件**：`sources/subtitles.srt` 存在且非空（>100 字节）。
+
+> **快捷出口**：CC 字幕到手后，**直接跳到「视频和封面下载」**，跳过 Priority 1.5/2/3 以及「环境检查」中的转录策略选择、模型缓存检查等步骤。此时字幕质量已足以支撑全部内容写作，继续检查 Whisper 模型是浪费时间。
+
+CC 字幕质量通常优于 Whisper 转录，无需对比验证。
 
 
 #### Priority 1.5: SiliconFlow ASR API 转录 —— 目标 ≤ 3 分钟总耗时
@@ -463,6 +467,15 @@ CC 字幕不可用时，优先尝试 SiliconFlow 的 ASR API（`FunAudioLLM/Sens
 **回退**：API 不可用或所有候选 <3 分时，提取片段中点的单帧继续，不做评估。帧可能非最优，但优先完成交付。
 
 **限流**：片段多（>15）时按 5-10 个一批处理，避免 API 限流。
+
+### 视频类型预判（CC 字幕到手后执行）
+
+下载视频前，快速扫描字幕前 3 分钟内容，判断视频是否有幻灯片/屏幕共享：
+
+- 搜索关键词：`PPT`、`幻灯片`、`这张图`、`如图所示`、`这个表`、`代码`、`公式` → 有则教学视频，正常走帧提取流程
+- 无上述关键词 + 对话密度高 → **纯口头内容**（面试模拟、圆桌讨论、职业规划、播客访谈等）
+
+**纯口头内容的处理捷径**：跳过 probe 帧提取、密集候选、场景检测。仅提取 1-2 张代表性场景帧（如开场/方法论阐述时点），教学内容优先用 TikZ 可视化呈现。详见「图处理」Step 0 的纯口头内容指南。
 
 ### 视频和封面下载
 
@@ -818,174 +831,11 @@ git commit -m "bilibili-render-pdf: <视频标题>" && git push
 
 ---
 
+
 ## Troubleshooting
 
-### SSL 证书错误（下载模型时）
+遇到错误时查阅独立排障手册：`TROUBLESHOOTING.md`（与本 SKILL.md 同目录）。涵盖 SSL 证书、Whisper 模型加载卡死、medium 模型 CPU 超时、ImageMagick 字体、SRT 写入模板、Tesseract 批量评估太慢、大 LaTeX 文件写入、DeepSeek-OCR 返回格式等问题。
 
-**症状**：`whisper` 或 `faster-whisper` 下载权重时 `SSL: CERTIFICATE_VERIFY_FAILED`。
-
-**openai-whisper 修复**：
-```bash
-/Applications/Python\ 3.12/Install\ Certificates.command
-```
-按 Python 版本调路径。
-
-**faster-whisper 修复**：faster-whisper 用 `huggingface_hub` 下载，证书链不同。仍失败时：
-```bash
-export HF_HUB_ENABLE_HF_TRANSFER=0
-```
-
-### faster-whisper 模型加载卡住（>60s 无输出）
-
-**症状**：打印 "Loading model..." 后卡住，或脚本无输出（import/CTranslate2 原生库加载时静默崩溃）。
-
-**提交长转录前跑 30 秒烟雾测试**（验证工具链能否加载并产出第一段转录，与上面"转录超时"是两个不同检查）：
-```bash
-python3 << 'PYEOF'
-import time, os, sys
-cache = os.path.expanduser("~/.cache/huggingface/hub/models--Systran--faster-whisper-medium/snapshots/<hash>")
-print("import...", flush=True)
-from faster_whisper import WhisperModel
-print("load...", flush=True)
-m = WhisperModel(cache, device="cpu", compute_type="int8", local_files_only=True)
-print("transcribe...", flush=True)
-segments, info = m.transcribe("sources/audio.wav", language="zh")
-first = next(segments)
-print(f"OK: {first.text[:60]}", flush=True)
-PYEOF
-```
-30 秒内无输出 → 工具链坏（import/load 阶段就卡），直接走视觉模式，别花时间调 Python 环境。
-
-> 区分：**烟雾测试**（30 秒）验证工具链能否启动并产出第一段；**转录超时**（预算窗口 + 每 30 秒增长检查）验证长转录是否健康推进。烟雾测试在正式转录前跑，转录超时在正式转录中跑。
-
-**可能原因**：`faster-whisper` 尽管设了 `local_files_only=True` 仍试图连 HuggingFace Hub，或缓存快照损坏/不完整。
-
-**修复——验证缓存并用显式路径**：
-```bash
-ls ~/.cache/huggingface/hub/models--Systran--faster-whisper-medium/snapshots/*/
-
-# 已缓存时记 hash 用显式路径：
-python3 << 'PYEOF'
-import os
-cache = os.path.expanduser(
-    "~/.cache/huggingface/hub/models--Systran--faster-whisper-medium/snapshots/<hash>"
-)
-from faster_whisper import WhisperModel
-model = WhisperModel(cache, device="cpu", compute_type="int8", local_files_only=True)
-PYEOF
-```
-
-**修复——未缓存时单独下载**：
-```bash
-python3 -c "
-from huggingface_hub import snapshot_download
-snapshot_download('Systran/faster-whisper-small')
-"
-```
-然后用 `local_files_only=True` 重试。
-
-### openai-whisper Medium 模型 CPU >20 分钟
-
-CPU-only 机器预期行为。medium 模型 ~1.5GB，CPU FP32 推理慢。
-
-**不要等**。kill 进程，任选：
-- 用更小模型（`tiny` 或 `small`）
-- 换 `faster-whisper`（int8 量化 CPU 显著更快）
-- 走视觉模式（Priority 3）
-
-### ImageMagick Montage macOS 字体错误
-
-**症状**：`montage: unable to read font`。
-
-**修复——显式指定系统字体**：
-```bash
-montage *.jpg -font /System/Library/Fonts/Helvetica.ttc -geometry 320x180+2+2 -tile 5x montage.jpg
-```
-
-**回退——Python/PIL**：
-```python
-from PIL import Image
-import glob, os
-
-files = sorted(glob.glob("candidates/*.jpg"))
-cols, rows = 5, 4
-thumb_w, thumb_h = 320, 180
-canvas = Image.new("RGB", (cols*(thumb_w+2)+2, rows*(thumb_h+2)+2), (30,30,30))
-for i, f in enumerate(files[:cols*rows]):
-    img = Image.open(f).resize((thumb_w, thumb_h))
-    r, c = i // cols, i % cols
-    canvas.paste(img, (2+c*(thumb_w+2), 2+r*(thumb_h+2)))
-canvas.save("figures/montage.jpg", quality=85)
-```
-
-### SRT 写入模板（faster-whisper）
-
-用 `faster-whisper` Python API 时用此模板写 SRT：
-```python
-def fmt_ts(t):
-    h = int(t // 3600)
-    m = int((t % 3600) // 60)
-    s = int(t % 60)
-    ms = int((t - int(t)) * 1000)
-    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
-
-lines = []
-for i, seg in enumerate(segments, 1):
-    lines.append(f"{i}")
-    lines.append(f"{fmt_ts(seg.start)} --> {fmt_ts(seg.end)}")
-    lines.append(seg.text.strip())
-    lines.append("")
-
-with open("sources/subtitles.srt", "w", encoding="utf-8") as f:
-    f.write("\n".join(lines))
-```
-
-### 本地 Tesseract OCR 批量帧评估太慢
-
-**症状**：CPU-only Mac 上 `tesseract frame.jpg stdout -l chi_sim+eng --psm 6` 每帧 60-120+ 秒。数百候选跨多片段批量 OCR 不可行。
-
-**修复——改用 Visual API**：自带脚本调 `deepseek-ai/DeepSeek-OCR` 经 SiliconFlow API，~1.5s/帧。见 **Visual API 帧评估** 章节。
-
-**备选——少提帧**：无 API 时每片段中点仅提 1 帧。无快速评估法时不要 1 fps 密集提取。
-
-### 写大 LaTeX 文件（>400 行）
-
-**症状**：`apply_patch` 加 `*** Add File` 每行需 `+` 前缀，500+ 行 LaTeX 不现实。
-
-**首选——bash heredoc**：
-```bash
-cat > document.tex << 'LATEXEOF'
-\documentclass[a4paper]{article}
-... (整个 LaTeX 内容)
-LATEXEOF
-```
-`LATEXEOF` 单引号防 shell 展开 LaTeX 反斜杠。
-
-**备选——Python heredoc**（含特殊字符时）：
-```python
-python3 << 'PYEOF'
-content = r''' ... '''
-with open('document.tex', 'w') as f:
-    f.write(content)
-PYEOF
-```
-
-**拆分大文档**：700+ 行时分 2-3 部分拼接：
-```bash
-cat part1.tex part2.tex part3.tex > document.tex
-```
-
-### DeepSeek-OCR 返回原始文本而非 JSON
-
-**症状**：`deepseek-ai/DeepSeek-OCR` 返回自然语言描述或带特殊 token 的 OCR 文本而非结构化 JSON。
-
-**这是预期行为**：DeepSeek-OCR 是纯 OCR 引擎，非 chat 模型。擅长文字提取但不可靠地遵循 JSON 格式指令。
-
-**修复——用自带脚本**：`.agents/skills/bilibili-render-pdf/scripts/frame_assess.py` 处理 API 调用和后处理（token 清理、字符计数、本地 info-score 计算）。不要裸调 API——用脚本。
-
-**需要 JSON 格式评估时**：改用 `PaddlePaddle/PaddleOCR-VL-1.5`，有视觉语言能力能遵循结构化输出指令。代价：比 DeepSeek-OCR 慢 3-5×。
-
----
 
 ## 资产
 
@@ -1012,11 +862,13 @@ cat part1.tex part2.tex part3.tex > document.tex
 - **成品必须 commit 进 git**：`.tex`+`.pdf`+`index.md` 进 git，`sources/figures/ocr/cover.jpg` 不进 git（.gitignore 自动排除）。换机器后需要 `video/<标题>/sources/` 等中间产物需重新下载。
 - **commit 之后必须 push**。
 
-- **Fandol 字体缺部分专业汉字**：`昇`（U+6607，在昇腾/昇思中高频）、`騰` 等字在 Fandol 字体集中缺失，编译时显示为空白。macOS 上切 `fontset=mac` 即可解决；Linux 上需确认系统已安装含全 CJK 字符的字体。AI 芯片/华为生态话题尤其容易触发。
+- **字体缺字**：模板现已自动检测平台（macOS 用 `fontset=mac`，其他用 `fandol`）。若仍有字符显示为空白，手动编辑 `.tex` 的 `fontset=` 参数。AI 芯片/华为生态话题容易出现生僻汉字。
 
 - **TikZ `positioning` 库遗漏**：使用 `above=...cm of node` 语法时需 `\usetikzlibrary{positioning}`，否则报 `Unknown operator 'of'`。模板已带，但从旧模板分支建笔记时可能缺。
 
 - **纯口头内容视频不要强求帧数量**：模拟面试、圆桌讨论、职业规划课等无幻灯片的视频，帧的信息密度极低。教学重点在字幕文字——放精力在文字结构和 TikZ 可视化上，帧仅作场景锚点即可。
+
+- **Shell 变量传入单引号 heredoc**：`<< 'LATEXEOF'` 阻止所有 shell 变量展开（包括 `$TITLE`、`$BASENAME`）。写 Python/Shell 脚本时不要依赖 env var，改用 `sys.argv[1]` 或直接拼绝对路径。工作区设置中已给出 Python 清洗标题的正确模板。
 
 - **Shell 管道截断视频标题**：`$(yt-dlp --print title ... | sed ...)` 中的 `|` 会被 Shell 解释为管道而非传给 sed。当标题含 `|` 时，用 Python 清洗标题更可靠：`TITLE=$(python3 -c "import sys; t=sys.argv[1]; print(''.join(c if c not in "/:?*\"<>|" else "-" for c in t))" "$(yt-dlp --print "%(title)s" --skip-download "<URL>")")`。
 - **`\ifdefempty` 不在 `etoolbox` 中**：笔记模板 `notes-template.tex` 里的 `\ifdefempty{\cmd}{true}{false}` 不是标准 `etoolbox` 命令。模板已修正为 `\ifx\cmd\empty ... \else ... \fi`。如果从旧模板分支建笔记，务必用新模板。
