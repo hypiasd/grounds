@@ -49,7 +49,7 @@ python3 -c "import torch; gpu = torch.cuda.is_available() or torch.backends.mps.
 sysctl -n hw.ncpu  # CPU 核心数
 ```
 
-- **GPU 可用**（CUDA 或 MPS）：用更大更快的 Whisper 模型。Mac Apple Silicon 上 MPS 对 faster-whisper 加速有限，仍优先 `small` 模型。
+- **GPU 可用**（CUDA 或 MPS）：用更大更快的 Whisper 模型。Mac Apple Silicon 上 MPS 对 faster-whisper 加速有限，且 `device="auto"` 选 MPS 后 `compute_type="int8"` 经常卡死（模型加载正常但 segment 永远不产出）。**Mac 上无论 GPU 是否可用，faster-whisper 一律用 `device="cpu"` + `compute_type="int8"`**，不要用 `device="auto"`。
 - **仅 CPU（Mac 常见）**：优先小模型或视觉模式
 
 ### 2. 工具可用性检查
@@ -122,7 +122,11 @@ if entries:
 | CPU + 只有 `openai-whisper` | `whisper` CLI | `tiny` 或 `small` | 2-5 分钟 |
 | 5 分钟内无转录或无工具 | 视觉模式 + OCR | 无 | N/A |
 
-**时间预算规则**：预算 = `max(5 分钟, 2 分钟 × 音频时长/10)`。从 `transcribe()` 调用起算（不含模型加载）。用 `timeout` 命令包裹同步调用，超时直接 kill 进程走视觉模式——不要尝试"每 30 秒检查 SRT 增长"（faster-whisper 的 `transcribe()` 是同步阻塞 API，必须用 `subprocess.Popen` + `signal`/`terminate` 才能中途 kill）。
+**时间预算规则**：预算 = `max(5 分钟, 2 分钟 × 音频时长(分钟)/10)`。例如 25 分钟音频 → `max(5, 2×2.5) = 5` 分钟。但实际上 small 模型在 CPU 上转录 25 分钟中文约需 10--15 分钟——预算公式给出的是**最激进下限**，实际应给 2--3× 余量。从 `transcribe()` 调用起算（不含模型加载）。
+
+> **macOS 注意**：`timeout` 命令在 macOS 上默认不存在，需 `brew install coreutils` 安装 GNU `gtimeout`。若未安装，用 Python 的 `subprocess.Popen` + `signal.SIGALRM` 实现超时（见下方模板）。
+
+**进度判断的核心原则**：不要以"SRT 文件是否存在"判断转录是否在工作——如果 transcribe.py 把全部 segment 收集完才一次性写盘，SRT 会全程不存在。正确的做法是**流式写入 SRT**（每产出一个 segment 立刻追加并 flush），agent 用 `wc -l sources/subtitles.srt` 检查行数是否在持续增长。只要行数在涨，无论多慢都不要 kill——转录正在正常工作。
 
 **模型加载超时**：`transcribe()` 调用后 2 分钟内 SRT 仍为 0 字节，模型加载可能卡死，kill 并回退。
 
@@ -237,7 +241,8 @@ mv sources/subtitles.*.srt sources/subtitles.srt 2>/dev/null
 
 两种都试后仍无 `sources/subtitles.srt`（非空且 >100 字节）才走 Priority 2。放弃 CC 前确认下载确实失败：
 ```bash
-ls -la sources/subtitles.srt 2>/dev/null && [ -s sources/subtitles.srt ] || echo "No non-empty SRT — CC subtitles unavailable"
+# 用 wc -l 比 ls -la 更有用——能看到行数是否在增长，而不只是"文件是否存在"
+wc -l sources/subtitles.srt 2>/dev/null && [ -s sources/subtitles.srt ] || echo "No non-empty SRT — CC subtitles unavailable"
 ```
 不要用 `zh-Hans,zh-CN,zh,ai-zh` 之外的语言码重试。
 
@@ -252,10 +257,13 @@ ls -la sources/subtitles.srt 2>/dev/null && [ -s sources/subtitles.srt ] || echo
 
 2. 按上面的[策略表](#4-转录策略选择)选工具和模型。
 
-   **首选 `faster-whisper`**（用 Python API 而非 CLI，便于看进度）。把整个转录 + SRT 写入脚本保存为 `transcribe.py`，用 `timeout` 命令包裹执行：
+   **首选 `faster-whisper`**（用 Python API 而非 CLI，便于看进度）。把整个转录 + SRT 写入脚本保存为 `transcribe.py`。
+
+   **关键：流式写入 SRT，每 segment 立刻追加 + flush**，不要收集到数组末尾再一次性写——否则转录全程 SRT 都不存在，agent 会误判为卡死。
 
    ```python
-   # transcribe.py —— 完整可执行，写入 sources/subtitles.srt
+   # transcribe.py —— 流式写入 sources/subtitles.srt
+   # 每产出一个 segment 立刻追加到 SRT 并 flush，同时打印进度到 stdout
    import sys, time
    from faster_whisper import WhisperModel
 
@@ -263,32 +271,53 @@ ls -la sources/subtitles.srt 2>/dev/null && [ -s sources/subtitles.srt ] || echo
    srt_path = sys.argv[2]        # sources/subtitles.srt
    model_size = sys.argv[3] if len(sys.argv) > 3 else "small"
 
+   print(f"Loading {model_size} model (CPU, int8)...", flush=True)
    model = WhisperModel(model_size, device="cpu", compute_type="int8")
+   print("Model loaded, starting transcription...", flush=True)
    segments, info = model.transcribe(audio_path, language="zh", beam_size=5)
+   print(f"Language: {info.language} (p={info.language_probability:.3f})", flush=True)
 
    def fmt(ts):
        h = int(ts // 3600); m = int((ts % 3600) // 60)
        s = int(ts % 60); ms = int((ts - int(ts)) * 1000)
        return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
+   start = time.time()
+   # 流式写入：每 segment 立刻写盘 + flush，agent 可随时 wc -l 检查进度
    with open(srt_path, "w", encoding="utf-8") as f:
        for i, seg in enumerate(segments, 1):
            f.write(f"{i}\n{fmt(seg.start)} --> {fmt(seg.end)}\n{seg.text.strip()}\n\n")
+           f.flush()  # 关键：确保 OS 立刻把数据写到磁盘
+           if i % 50 == 0:
+               print(f"  {i} segments, {time.time()-start:.0f}s elapsed", flush=True)
+
+   elapsed = time.time() - start
+   print(f"Done: {i} segments in {elapsed:.1f}s", flush=True)
    ```
 
    ```bash
-   # 用 timeout 包裹，超时直接 kill 走 Priority 3
-   # BUDGET 按预算规则 max(5min, 2min × 音频时长/10) 计算
-   AUDIO_DUR=$(ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 sources/audio.wav)
-   AUDIO_DUR_INT=${AUDIO_DUR%.*}
-   BUDGET=$(( AUDIO_DUR_INT * 12 / 10 ))   # 2min × dur/10 = 12s × dur
-   [ "$BUDGET" -lt 300 ] && BUDGET=300     # 下限 5 分钟
-   timeout "$BUDGET" python3 transcribe.py sources/audio.wav sources/subtitles.srt small
-   if [ $? -eq 124 ]; then
-     echo "Whisper 超时，回退到 Priority 3"
-     rm -f sources/subtitles.srt
-   fi
+   # 启动转录（不依赖 timeout——转录可能比预算公式预测的慢，见下方超时策略）
+   python3 transcribe.py sources/audio.wav sources/subtitles.srt small
    ```
+
+   **超时策略**：不要用外部 `timeout` 命令（macOS 上默认不存在，需 `brew install coreutils` 才有 `gtimeout`）。改用**观察 SRT 增长**的方式判断——在另一个终端周期性检查：
+
+   ```bash
+   # 每 30 秒检查一次 SRT 行数是否在增长
+   # 只要 wc -l 的数值在涨，无论多慢都不要 kill
+   while true; do
+     lines=$(wc -l < sources/subtitles.srt 2>/dev/null || echo 0)
+     echo "$(date +%H:%M:%S) SRT lines: $lines"
+     sleep 30
+   done
+   ```
+
+   **何时判定卡死**：满足以下全部条件才 kill：
+   - SRT 行数连续 5 分钟没有任何增长
+   - stdout 上超过 5 分钟没有新的 segment 计数输出
+   - 总运行时间已经超过 `5 × 音频时长(分钟)` 秒（25 分钟音频 → 125 分钟上限）
+
+   判定卡死后，清空 `sources/subtitles.srt` 走 Priority 3。
 
    **回退 `openai-whisper` CLI**（仅 `faster-whisper` 不可用时）：
    ```bash
@@ -921,6 +950,13 @@ cat part1.tex part2.tex part3.tex > document.tex
 - `.agents/skills/bilibili-render-pdf/scripts/frame_assess.py`：Visual API 帧评估脚本
 
 ## Gotchas
+
+- **SRT 必须流式写入**：不要用"收集到数组末尾一次性写"的模式写 SRT。用 `f.flush()` 每 segment 立刻落盘。否则转录全程 SRT 都不存在，agent 会误以为卡死而错误地切到视觉模式。这是最常见的翻车原因——正在正常工作的转录被当成卡死 kill 掉。
+- **不要仅凭"SRT 不存在"就判卡死**：用 `wc -l sources/subtitles.srt` 检查行数是否在持续增长。small + CPU + int8 转录 25 分钟中文音频约需 10--15 分钟——如果行数在涨，耐心等到结束。
+- **Mac 上 faster-whisper 一律用 `device="cpu"`**：`device="auto"` 会在 Apple Silicon 上选 MPS，而 MPS + int8 组合经常导致 segment 永远不产出。CPU + int8 虽然慢但可靠。
+- **预算公式是下限不是上限**：`max(5min, 2min × dur/10)` 给出的是最激进的最短预算，实际耗时可能是 2--3×。不要在这个时间点 kill 还在正常增长的转录。
+- **macOS 没有 `timeout` 命令**：需 `brew install coreutils` 才能用 `gtimeout`。建议不用外部 timeout，改用周期性 `wc -l` 检查 SRT 增长来判断转录是否存活。
+
 
 - **不接受语义触发**：用户贴 BV 链接但没说"用 bilibili-render-pdf"→ 不得自动开跑。先问"要用 bilibili-render-pdf 处理吗？"。
 - **不要改写视频标题**：`\notetitle` 和工作目录名必须原样使用 yt-dlp 返回的标题。不要润色、加空格、换说法、缩写字句。标题是视频的一部分，笔记只是转述者。
