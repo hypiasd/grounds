@@ -3,8 +3,6 @@ title: "与vLLM团队畅聊多模态（下）"
 topic: video
 tags: [video]
 summary: "视频笔记 — 月球大叔 / vLLM 社区"
-created: 2025-07
-updated: 2025-07
 video_url: "https://www.bilibili.com/video/BV1Vy5d6DE7B/"
 video_channel: "月球大叔 / vLLM 社区"
 video_duration: "31分32秒"

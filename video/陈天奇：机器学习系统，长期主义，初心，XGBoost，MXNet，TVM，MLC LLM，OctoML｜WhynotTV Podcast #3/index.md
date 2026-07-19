@@ -3,8 +3,6 @@ title: "陈天奇：机器学习系统，长期主义，初心，XGBoost，MXNet
 topic: video
 tags: [video]
 summary: "视频笔记 — WhynotTV Podcast"
-created: 2025
-updated: 2025
 video_url: "https://www.bilibili.com/video/BV1s6pgzLE3y/"
 video_channel: "WhynotTV Podcast"
 video_duration: "2 小时 40 分钟"

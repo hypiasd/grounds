@@ -3,8 +3,6 @@ title: "算子优化五步法——AI-Infra 规划课与模拟面"
 topic: video
 tags: [video]
 summary: "视频笔记 — Bilibili：五道口纳什"
-created: 2026-04-26
-updated: 2026-07-18
 video_url: "https://www.bilibili.com/video/BV1uaofBREJE/"
 video_channel: "Bilibili：五道口纳什"
 video_duration: "1小时12分"

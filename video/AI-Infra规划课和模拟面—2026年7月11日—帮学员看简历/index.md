@@ -3,8 +3,6 @@ title: "AI-Infra 规划课和模拟面：帮学员看简历"
 topic: video
 tags: [video]
 summary: "视频笔记 — 我是傅傅猪"
-created: 2026-07-11
-updated: 2026-07-11
 video_url: "https://www.bilibili.com/video/BV1nBNw6XE47"
 video_channel: "我是傅傅猪"
 video_duration: "21 分 39 秒"

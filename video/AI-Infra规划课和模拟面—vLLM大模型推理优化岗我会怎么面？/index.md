@@ -3,8 +3,6 @@ title: "AI-Infra规划课和模拟面—vLLM大模型推理优化岗我会怎么
 topic: video
 tags: [video]
 summary: "视频笔记 — 五道口纳什"
-created: 2026-04-18
-updated: 2026-04-18
 video_url: "https://www.bilibili.com/video/BV1UndWBHE8G/"
 video_channel: "五道口纳什"
 video_duration: "45分56秒"

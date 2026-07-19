@@ -3,8 +3,6 @@ title: "算法还是Infra？硅谷一线解读"
 topic: video
 tags: [video]
 summary: "视频笔记 — Bilibili"
-created: 2025年
-updated: 2025年
 video_url: "https://www.bilibili.com/video/BV1HViYBJEsg/"
 video_channel: "Bilibili"
 video_duration: "45分36秒"

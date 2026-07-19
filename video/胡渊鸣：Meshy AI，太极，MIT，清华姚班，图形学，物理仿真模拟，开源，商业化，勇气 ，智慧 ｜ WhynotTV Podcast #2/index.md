@@ -3,8 +3,6 @@ title: ""
 topic: video
 tags: [video]
 summary: "视频笔记 — WhynotTV Podcast"
-created: 2025年
-updated: 2025年
 video_url: "https://www.bilibili.com/video/BV1XmtyzKEzQ/"
 video_channel: "WhynotTV Podcast"
 video_duration: "3小时04分钟"

@@ -756,14 +756,8 @@ def build_frontmatter(meta: dict, tex_path: Path) -> str:
         fm.append(f"summary: {yaml_quote(summary_value)}")
     else:
         fm.append("summary: 视频笔记")
-    if meta.get("publish_date"):
-        fm.append(f"created: {meta['publish_date']}")
-        fm.append(f"updated: {meta['publish_date']}")
-    else:
-        import datetime
-        today = datetime.date.today().isoformat()
-        fm.append(f"created: {today}")
-        fm.append(f"updated: {today}")
+    # created/updated 不写入 frontmatter，由 created-modified-date 插件
+    # 从 git 提交记录自动提取，确保排序按笔记实际创建/修改时间。
     if meta.get("url"):
         fm.append(f"video_url: {yaml_quote(meta['url'])}")
     if meta.get("channel"):
