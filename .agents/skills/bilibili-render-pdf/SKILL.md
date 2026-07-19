@@ -49,8 +49,21 @@ python3 -c "import torch; gpu = torch.cuda.is_available() or torch.backends.mps.
 sysctl -n hw.ncpu  # CPU 核心数
 ```
 
-- **GPU 可用**（CUDA 或 MPS）：用更大更快的 Whisper 模型。Mac Apple Silicon 上 MPS 对 faster-whisper 加速有限，且 `device="auto"` 选 MPS 后 `compute_type="int8"` 经常卡死（模型加载正常但 segment 永远不产出）。**Mac 上无论 GPU 是否可用，faster-whisper 一律用 `device="cpu"` + `compute_type="int8"`**，不要用 `device="auto"`。
+- **GPU 可用**（CUDA 或 MPS）：用更大更快的 Whisper 模型。Mac Apple Silicon 实测：**CPU + int8 是最优路径**（比 MPS + float32 快 ~45%）。MPS 后端只支持 float32 计算精度，不支持 int8 和 float16——`compute_type="int8"` 在 MPS 上会静默失败（模型加载正常但永远不产出 segment），`compute_type="float16"` 直接报 ValueError。MPS + float32 可工作但比 CPU + int8 慢，因为 int8 量化带来的模型压缩和计算加速（~4×）远超 MPS 的 GPU offload 收益。详见下行 benchmark 数据。
 - **仅 CPU（Mac 常见）**：优先小模型或视觉模式
+
+- **Mac faster-whisper Benchmark**（60s 中文音频，small 模型，Apple Silicon M-series）：
+
+  | 配置 | 耗时 | 状态 |
+  |------|------|------|
+  | CPU + int8 | **12.3s** | ✅ 推荐（最快） |
+  | MPS + float32 | 17.8s | ⚠️ 可用，慢 ~45% |
+  | MPS + default | 18.0s | ⚠️ 自动回退 float32 |
+  | MPS + int8 | N/A | ❌ 静默失败（0 segment） |
+  | MPS + float16 | N/A | ❌ ValueError |
+  | MPS + int8\_float16 | N/A | ❌ ValueError |
+
+  Agent 可以用 60s 音频片段自行跑 benchmark 确认当前机器的排名。
 
 ### 2. 工具可用性检查
 
@@ -953,9 +966,10 @@ cat part1.tex part2.tex part3.tex > document.tex
 
 - **SRT 必须流式写入**：不要用"收集到数组末尾一次性写"的模式写 SRT。用 `f.flush()` 每 segment 立刻落盘。否则转录全程 SRT 都不存在，agent 会误以为卡死而错误地切到视觉模式。这是最常见的翻车原因——正在正常工作的转录被当成卡死 kill 掉。
 - **不要仅凭"SRT 不存在"就判卡死**：用 `wc -l sources/subtitles.srt` 检查行数是否在持续增长。small + CPU + int8 转录 25 分钟中文音频约需 10--15 分钟——如果行数在涨，耐心等到结束。
-- **Mac 上 faster-whisper 一律用 `device="cpu"`**：`device="auto"` 会在 Apple Silicon 上选 MPS，而 MPS + int8 组合经常导致 segment 永远不产出。CPU + int8 虽然慢但可靠。
+- **Mac 最优路径是 CPU + int8**：MPS 后端只支持 float32，不支持 int8/float16。实测 CPU + int8 比 MPS + float32 快 ~45%（见上方 benchmark）。不要用 `device="auto"`——它选 MPS 后配 int8 会静默失败（0 segment）。MPS + float32 可作备选（当 CPU 路径因不明原因失败时），但性能不如 CPU + int8。
 - **预算公式是下限不是上限**：`max(5min, 2min × dur/10)` 给出的是最激进的最短预算，实际耗时可能是 2--3×。不要在这个时间点 kill 还在正常增长的转录。
 - **macOS 没有 `timeout` 命令**：需 `brew install coreutils` 才能用 `gtimeout`。建议不用外部 timeout，改用周期性 `wc -l` 检查 SRT 增长来判断转录是否存活。
+- **不确定当前机器最优设置时跑 benchmark**：用 ffmpeg 切 60s 音频片段，分别测试 `(device="cpu", compute_type="int8")` 和 `(device="auto", compute_type="float32")`，选更快的那个。但不要用 `device="auto"` 配 `int8`——MPS + int8 必定失败。
 
 
 - **不接受语义触发**：用户贴 BV 链接但没说"用 bilibili-render-pdf"→ 不得自动开跑。先问"要用 bilibili-render-pdf 处理吗？"。
