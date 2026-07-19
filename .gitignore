@@ -21,7 +21,16 @@ video/**/ocr/
 video/**/*.wav
 video/**/*.mp4
 video/**/*.srt
-
+video/**/*.aux
+video/**/*.log
+video/**/*.out
+video/**/*.toc
+video/**/cover.jpg
+video/**/transcribe.py
+video/**/test_*.mp3
+video/**/audio_compressed.mp3
+video/**/_chunk_*.mp3
+video/**/part*.tex
 .playwright-cli/
 
 # 前端工程（web/）
