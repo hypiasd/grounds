@@ -20,8 +20,9 @@
 
 ```
 grounds/
-├── AGENTS.md              # 本文件（唯一入口，Claude Code 和 Codex 都读）
-├── CLAUDE.md → AGENTS.md  # 符号链接
+├── AGENTS.md              # 本文件 = 唯一事实源（被 Claude Code / Codex / Qoder / Trae 原生读取；CodeBuddy 经 CODEBUDDY.md 软链）
+├── CLAUDE.md → AGENTS.md  # Claude Code 入口软链
+├── CODEBUDDY.md → AGENTS.md # CodeBuddy 入口软链
 ├── README.md
 ├── wiki/                  # 学习笔记（learn/capture/query/lint 产出）
 │   └── <topic>/
@@ -42,13 +43,34 @@ grounds/
 ├── raw/                   # 原始资料（只增不删，分两类）
 │   ├── wiki/              # learn/capture/query 引用的资料
 │   └── papers/            # 论文 PDF
-├── .agents/               # 技能、规范、归档
+├── .agents/               # 技能、规范、归档（唯一事实源）
 │   ├── conventions.md     # wiki 笔记模板（写笔记前必读）
-│   ├── skills/
+│   ├── skills/            # 所有 skill 的真实位置（见下方跨 agent 兼容）
 │   └── archive/
-├── .claude → .agents      # 符号链接（Claude Code 技能发现）
+├── .claude → .agents      # Claude Code 技能发现软链（.claude/skills == .agents/skills）
+├── .codebuddy/skills → ../.agents/skills  # CodeBuddy 技能发现软链
+├── .qoder/skills → ../.agents/skills      # Qoder 技能发现软链
+├── .trae/skills → ../.agents/skills       # Trae 技能发现软链
 └── .gitignore
 ```
+
+---
+
+## 跨 agent 兼容
+
+本仓库的约定与实现（`AGENTS.md` + `.agents/skills/`）是 **agent 无关的纯 Markdown**，**单一事实源**在 `AGENTS.md` 与 `.agents/skills/`。为让不同 AI 编程 agent 都能原生发现并加载，仓库在各 agent 的配置入口建立了软链桥接：
+
+| Agent | 入口文件（加载 AGENTS.md） | 技能发现目录 |
+|-------|----------------------------|--------------|
+| Claude Code | `CLAUDE.md → AGENTS.md` | `.claude → .agents`（即 `.claude/skills == .agents/skills`） |
+| Codex | 原生 `AGENTS.md` | 原生 `.agents/skills/` |
+| CodeBuddy | `CODEBUDDY.md → AGENTS.md` | `.codebuddy/skills → ../.agents/skills` |
+| Qoder | 原生 `AGENTS.md` | `.qoder/skills → ../.agents/skills` |
+| Trae | `AGENTS.md`（需在「设置 › 规则 › 导入设置」开启「将 AGENTS.md 包含在上下文」；另由 `.trae/rules/grounds.md` 规则桥接） | `.trae/skills → ../.agents/skills`（主目录，无需开关）；亦原生支持 `.agents/skills/` |
+
+**原则**：所有软链都指向同一份 `AGENTS.md` / `.agents/skills/`，**不存在副本**——改一处即全局生效，绝不漂移。新增 / 修改 skill 只需动 `.agents/skills/`，五个 agent 同时可见。
+
+> **手动 skill 的自动触发防护**：`disable-model-invocation: true` 是 Claude Code / Codex 的 frontmatter 语义，CodeBuddy / Qoder / Trae 会忽略该字段。因此后 3 个手动 skill 的「不得自动触发」约束由 SKILL.md **正文指令**本身保证（每个手动 skill 开头都写明「只接受手动 / `$` 触发」），不依赖特定 agent 的 frontmatter 字段。
 
 ---
 
@@ -68,7 +90,7 @@ grounds/
 
 ### 调度规则（跨 agent 通用）
 
-1. **前 4 个 skill（learn/capture/lint/query）**：识别用户意图，匹配触发词后自动调度。SKILL.md frontmatter 里的 `disable-model-invocation: true` 是 Claude Code 语义（指"禁止模型无用户触发时自动调用"），不影响"用户消息触发后自动调度"——其他 agent 按本调度规则手动执行即可。
+1. **前 4 个 skill（learn/capture/lint/query）**：识别用户意图，匹配触发词后自动调度。SKILL.md frontmatter 里的 `disable-model-invocation: true` 是 Claude Code / Codex 语义（指"禁止模型无用户触发时自动调用"），CodeBuddy / Qoder / Trae 会忽略该字段；这不影响"用户消息触发后自动调度"——所有 agent 都按本调度规则执行。
 2. **后 3 个 skill（paper-learn/bilibili-render-pdf/youtube-render-pdf）**：**只接受手动触发或 `$` 触发**——agent 不得基于用户消息内容自动调用它们，即使用户提供了 arxiv/BV/YouTube 链接。用户必须显式说"用 paper-learn skill 读这篇论文"或输入 `$paper-learn <url>` 才会触发。
 3. **用 Read 工具读取对应的 SKILL.md 文件**。不要跳过——表格只是索引。
 4. 严格按 SKILL.md 中的流程执行，包括校验步骤。
