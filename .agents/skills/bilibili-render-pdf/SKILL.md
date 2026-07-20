@@ -279,7 +279,7 @@ CC 字幕不可用时，优先尝试 SiliconFlow 的 ASR API（`FunAudioLLM/Sens
    ffmpeg -y -i sources/audio.wav -ac 1 -ar 16000 -b:a 32k sources/audio_compressed.mp3
    ```
 
-2. 按 5 分钟切段，逐段调用 API，组装 SRT（参考脚本见 bilibili-render-pdf/scripts/api_transcribe.py）。
+2. 按自适应时长切段，逐段调用 API，组装 SRT（脚本 `.agents/skills/bilibili-render-pdf/scripts/api_transcribe.py`）。chunk size 自动计算：`min(10, max(3, duration_sec // 20))` 分钟——短视频 3 分钟/chunk 保留精细时间戳，长视频 10 分钟/chunk 减少 API 调用次数。也可手动指定：`python3 api_transcribe.py audio.wav out.srt 600`。
 
 3. **质量对比——API vs 本地 Whisper**：
 
@@ -496,6 +496,19 @@ CC 字幕不可用时，优先尝试 SiliconFlow 的 ASR API（`FunAudioLLM/Sens
    ```bash
    yt-dlp -f "bestvideo[height<=720]+bestaudio" --merge-output-format mp4 -o "sources/video.mp4" "<URL>"
    ```
+
+   **纯口头内容捷径**：当「视频类型预判」判定为纯口头内容（访谈/播客/圆桌）时，完整视频下载性价比极低（120 分钟 ≈ 200MB 只为抽 2 帧）。改用按需下载：
+   ```bash
+   # 先拿音频（ASR 必需）和封面
+   yt-dlp -f bestaudio -o "sources/audio.%(ext)s" "<URL>"
+   curl -L -o cover.jpg "<thumbnail_url>"
+   # 帧只下载需要的几秒（如开场 30s + 中点 5s），video.mp4 裁剪后留 sources/
+   yt-dlp --download-sections "*30-35" -f "bestvideo[height<=720]+bestaudio" \
+     --merge-output-format mp4 -o "sources/_scene_open.mp4" "<URL>"
+   ffmpeg -i sources/_scene_open.mp4 -vframes 1 figures/talk_opening.jpg
+   # 复用同样的 --download-sections 拿第二帧
+   ```
+   这样 120 分钟视频只需下载 ~5MB 而非 ~200MB。
 
 4. 源文件留在 `video/<标题>/sources/`（不进 git，由 `.gitignore` 排除 `video/**/sources/`）。
 
@@ -781,6 +794,19 @@ ls -la "<basename>.pdf" && [ "<basename>.pdf" -nt "<basename>.tex" ] || echo "PD
 tail -50 "<basename>.log" | grep -E '^! |^l\.[0-9]+'
 ```
 
+**PDF 编译后必检**（每次编译都跑）：
+```bash
+# 检查 Missing character——非零表示 PDF 中有 □ 缺字
+missing=$(grep -c "Missing character" "<basename>.log")
+if [ "$missing" -gt 0 ]; then
+  echo "WARNING: $missing missing glyphs — check .log for details"
+  grep "Missing character" "<basename>.log" | sort -u
+fi
+# 确认 PDF 存在且页数合理
+ls -la "<basename>.pdf" && [ "<basename>.pdf" -nt "<basename>.tex" ] || echo "COMPILE FAILED"
+```
+有 Missing character 时，找到缺字字符并用 `{\fallbackhei <字符>}` 包裹（模板已预定义 `\fallbackhei` 字体族），重新编译。
+
 **Overfull/Underfull 警告是正常的**：`Overfull \hbox` / `Underfull \hbox` 是 LaTeX 排版警告（行宽溢出几 pt），不影响 PDF 生成。只有 `.log` 里以 `! ` 开头的行（如 `! Undefined control sequence`）才是真错误。判断失败的标准是：PDF 未生成，或 PDF 生成但关键章节缺失（用 `pdftotext <file>.pdf - | head -50` 抽查）。
 
 **tex → md 转换**（前端接入需要，PDF 编译成功后执行）：
@@ -821,7 +847,25 @@ grep -c '^## ' index.md  # 确认章节标题存在（应 ≥ 1）
 
 **提交**（工作目录即成品目录，无需复制）：
 ```bash
-# 显式 add 进 git 的文件（避免误带 sources/figures/ocr/cover.jpg）
+# 一键交付：进入工作目录后，从编译到推送一步完成
+cd "$(git rev-parse --show-toplevel)/video/<视频标题>"
+
+# 1. 编译 PDF（两次出 TOC）
+xelatex -interaction=nonstopmode "<basename>.tex" > /dev/null 2>&1
+xelatex -interaction=nonstopmode "<basename>.tex" > /dev/null 2>&1
+
+# 2. 检查 Missing character（非零 = 有缺字，需修复）
+missing=$(grep -c "Missing character" "<basename>.log")
+[ "$missing" -gt 0 ] && echo "WARNING: $missing missing glyphs" && grep "Missing character" "<basename>.log" | sort -u
+
+# 3. tex → md 转换
+python3 "$(git rev-parse --show-toplevel)/.agents/skills/_shared/scripts/tex_to_md.py" \
+  "<basename>.tex" "index.md"
+
+# 4. 校验 index.md
+wc -l index.md && grep -c '^## ' index.md
+
+# 5. git add + commit + push
 cd "$(git rev-parse --show-toplevel)"
 git add "video/<视频标题>/<basename>.tex" \
         "video/<视频标题>/<basename>.pdf" \
@@ -841,6 +885,7 @@ git commit -m "bilibili-render-pdf: <视频标题>" && git push
 
 - `.agents/skills/bilibili-render-pdf/assets/notes-template.tex`：默认 LaTeX 模板，复制并填充
 - `.agents/skills/bilibili-render-pdf/scripts/frame_assess.py`：Visual API 帧评估脚本
+- `.agents/skills/bilibili-render-pdf/scripts/api_transcribe.py`：SiliconFlow ASR API 转录脚本（CC 字幕缺失时 Priority 1.5 用）
 
 ## Gotchas
 
@@ -862,7 +907,7 @@ git commit -m "bilibili-render-pdf: <视频标题>" && git push
 - **成品必须 commit 进 git**：`.tex`+`.pdf`+`index.md` 进 git，`sources/figures/ocr/cover.jpg` 不进 git（.gitignore 自动排除）。换机器后需要 `video/<标题>/sources/` 等中间产物需重新下载。
 - **commit 之后必须 push**。
 
-- **字体缺字**：模板现已自动检测平台（macOS 用 `fontset=mac`，其他用 `fandol`）。若仍有字符显示为空白，手动编辑 `.tex` 的 `fontset=` 参数。AI 芯片/华为生态话题容易出现生僻汉字。
+- **字体缺字**：模板已自动检测平台（macOS 用 `fontset=mac`，其他用 `fandol`）并预定义 `\fallbackhei` 回退字体族（macOS: Heiti SC）。当 PDF 中出现 □ 时：① 跑 `grep "Missing character" .log | sort -u` 找到缺字字符；② 用 `{\fallbackhei <字符>}` 包裹。AI 芯片/华为/人名等话题容易出现生僻汉字。
 
 - **TikZ `positioning` 库遗漏**：使用 `above=...cm of node` 语法时需 `\usetikzlibrary{positioning}`，否则报 `Unknown operator 'of'`。模板已带，但从旧模板分支建笔记时可能缺。
 

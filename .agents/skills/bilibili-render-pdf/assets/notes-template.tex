@@ -2,9 +2,20 @@
 
 % Basic packages
 % Platform-aware CJK font selection: detects PingFang.ttc for macOS (fontset=mac),
-% falls back to fandol (free CJK; may lack 「昇」「騰」on non-macOS).
-% Override by editing fontset= manually if auto-detection picks wrong.
-\usepackage[fontset=\IfFileExists{/System/Library/Fonts/PingFang.ttc}{mac}{fandol}]{ctex}
+% falls back to fandol (free CJK). Use PassOptionsToPackage because \IfFileExists
+% cannot be embedded inside \usepackage options (would cause "Missing \endcsname").
+\IfFileExists{/System/Library/Fonts/PingFang.ttc}{
+    \PassOptionsToPackage{fontset=mac}{ctex}
+}{
+    \PassOptionsToPackage{fontset=fandol}{ctex}
+}
+\usepackage{ctex}
+% CJK fallback for rare glyphs (e.g. 珺/昇/騰) absent from the default font.
+% On macOS, Heiti SC covers nearly all CJK characters including rare ones.
+% On Linux, install Noto Sans CJK and change the font name below.
+\IfFileExists{/System/Library/Fonts/STHeiti Medium.ttc}{
+    \newCJKfontfamily\fallbackhei{Heiti SC}
+}{}
 \usepackage{amsmath, amssymb}
 \usepackage{graphicx}
 \usepackage[margin=2.5cm]{geometry}
@@ -119,6 +130,14 @@
 % End the document with a final section such as:
 % \section{总结与延伸}
 % covering the speaker's closing discussion and your own synthesis.
+%
+% --- RARE CJK GLYPHS ---
+% If a character (e.g. 珺 in 张小珺, 昇/騰 in AI chip names) renders as □,
+% wrap it in \fallbackhei{}:  {\fallbackhei 张小珺}
+% After compilation, always check for missing glyphs:
+%   grep -c "Missing character" <basename>.log
+% Non-zero = some characters didn't render; find them with:
+%   grep "Missing character" <basename>.log | sort -u
 
 %% --- 正文内容结束 --- %%
 
