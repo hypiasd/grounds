@@ -96,7 +96,11 @@ fi
 # 检测"非空已有项目"：project/$NAME/ 下除 .gitkeep / notes 外是否还有内容
 # MODE=new 新建的空壳不含这些内容 → 不触发 onboard
 # MODE=link/clone 拉来的非空仓库 → 触发 onboard（仅一次）
-cnt=$(find "project/$NAME" -mindepth 1 -maxdepth 1 \
+# ⚠️ link 模式 project/$NAME 是软链：find 默认不跟随软链，软链自身又在 depth 0 被 -mindepth 1 排除，
+#    必须先用 readlink -f 解引用到真实目录再查，否则会误判 link 项目为"空壳"、永不 onboard。
+TARGET="project/$NAME"
+[ -L "$TARGET" ] && TARGET=$(readlink -f "$TARGET")
+cnt=$(find "$TARGET" -mindepth 1 -maxdepth 1 \
         -not -name .gitkeep -not -name notes 2>/dev/null | head -1)
 if [ -n "$cnt" ]; then
   echo "ONBOARD=yes"   # 命中：执行下方 onboard 盘点（生成 notes/index.md + notes/decisions.md）
