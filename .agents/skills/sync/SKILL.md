@@ -28,6 +28,8 @@ AGENT_FILESET=".agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qode
 
 复制 / 覆盖这些文件时务必**保留软链**（`cp -R` / `rsync -a`，不要解引用）。`.claude` 是软链到 `.agents`，`.codebuddy/.qoder/.trae` 内含软链到 `.agents/skills`——解引用会让链接失效。
 
+> ⚠️ **zsh 兼容性**：zsh 不会按空格自动分词。bash 块里**凡涉及文件集的循环，一律用字面列表** `.agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae`，不要写 `for f in $AGENT_FILESET`（zsh 下 `$AGENT_FILESET` 会被当成一个词，循环失效）。
+
 ---
 
 # push 模式（`$sync`）
@@ -61,25 +63,32 @@ else
 fi
 ```
 
-### 第三步：复制笔记（排除 agent 文件集与 .buildconfig）
+### 第三步：合并式复制笔记（排除 agent 文件集与 .buildconfig）
+
+**关键语义：本地优先、合并而非替换。** 只把本仓**有的**内容合入 grounds，绝不用本仓的空占位目录去 `rm -rf` 删除 grounds 里已有的真实笔记。grounds 中本仓没有的文件必须保留。
 
 只收**内容目录**，且 `project/` 下**只收 `*/notes/`**，绝不收项目代码：
 
 ```bash
-# 内容目录根
+# 合并式复制：rsync -a（本地文件优先覆盖同名、保留远程独有）；无 rsync 时回退 cp -R 内容
 for d in wiki paper video; do
-  [ -d "$d" ] && rm -rf "$GROUNDS/$d" && cp -R "$d" "$GROUNDS/"
+  [ -d "$d" ] || continue
+  mkdir -p "$GROUNDS/$d"
+  rsync -a "$d/" "$GROUNDS/$d/" 2>/dev/null || cp -R "$d/." "$GROUNDS/$d/"
 done
-# project 只收各项目的 notes/
-rm -rf "$GROUNDS/project"
+# project 只收各项目的 notes/（合并式，保留 notes/ 子目录本身）
 mkdir -p "$GROUNDS/project"
 for p in project/*/; do
   name=$(basename "$p")
-  [ -d "$p/notes" ] && mkdir -p "$GROUNDS/project/$name" && cp -R "$p/notes" "$GROUNDS/project/$name/"
+  [ -d "$p/notes" ] || continue
+  mkdir -p "$GROUNDS/project/$name"
+  # 源不带尾斜杠：rsync 复制 notes/ 目录本身，落到 grounds 的 project/<name>/notes/
+  rsync -a "$p/notes" "$GROUNDS/project/$name/" 2>/dev/null || cp -R "$p/notes" "$GROUNDS/project/$name/"
 done
 ```
 
-> 关键点：`project/*/notes/` 之外的代码、构建产物**不复制**，所以 grounds 永不被项目代码撑大。
+> 关键点：用 `rsync -a`（或 `cp -R 内容`）**合并**，不加 `--delete`，所以 grounds 里本仓没有的笔记、paper、video **全部保留**；本仓有而 grounds 没有的文件被新增；两边同名的冲突文件以**本地（本仓）为准**覆盖。
+> `project/*/notes/` 之外的代码、构建产物**不复制**，所以 grounds 永不被项目代码撑大。
 > agent 文件集（`.agents` 等）和 `.buildconfig` **不复制**——它们不属于"笔记"，agent 改动走下面的 push-agent。
 
 ### 第四步：提交 + 推送 grounds（本地优先）
@@ -104,9 +113,9 @@ git push "$grounds_url" main
 ```bash
 WB=$(mktemp -d)
 git clone "$workbase_url" "$WB"
-# 用本仓 agent 文件集覆盖 workBase
-( cd "$WB" && rm -rf $AGENT_FILESET )
-for f in $AGENT_FILESET; do
+# 用本仓 agent 文件集覆盖 workBase（字面列表，zsh 不自动分词）
+for f in .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae; do
+  rm -rf "$WB/$f"
   [ -e "$f" ] && cp -R "$f" "$WB/"
 done
 cd "$WB"
@@ -141,11 +150,9 @@ sync push 完成：
 set -a; . ./.buildconfig; set +a
 WB=$(mktemp -d)
 git clone "$workbase_url" "$WB"
-# 用 workBase 的 agent 文件集覆盖本仓
-( cd "$WB" && rm -rf $AGENT_FILESET )
-# 注意：上面 rm 是为了干净复制；这里改为"从 WB 覆盖到本仓"
-rm -rf $AGENT_FILESET
-for f in $AGENT_FILESET; do
+# 用 workBase 的 agent 文件集覆盖本仓（字面列表，zsh 不自动分词）
+for f in .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae; do
+  rm -rf "$f"
   [ -e "$WB/$f" ] && cp -R "$WB/$f" ./
 done
 rm -rf "$WB"
