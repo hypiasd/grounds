@@ -66,11 +66,10 @@ grounds/
 - **grounds（主派生类）**：workBase + `wiki/ paper/ video/ raw/ project/ project_logs/` + Quartz 部署（见 grounds 自己的 README）。
 - **临时派生仓**：workBase + `project/`（各 <name>/ 是独立 git 仓库）+ `project_logs/`（及按需的 `wiki/`） + **不部署**；笔记经 `sync` 推回 grounds。
 
-每个派生仓本身是一个独立 git 仓库；agent 文件集在派生仓与 workBase 之间**双向覆盖同步**（复制 + commit + push，非 git 历史合并）：
+每个派生仓本身是一个独立 git 仓库；agent 文件集在派生仓与 workBase 之间**双向覆盖同步**（按提交时间定方向，复制 + commit + push，非 git 历史合并）：
 
-- `build push-agent`：把当前派生仓的 agent 文件集**直接覆盖** workBase 远程。
-- `build pull-agent`：把 workBase 的 agent 文件集**直接覆盖**当前派生仓（grounds 用它接收基类更新；临时仓用它保持最新）。
-- `sync`：把当前派生仓的 `wiki/ paper/ video/ project_logs/` **直接更新**到 grounds 远程（**排除** agent 文件集）。
+- **`$sync`（统一入口）**：笔记与 agent 同步都走它——笔记把 `wiki/ paper/ video/ project_logs/` 合并式推到 grounds 远程（非 grounds 仓才推）；agent 比对本地与 workBase 的 agent 文件集**最近提交时间**，谁新以谁为准（本地新→推 workBase，workBase 新→拉回本仓），覆盖式同步。详见 `sync` skill 第五步。
+- （旧机制 `build push-agent` / `build pull-agent` 已废弃，统一并入 `$sync`。）
 
 > 注意：`.gitignore`、`README.md`、`.github/` 等仓库专属文件**不在** agent 文件集内，不会跨仓覆盖。
 > 当前基类含 start / project / sync / learn / learn-capture / project-capture / lint / query / paper-learn / bilibili-render-pdf / youtube-render-pdf 十一个技能；结构类（start/project/sync）只接受手动 / `$` 触发。
