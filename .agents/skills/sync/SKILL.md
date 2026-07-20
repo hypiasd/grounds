@@ -115,47 +115,64 @@ fi
 ```bash
 # 注意：zsh 不按空格分词，$VAR 不能展开成多个参数。
 # 下面 git log / git status 一律内联字面列表，不依靠变量展开。
-# 本仓 agent 文件集最近提交时间（有未提交改动则视为本地更新）
+# 提交时间只取自"已提交"的 agent 文件集；未提交改动不再抬高 LOCAL_TS，
+# 否则会盖过 workBase 上"更新的已提交版本"，导致上游改进被静默丢失。
 LOCAL_TS=$(git log -1 --format=%ct -- .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae 2>/dev/null || echo 0)
 LOCAL_DIRTY=$(git status --porcelain -- .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae 2>/dev/null)
-[ -n "$LOCAL_DIRTY" ] && LOCAL_TS=$(date +%s)
 
 WB=$(mktemp -d)
 git clone "$workbase_remote" "$WB" >/dev/null 2>&1
 BASE_TS=$(cd "$WB" && git log -1 --format=%ct -- .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae 2>/dev/null || echo 0)
 
-if [ "$LOCAL_TS" -gt "$BASE_TS" ] || [ -n "$LOCAL_DIRTY" ]; then
-  # 本仓更新 → 推 agent 到 workBase
-  (
-    for f in .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae; do
-      rm -rf "$WB/$f"
-      [ -e "$f" ] && cp -R "$f" "$WB/"
-    done
-    cd "$WB"
-    git add -A
-    git commit -m "sync: 派生仓推送 agent 改进 $(date +%Y-%m-%dT%H-%M)" || echo "agent 无变更"
-    git push "$workbase_remote" main
-  )
-  echo "agent：本仓更新 → 已推到 workBase"
+# 方向判定（按"已提交"时间定，谁的新提交谁赢）：
+#   LOCAL_TS  > BASE_TS       → 本地提交更新 → 推 workBase
+#   BASE_TS   > LOCAL_TS       → workBase 提交更新 → 拉回本仓（即便本地有草稿，也不回写覆盖上游）
+#   LOCAL_TS == BASE_TS 且本地有未提交改动 → 视为本地更新推 workBase（此时 workBase 并未更新，安全）
+#   LOCAL_TS == BASE_TS 且无改动 → 跳过
+if [ "$LOCAL_TS" -gt "$BASE_TS" ]; then
+  MODE=push
 elif [ "$BASE_TS" -gt "$LOCAL_TS" ]; then
-  # workBase 更新 → 拉 agent 回本仓
-  (
-    for f in .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae; do
-      rm -rf "$f"
-      [ -e "$WB/$f" ] && cp -R "$WB/$f" ./
-    done
-    git add -A
-    git commit -m "sync: 接收 workBase 基类更新 $(date +%Y-%m-%dT%H-%M)" || echo "已是最新"
-    git push 2>/dev/null || echo "本仓无远程（临时仓未设 origin），跳过 push"
-  )
-  echo "agent：workBase 更新 → 已拉回本仓"
+  MODE=pull
+elif [ -n "$LOCAL_DIRTY" ]; then
+  MODE=push
 else
-  echo "agent：两边时间相同 → 已同步，跳过"
+  MODE=skip
 fi
+
+case "$MODE" in
+  push)
+    (
+      for f in .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae; do
+        rm -rf "$WB/$f"
+        [ -e "$f" ] && cp -R "$f" "$WB/"
+      done
+      cd "$WB"
+      git add -A
+      git commit -m "sync: 派生仓推送 agent 改进 $(date +%Y-%m-%dT%H-%M)" || echo "agent 无变更"
+      git push "$workbase_remote" main
+    )
+    echo "agent：本仓更新 → 已推到 workBase"
+    ;;
+  pull)
+    (
+      for f in .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae; do
+        rm -rf "$f"
+        [ -e "$WB/$f" ] && cp -R "$WB/$f" ./
+      done
+      git add -A
+      git commit -m "sync: 接收 workBase 基类更新 $(date +%Y-%m-%dT%H-%M)" || echo "已是最新"
+      git push 2>/dev/null || echo "本仓无远程（临时仓未设 origin），跳过 push"
+    )
+    echo "agent：workBase 更新 → 已拉回本仓"
+    ;;
+  *)
+    echo "agent：两边提交时间相同且无本地改动 → 已同步，跳过"
+    ;;
+esac
 rm -rf "$WB"
 ```
 
-> **为什么用提交时间而非文件 mtime**：clone / pull 会重置文件 mtime，跨机不可比；git 提交时间是稳定的墙钟时间，可正确判断"谁改得更晚"。本仓有未提交改动时也视为"本地更新"，避免被上游悄悄覆盖。
+> **为什么用提交时间而非文件 mtime**：clone / pull 会重置文件 mtime，跨机不可比；git 提交时间是稳定的墙钟时间，可正确判断"谁改得更晚"。方向严格按"已提交时间"定：workBase 的更新提交永远优先拉回本仓（不会因本地有未提交草稿而被回写覆盖）；只有当双方提交时间相同、且本地确有未提交改动时，才把本地草稿当作更新推给 workBase（此时 workBase 并未更新，安全）。
 > 临时派生仓 `start` 时已移除 origin，拉回时 `git push` 失败属正常——本地已拿到最新 agent 即可。
 
 ### 第六步：收尾提示

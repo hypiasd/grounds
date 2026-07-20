@@ -1,5 +1,0 @@
-# build 配置（派生仓标记）
-role=main-derived
-grounds_remote=origin
-workbase_remote=git@github.com:hypiasd/workBase.git
-project=grounds
