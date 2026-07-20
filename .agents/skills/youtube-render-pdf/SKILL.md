@@ -21,9 +21,8 @@ allowed-tools: Read, Write, Edit, Bash
 
 ## 目标（完成时仓库应处于的状态）
 
-- `video/<视频标题>/` 是工作目录与成品目录合一的单一目录，包含：
-  - `.tex` + `.pdf` + `index.md`（进 git）
-  - `cover.jpg`、`sources/`、`figures/`、`ocr/`（不进 git，由 `.gitignore` 排除）
+- `video/<视频标题>/` 是工作目录与成品目录合一的单一目录，最终保留（进 git）：`.tex` + `.pdf` + `index.md`。
+- `cover.jpg`、`sources/`、`figures/`、`ocr/` 是**临时中间产物**（不进 git，由 `.gitignore` 排除）——仅在编译期存在，交付 commit 后由 skill 自动删除，不长期占用本地磁盘。
 - 已 `git commit`（grounds 直接 push；临时派生仓 commit 后**自动 `$sync`** 推回），commit message：`youtube-render-pdf: <视频标题>`
 
 ---
@@ -406,7 +405,7 @@ TikZ 速查模式见 `bilibili-render-pdf` SKILL.md。
 | `.pdf` 文件 | `./<basename>.pdf` | 编译 PDF（跑两次 `xelatex`） |
 | `index.md` | `./index.md` | `tex_to_md.py` 转换的 markdown，Quartz folder note |
 
-**不进 git**（中间产物，由 `.gitignore` 排除 `video/**/sources/`、`video/**/figures/`、`video/**/ocr/`、`video/**/*.wav`、`video/**/*.mp4`、`video/**/*.srt`）：
+**不进 git（临时中间产物，由 `.gitignore` 排除；交付 commit 后由 skill 自动删除，不长期驻留）：**
 
 | 产物 | 位置 | 描述 |
 |------|------|------|
@@ -455,6 +454,11 @@ if [ "$(basename "$PWD")" = "grounds" ] || git remote -v 2>/dev/null | grep -qi 
   git push
 fi
 # 派生仓（非 grounds）：上方不 push，commit 完成后本 skill 自动运行 $sync 推回 grounds
+
+# 6. 清理临时中间产物（不进 git，成品 .tex/.pdf/index.md 已 commit；删除回收本地磁盘空间）
+#    注意：删除后 .tex 无法直接 xelatex 重编译，需重跑「源获取 + 帧提取」流程才能再编译
+rm -rf "video/<视频标题>/sources" "video/<视频标题>/figures" "video/<视频标题>/ocr"
+rm -f "video/<视频标题>/cover.jpg"
 ```
 
 ---
@@ -482,11 +486,11 @@ YouTube 特定：
 - **转录卡住要 kill，不要等**：用 `timeout` 命令包裹 `transcribe.py`，超预算直接 kill 走视觉模式。
 - **帧选择偏召回高于精度**：多看候选优于错过关键帧。
 - **盲模式别用本地 tesseract 批量评估**：2+ 分钟/帧，用中点提取。
-- **成品必须 commit 进 git**：`.tex`+`.pdf`+`index.md` 进 git，`sources/figures/ocr/cover.jpg` 不进 git（.gitignore 自动排除）。换机器后需要 `video/<标题>/sources/` 等中间产物需重新下载。
+- **成品必须 commit 进 git**：`.tex`+`.pdf`+`index.md` 进 git；`sources/figures/ocr/cover.jpg` 是临时中间产物（.gitignore 自动排除），**commit 后 skill 自动删除**回收本地空间。换机器后如需重编译/重看源，需重跑「源获取 + 帧提取」流程重新下载。
 - **commit 之后**：grounds 必须 `git push`（否则换机器看不到）；临时派生仓 commit 后**自动 `$sync`** 推回 grounds（不要再只 commit 留本地）。
 
 ## 注意
 
-- 工作目录与成品目录合一：`video/<标题>/`。`.tex`+`.pdf`+`index.md` 进 git；`sources/figures/ocr/cover.jpg` 由 `.gitignore` 排除不进 git。
-- 如需重新编译 PDF：直接在 `video/<标题>/` 下执行 `xelatex`（前提是 `sources/`、`figures/` 还在，否则需重新下载/提取）。
+- 工作目录与成品目录合一：`video/<标题>/`。`.tex`+`.pdf`+`index.md` 进 git；`sources/figures/ocr/cover.jpg` 由 `.gitignore` 排除不进 git，且 commit 后由 skill 自动删除。
+- 成品 `.pdf` 已进 git，即最终交付物。如需重编译 PDF，需先重跑「源获取 + 帧提取」流程重新生成中间文件，再 `xelatex`。
 - 关联：`AGENTS.md`、`.agents/skills/bilibili-render-pdf/SKILL.md`（B 站版，本 skill 的扩展版，含完整 Troubleshooting 和 Visual API 帧评估）

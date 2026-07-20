@@ -48,7 +48,7 @@ public:
 
 **为什么模板定义必须在头文件中**：模板不是代码，是蓝图。`max<int>` 在被调用前不存在于世界上任何地方——编译 `max.cpp` 时如果没有人用 `int` 调用它，编译器不生成任何机器码。当 `main.cpp` 调用 `max(3,5)` 时，编译器需要蓝图现场生成 `max<int>`——如果只 `#include` 了声明没有实现体，编译器拿不到蓝图，生成失败，链接时报 `undefined reference`。
 
-更深层的根因在 [编译模型](../cpp/compilation-model.md)：C++ 每个翻译单元独立编译、编译器只看得见自己 TU 内的定义，模板实例化发生在「用到它的那个 TU」，定义必须在现场可见；同时靠 ODR 规则 3 例外让多个 TU 的同款实例合法合并——这正是 `inline` 和模板能安全放在头文件的底层机制。
+更深层的根因在 [编译模型](compilation-model.md)：C++ 每个翻译单元独立编译、编译器只看得见自己 TU 内的定义，模板实例化发生在「用到它的那个 TU」，定义必须在现场可见；同时靠 ODR 规则 3 例外让多个 TU 的同款实例合法合并——这正是 `inline` 和模板能安全放在头文件的底层机制。
 
 对比普通函数：普通函数在编译实现文件时就已经生成机器码，链接器直接找地址即可。
 
@@ -305,12 +305,12 @@ std::array a{1, 2, 3};    // 推导为 std::array<int, 3>（NTTP 也能推导）
 
 ## 关联
 
-- [编译模型](../cpp/compilation-model.md) — 模板必须放头文件的底层根因：翻译单元单 TU 可见性 + ODR 规则 3 例外；那篇讲构建期规则，本篇讲模板自身的实例化机制
-- [Perfect Forwarding](../cpp/perfect-forwarding.md) — 万能引用 + `std::forward` 依赖模板参数推导和引用折叠
-- [STL](../cpp/stl.md) — STL 容器、算法、迭代器全部基于模板实现
-- [std::ranges::sort](../cpp/ranges-sort.md) — C++20 ranges 的投影和比较器参数依赖 concept 约束
-- [Move Semantics](../cpp/move-semantics.md) — `std::move` 是函数模板，依赖模板参数推导
-- [Value Categories](../cpp/value-categories.md) — 左值/右值区分是理解万能引用 `T&&` 的前提
+- [编译模型](compilation-model.md) — 模板必须放头文件的底层根因：翻译单元单 TU 可见性 + ODR 规则 3 例外；那篇讲构建期规则，本篇讲模板自身的实例化机制
+- [Perfect Forwarding](perfect-forwarding.md) — 万能引用 + `std::forward` 依赖模板参数推导和引用折叠
+- [STL](stl.md) — STL 容器、算法、迭代器全部基于模板实现
+- [std::ranges::sort](ranges-sort.md) — C++20 ranges 的投影和比较器参数依赖 concept 约束
+- [Move Semantics](move-semantics.md) — `std::move` 是函数模板，依赖模板参数推导
+- [Value Categories](value-categories.md) — 左值/右值区分是理解万能引用 `T&&` 的前提
 
 ## 面试常见问题
 
