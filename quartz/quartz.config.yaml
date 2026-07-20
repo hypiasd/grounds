@@ -13,9 +13,20 @@ configuration:
     - private
     - templates
     - .obsidian
-    - "*.mp4"
-    - "*.wav"
-    - "*.srt"
+    - "**/sources"
+    - "**/figures"
+    - "**/ocr"
+    - "**/*.mp4"
+    - "**/*.wav"
+    - "**/*.mp3"
+    - "**/*.srt"
+    - "**/*.aux"
+    - "**/*.log"
+    - "**/*.out"
+    - "**/*.toc"
+    - "**/*.tex"
+    - "**/*.py"
+    - "**/cover.jpg"
   theme:
     fontOrigin: googleFonts
     cdnCaching: true

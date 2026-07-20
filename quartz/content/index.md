@@ -12,6 +12,7 @@ tags: []
 - [Algorithms](wiki/algorithms/) — 算法题解与思维方法
 - [CUDA](wiki/cuda/) — GPU 编程与推理优化
 - [vLLM](wiki/vllm/) — 大模型推理引擎源码学习
+- [LLAISYS](wiki/llaisys/) — 从零构建 LLM 推理引擎
 
 ## 分区
 

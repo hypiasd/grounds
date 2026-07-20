@@ -30,7 +30,7 @@ video/**/*.log
 video/**/*.out
 video/**/*.toc
 video/**/cover.jpg
-video/**/transcribe.py
+video/**/*transcribe*.py
 video/**/test_*.mp3
 video/**/audio_compressed.mp3
 video/**/_chunk_*.mp3
