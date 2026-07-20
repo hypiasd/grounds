@@ -47,7 +47,7 @@ AGENT_FILESET=".agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qode
 
 ```bash
 set -a; . ./.buildconfig; set +a
-# 现在可用：$grounds_url  $workbase_url  $local_grounds_path  $current_project
+# 现在可用：$grounds_remote  $workbase_remote  $local_grounds_path  $current_project
 
 # 按仓库名判定是否 grounds（目录名 / 远端 URL 任一含 grounds 即算）
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
@@ -72,7 +72,7 @@ else
     git -C "$GROUNDS" pull --ff-only 2>/dev/null || true
   else
     GROUNDS=$(mktemp -d)
-    git clone "$grounds_url" "$GROUNDS"
+    git clone "$grounds_remote" "$GROUNDS"
   fi
 fi
 ```
@@ -102,8 +102,8 @@ if ! $IS_GROUNDS; then
     cd "$GROUNDS"
     git add -A
     git commit -m "sync: 推送派生仓笔记 $(date +%Y-%m-%dT%H-%M)" || echo "nothing to commit"
-    git pull --no-edit -X ours "$grounds_url" main 2>/dev/null || true
-    git push "$grounds_url" main
+    git pull --no-edit -X ours "$grounds_remote" main 2>/dev/null || true
+    git push "$grounds_remote" main
   )
   # 仅临时 clone 才清理；local_grounds_path 模式保留本地副本
   [ -z "$local_grounds_path" ] && rm -rf "$GROUNDS"
@@ -128,7 +128,7 @@ LOCAL_DIRTY=$(git status --porcelain -- .agents AGENTS.md CLAUDE.md CODEBUDDY.md
 [ -n "$LOCAL_DIRTY" ] && LOCAL_TS=$(date +%s)
 
 WB=$(mktemp -d)
-git clone "$workbase_url" "$WB" >/dev/null 2>&1
+git clone "$workbase_remote" "$WB" >/dev/null 2>&1
 BASE_TS=$(cd "$WB" && git log -1 --format=%ct -- .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae 2>/dev/null || echo 0)
 
 if [ "$LOCAL_TS" -gt "$BASE_TS" ] || [ -n "$LOCAL_DIRTY" ]; then
@@ -141,7 +141,7 @@ if [ "$LOCAL_TS" -gt "$BASE_TS" ] || [ -n "$LOCAL_DIRTY" ]; then
     cd "$WB"
     git add -A
     git commit -m "sync: 派生仓推送 agent 改进 $(date +%Y-%m-%dT%H-%M)" || echo "agent 无变更"
-    git push "$workbase_url" main
+    git push "$workbase_remote" main
   )
   echo "agent：本仓更新 → 已推到 workBase"
 elif [ "$BASE_TS" -gt "$LOCAL_TS" ]; then
