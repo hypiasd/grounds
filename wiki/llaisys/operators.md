@@ -98,7 +98,9 @@ void embedding(std::byte *out, const int64_t *index, const std::byte *weight,
 
 矩阵乘法 $Y = XW^T + b$。注意 weight 的形状是 [N, K]（不是 [K, N]），所以是 X[i,:] 点乘 W[j,:]。这是最朴素的三重循环 matmul，性能很差，但正确性有保证。生产环境会换成 cuBLAS/oneDNN。
 
-$$Y = XW^T + b$$
+$$
+Y = XW^T + b
+$$
 
 ```cpp
 template <typename T>
@@ -119,7 +121,9 @@ void linear_(T *out, const T *in, const T *weight, const T *bias,
 
 对每一行做归一化。关键细节：平方和累加时，PyTorch 先在 native dtype 平方再转 float32 累加（而不是先转 float32 再平方）。这个顺序差异在 4096 维时能导致超过 1e-3 的误差。用 `rms_inv = 1/sqrt(...)` 而不是 `x / sqrt(...)`，因为乘法比除法快。
 
-$$Y_i = \frac{W_i \times X_i}{\sqrt{\frac{1}{d}\sum_{j=1}^d X_j^2 + \epsilon}}$$
+$$
+Y_i = \frac{W_i \times X_i}{\sqrt{\frac{1}{d}\sum_{j=1}^d X_j^2 + \epsilon}}
+$$
 
 ```cpp
 template <typename T>
@@ -143,8 +147,13 @@ void rms_norm_(T *out, const T *in, const T *weight, size_t rows, size_t d, floa
 
 把向量分成前后两半 [a, b]，对每对 (a_j, b_j) 做 2D 旋转。角度 φ = pos / θ^(2j/d)——低维频率高（变化快），高维频率低（变化慢）。这让模型能感知相对位置：两个 token 的 Q·K 只取决于它们的相对距离。
 
-$$\phi_{i,j} = p_i / \theta^{2j/d}$$
-$$a'_{i,j} = a_{i,j}\cos\phi - b_{i,j}\sin\phi, \quad b'_{i,j} = b_{i,j}\cos\phi + a_{i,j}\sin\phi$$
+$$
+\phi_{i,j} = p_i / \theta^{2j/d}
+$$
+
+$$
+a'_{i,j} = a_{i,j}\cos\phi - b_{i,j}\sin\phi, \quad b'_{i,j} = b_{i,j}\cos\phi + a_{i,j}\sin\phi
+$$
 
 ```cpp
 template <typename T>
@@ -177,7 +186,9 @@ void rope_(T *out, const T *in, const int64_t *pos_ids,
 - **causal mask**：query 在位置 q_pos 只能看到 ≤ q_pos 的 key，未来的位置填 -infinity
 - **q_start_pos = total_len - seqlen**：当 KV Cache 存在时，query 的绝对位置不是从 0 开始的
 
-$$A = QK^\top \cdot \text{scale}, \quad Y = \text{causal\_softmax}(A) \cdot V$$
+$$
+A = QK^\top \cdot \text{scale}, \quad Y = \text{causal\_softmax}(A) \cdot V
+$$
 
 ```cpp
 template <typename T>
@@ -223,7 +234,9 @@ void self_attention_(T *attn_val, const T *q, const T *k, const T *v,
 
 LLM FFN 的激活函数。本质是 SiLU(gate) × up = gate·σ(gate) × up。gate 和 up 是两个独立的 linear 投影的输出，SwiGLU 让它们交互——gate 控制“放行多少”，up 是“要放行的内容”。
 
-$$\text{out}_i = \text{up}_i \cdot \frac{\text{gate}_i}{1 + e^{-\text{gate}_i}} = \text{up}_i \cdot \text{SiLU}(\text{gate}_i)$$
+$$
+\text{out}_i = \text{up}_i \cdot \frac{\text{gate}_i}{1 + e^{-\text{gate}_i}} = \text{up}_i \cdot \text{SiLU}(\text{gate}_i)
+$$
 
 ```cpp
 template <typename T>
