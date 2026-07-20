@@ -2,7 +2,7 @@
 title: Namespace
 topic: cpp
 tags: [cpp, namespace, linkage, odr, practical-tips]
-summary: C++ 的编译期作用域包裹器，把名字隔离进各自的"房间"避免冲突。覆盖声明/定义/跨文件合并、:: 作用域解析、using 声明 vs 指令（头文件禁忌）、匿名命名空间（内部链接避 ODR）。类比：带标签的抽屉柜。
+summary: "C++ 的编译期作用域包裹器，把名字隔离进各自的「房间」避免冲突。覆盖声明/定义/跨文件合并、:: 作用域解析、using 声明 vs 指令（头文件禁忌）、匿名命名空间（内部链接避 ODR）。类比：带标签的抽屉柜。"
 created: 2026-07-20
 updated: 2026-07-20
 ---
