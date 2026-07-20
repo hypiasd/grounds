@@ -22,6 +22,10 @@ allowed-tools: Read, Write, Edit, Bash
    - **矛盾说法**：不同笔记对同一概念描述冲突。需 agent 主动比对相同 `tags` 的笔记两两读 `summary`，发现可疑冲突时加载正文核对。这是 agent 主观判断，非自动检查——不要假装扫描后报"无矛盾"。
    - **过时内容**：引用了被新资料淘汰的说法。`updated` 日期旧 ≠ 内容过时，`updated` 新 ≠ 内容不过时——这同样是 agent 主观判断，对照领域最新进展评估，不要简单按日期报。
    - **索引覆盖**：列 `wiki/` 核对每个 `<topic>/` 是否都有 `index.md`。
+   - **索引一致性（防 index 漂移）**：
+     - 每个 `wiki/<topic>/index.md` 的"包含笔记"列表，必须与该目录下实际 `.md` 文件（除 `index.md` 自身）**逐一对应且数量相等**；漏列某篇或多了已删的篇 → 报"索引不一致"。
+     - 根 `wiki/index.md` 里每个 topic 的「（N 篇）」**必须等于** 对应 `wiki/<topic>/` 下实际笔记数；不等 → 报"根 index 篇数漂移（列 N，实际 M）"。
+     - 同理覆盖 `paper/`：每个 `paper/<topic>/index.md` 的"包含论文"列表须与该目录实际 `.md` 文件一致；根 `paper/index.md` 须链接全部 `paper/*/` 主题（缺链 → 报"根 paper/index.md 缺 topic 链接"）。
    - **模板合规**（笔记 + `index.md` 都要查）：
      - 笔记：frontmatter 是否含 `title/topic/tags/summary/created/updated`；标题是否是简洁的概念名（而非"XX 笔记"或过长的句子）；链接是否说明了关系。
      - `index.md`：同样必须有 frontmatter（`title/topic/tags/summary/created/updated`），缺失会导致 Quartz folder note 渲染异常。

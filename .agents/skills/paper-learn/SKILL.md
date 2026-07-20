@@ -227,18 +227,18 @@ print('authors:', '; '.join(authors))
 
 1. **判断是否值得沉淀**：对照下方"值得沉淀"标准。
 2. 若值得 → 问用户"要沉淀成笔记吗？"。用户确认后：
-   - **新建模式**：列 `paper/` 判断主题（沿用或新建 `<topic>/`，新建须带 `index.md`）→ 新建 `<论文标题>.md` → 更新 `index.md`。
+   - **新建模式**：列 `paper/` 判断主题（沿用或新建 `<topic>/`，新建须带 `index.md`）→ 新建 `<论文标题>.md` → 更新 `paper/<topic>/index.md`；**若本次新建了 topic，还需在根 `paper/index.md` 追加一行指向 `paper/<topic>/` 的链接（让根 index 像 `wiki/index.md` 那样聚合各主题，否则新论文主题在根 index 不可见），没有"## 主题"小节则新建之**。
    - **更新模式**：读已有笔记 → 将新内容融入现有结构 → 刷新 `updated` 日期。
    - **关键原则**：一篇论文一个 md 文件，文件名即论文标题。两次读同一篇论文是同一篇笔记的两次迭代。
 3. **校验（必做）**：
    - `wc -l <note.md>` 确认非空（建议 ≥ 50 行，frontmatter-only 视为异常）
    - 确认 frontmatter 完整（`title/topic/tags/summary/created/updated/sources`）
-   - 确认 `index.md` 的"包含论文"列表已包含本笔记条目（新建时新增，更新时确认条目存在且说明文字未过期）
+   - 确认 `paper/<topic>/index.md` 的"包含论文"列表已包含本笔记条目（新建时新增，更新时确认条目存在且说明文字未过期）；若本次新建了 topic，确认根 `paper/index.md` 已追加该 topic 链接
    - **校验所有内部链接目标存在**（lint 不扫 paper/，必须自检）：对笔记内所有 `[...](path)` 链接执行 `test -f <相对路径基准>/path && echo OK`，未通过的删除或改写。重点关注：
      - 引用 wiki 的链接（如 `../../wiki/cuda/triton.md`）——wiki 笔记可能被改名/移动
      - `sources` 字段指向的 `raw/papers/` PDF——本机存在即可（raw/ 不进 git）
    - `git status` 确认改动符合预期
-4. **提交**：先 `git status` 确认仅本笔记 + `index.md` 改动；显式 `git add "paper/<topic>/<论文标题>.md" "paper/<topic>/index.md"`（用仓库根相对路径 + 引号，论文标题常含空格/中文/特殊字符；不要 `git add -A`，避免误带其他未完成改动）；`git commit -m "paper-learn <topic>: <一句话>"`。**仓库名判定（与 sync 一致）：grounds 直接 `git push`；临时派生仓无 origin 不 push，commit 后**自动 `$sync`** 把笔记推回 grounds。**
+4. **提交**：先 `git status` 确认仅本笔记 + 两级 `index.md` 改动；显式 `git add "paper/<topic>/<论文标题>.md" "paper/<topic>/index.md" "paper/index.md"`（用仓库根相对路径 + 引号，论文标题常含空格/中文/特殊字符；不要 `git add -A`，避免误带其他未完成改动）；`git commit -m "paper-learn <topic>: <一句话>"`。**仓库名判定（与 sync 一致）：grounds 直接 `git push`；临时派生仓无 origin 不 push，commit 后**自动 `$sync`** 把笔记推回 grounds。**
 
 ---
 

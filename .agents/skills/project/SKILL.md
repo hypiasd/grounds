@@ -93,7 +93,16 @@ fi
 判断"非空已有项目"：`project/$NAME/` 已存在且**不是本次新建的空壳**（即进入前已有内容，或 `MODE=link`/`clone` 拉来的是非空仓库）。
 
 ```bash
-# 进入前已存在 且 非空（除 .gitkeep / notes 外有内容）→ onboard
+# 检测"非空已有项目"：project/$NAME/ 下除 .gitkeep / notes 外是否还有内容
+# MODE=new 新建的空壳不含这些内容 → 不触发 onboard
+# MODE=link/clone 拉来的非空仓库 → 触发 onboard（仅一次）
+cnt=$(find "project/$NAME" -mindepth 1 -maxdepth 1 \
+        -not -name .gitkeep -not -name notes 2>/dev/null | head -1)
+if [ -n "$cnt" ]; then
+  echo "ONBOARD=yes"   # 命中：执行下方 onboard 盘点（生成 notes/index.md + notes/decisions.md）
+else
+  echo "ONBOARD=no"    # 空壳 / 新建：跳过，绝不生成 onboard 笔记（避免覆盖用户已写内容）
+fi
 ```
 
 若满足，则 agent **主动盘点现状**，生成两份笔记（写进 `project/$NAME/notes/`）：
