@@ -93,22 +93,22 @@ grounds/
 
 ---
 
-## 八个 Skill
+## 十个 Skill
 
 所有 skill 在 `.agents/skills/<name>/SKILL.md`。**必须先 Read 对应的 SKILL.md 文件**再执行——表格只是索引，SKILL.md 里的详细流程、Gotchas、质量示例才是执行标准。
 
-| Skill | 触发方式 | 文件 | 产出 |
-|-------|----------|------|------|
-| `start` | **手动 / `$` 触发** | `.agents/skills/start/SKILL.md` | 初始化派生工作仓（内容占位 + .buildconfig） |
-| `project` | **手动 / `$` 触发** | `.agents/skills/project/SKILL.md` | 收纳项目到 `project/<name>/` + 切换项目模式 |
-| `sync` | **手动 / `$` 触发** | `.agents/skills/sync/SKILL.md` | 笔记→grounds、agent→workBase（push）；拉基类（pull） |
-| `learn` | 语义触发（"讲讲 X"、"什么是 Y"） | `.agents/skills/learn/SKILL.md` | wiki 笔记 |
-| `capture` | 语义触发（"整理一下"、"沉淀"） | `.agents/skills/capture/SKILL.md` | wiki 笔记 |
-| `lint` | 语义触发（"体检"、"检查仓库"） | `.agents/skills/lint/SKILL.md` | 问题清单（默认只读） |
-| `query` | 语义触发（"复习一下 X"） | `.agents/skills/query/SKILL.md` | 综合作答 |
-| `paper-learn` | **手动 / `$` 触发**（不接受语义触发） | `.agents/skills/paper-learn/SKILL.md` | paper/ 论文笔记 |
-| `bilibili-render-pdf` | **手动 / `$` 触发**（不接受语义触发） | `.agents/skills/bilibili-render-pdf/SKILL.md` | video/<标题>/ LaTeX+PDF |
-| `youtube-render-pdf` | **手动 / `$` 触发**（不接受语义触发） | `.agents/skills/youtube-render-pdf/SKILL.md` | video/<标题>/ LaTeX+PDF |
+| Skill | 触发 | 文件 | 产出 | 关键原则 |
+|-------|------|------|------|-----------|
+| `start` | **手动 / `$` 触发** | `.agents/skills/start/SKILL.md` | 初始化派生工作仓 | 建内容占位目录、写 `.buildconfig`、移除指向 workBase 的 origin |
+| `project` | **手动 / `$` 触发** | `.agents/skills/project/SKILL.md` | 收纳项目 + 切换项目模式 | 单参数自动判别（URL→clone / 本地目录→软链 / 名字→新建）；非空项目首次进入自动 onboard |
+| `sync` | **手动 / `$` 触发** | `.agents/skills/sync/SKILL.md` | 笔记→grounds、agent↔workBase 同步 | 笔记合并式推送；agent 按提交时间定方向（推/拉） |
+| `learn` | 语义触发 | `.agents/skills/learn/SKILL.md` | wiki 笔记 | 先给地图再走路；同一概念永只有一篇 |
+| `capture` | 语义触发 | `.agents/skills/capture/SKILL.md` | wiki 笔记 | 一次对话→多个原子洞察→各归其位；面经三源（小红书/知乎/牛客）必须全搜 |
+| `lint` | 语义触发 | `.agents/skills/lint/SKILL.md` | 问题清单（默认只读） | 只扫 `wiki/`，不扫 `paper/` `video/` |
+| `query` | 语义触发 | `.agents/skills/query/SKILL.md` | 综合作答 | 先扫 summaries 定位，答案必须可溯源到仓库笔记 |
+| `paper-learn` | **手动 / `$` 触发** | `.agents/skills/paper-learn/SKILL.md` | paper/ 论文笔记 | 学习者视角为主、批判性读者为辅；一篇论文一个 md |
+| `bilibili-render-pdf` | **手动 / `$` 触发** | `.agents/skills/bilibili-render-pdf/SKILL.md` | video/ LaTeX+PDF | 字幕三级回退（CC→Whisper→OCR） |
+| `youtube-render-pdf` | **手动 / `$` 触发** | `.agents/skills/youtube-render-pdf/SKILL.md` | video/ LaTeX+PDF | 同 bilibili-render-pdf，省略 B 站专属适配 |
 
 ### 调度规则（跨 agent 通用）
 
@@ -122,20 +122,7 @@ grounds/
 
 ## Skill 一览
 
-所有 Skill 的完整流程、Gotchas、质量示例在各自 SKILL.md 中。以下仅列触发词和关键原则——执行前**必须先 Read 对应 SKILL.md**。
-
-| Skill | 触发 | 关键原则 |
-|-------|------|---------|
-| `learn` | "讲讲 X"、"什么是 Y" | 先给地图再走路——全景概览列所有方向，用户自己选深入哪个。同一概念永远只有一篇笔记。 |
-| `capture` | "整理一下"、"沉淀" | 一次对话 → 多个原子洞察 → 各归其位。面经搜索三个源（小红书/知乎/牛客）必须全搜完。 |
-| `lint` | "体检"、"检查仓库" | 默认只报告不修改。**只扫 `wiki/`**，不扫 `paper/` 和 `video/`。 |
-| `query` | "复习一下 X"、"对比 A 和 B" | 先扫 summaries 定位，再精准加载。答案必须可溯源到仓库笔记。内容不足时明说并建议 learn。 |
-| `start` | **手动 / `$` 触发** | 把 workBase clone 初始化为派生工作仓：建内容占位目录、写 `.buildconfig`、移除指向 workBase 的 origin。 |
-| `project` | **手动 / `$` 触发** | 单参数自动判别（URL→clone / 本地目录→软链 / 名字→新建），收纳进 `project/<name>/` 并切换项目模式；非空项目首次进入自动 onboard 盘点。 |
-| `sync` | **手动 / `$` 触发** | 笔记→grounds（合并式）、agent 双向同步（推本仓改进到 workBase + 拉最新基类回本仓）。无子命令，单条 `$sync` 完成。 |
-| `paper-learn` | **手动 / `$` 触发** | 学习者视角为主、批判性读者为辅。一篇论文一个 md 文件。 |
-| `bilibili-render-pdf` | **手动 / `$` 触发** | 字幕三级回退（CC→Whisper→OCR）。产出 `.tex`+`.pdf`+`index.md`，工作目录与成品目录合一。 |
-| `youtube-render-pdf` | **手动 / `$` 触发** | 同 bilibili-render-pdf，省略 B 站专属适配。 |
+> 十个技能的完整索引（触发 / 文件 / 产出 / 关键原则）已合并到上方「十个 Skill」总表，避免两处漂移。执行前**必须先 Read 对应 SKILL.md**。
 
 ---
 
