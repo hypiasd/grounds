@@ -1,4 +1,4 @@
-# AGENTS.md — grounds（workBase 基类 · 主派生类）
+# AGENTS.md — 个人学习仓库（workBase 基类）
 
 你是这个仓库的协作者，同时扮演两个角色：
 
@@ -71,7 +71,7 @@ grounds/
 - `sync`：把当前派生仓的 `wiki/ paper/ video/ project/` **直接更新**到 grounds 远程（**排除** agent 文件集）。
 
 > 注意：`.gitignore`、`README.md`、`.github/` 等仓库专属文件**不在** agent 文件集内，不会跨仓覆盖。
-> 当前基类含 learn / capture / lint / query / paper-learn / bilibili-render-pdf / youtube-render-pdf 七个技能；`build` 项目场景技能后续加入基类。
+> 当前基类含 start / project / sync / learn / capture / lint / query / paper-learn / bilibili-render-pdf / youtube-render-pdf 十个技能；结构类（start/project/sync）只接受手动 / `$` 触发。
 
 ---
 
@@ -93,12 +93,15 @@ grounds/
 
 ---
 
-## 七个 Skill
+## 八个 Skill
 
 所有 skill 在 `.agents/skills/<name>/SKILL.md`。**必须先 Read 对应的 SKILL.md 文件**再执行——表格只是索引，SKILL.md 里的详细流程、Gotchas、质量示例才是执行标准。
 
 | Skill | 触发方式 | 文件 | 产出 |
 |-------|----------|------|------|
+| `start` | **手动 / `$` 触发** | `.agents/skills/start/SKILL.md` | 初始化派生工作仓（内容占位 + .buildconfig） |
+| `project` | **手动 / `$` 触发** | `.agents/skills/project/SKILL.md` | 收纳项目到 `project/<name>/` + 切换项目模式 |
+| `sync` | **手动 / `$` 触发** | `.agents/skills/sync/SKILL.md` | 笔记→grounds、agent→workBase（push）；拉基类（pull） |
 | `learn` | 语义触发（"讲讲 X"、"什么是 Y"） | `.agents/skills/learn/SKILL.md` | wiki 笔记 |
 | `capture` | 语义触发（"整理一下"、"沉淀"） | `.agents/skills/capture/SKILL.md` | wiki 笔记 |
 | `lint` | 语义触发（"体检"、"检查仓库"） | `.agents/skills/lint/SKILL.md` | 问题清单（默认只读） |
@@ -109,8 +112,8 @@ grounds/
 
 ### 调度规则（跨 agent 通用）
 
-1. **前 4 个 skill（learn/capture/lint/query）**：识别用户意图，匹配触发词后自动调度。SKILL.md frontmatter 里的 `disable-model-invocation: true` 是 Claude Code / Codex 语义（指"禁止模型无用户触发时自动调用"），CodeBuddy / Qoder / Trae 会忽略该字段；这不影响"用户消息触发后自动调度"——所有 agent 都按本调度规则执行。
-2. **后 3 个 skill（paper-learn/bilibili-render-pdf/youtube-render-pdf）**：**只接受手动触发或 `$` 触发**——agent 不得基于用户消息内容自动调用它们，即使用户提供了 arxiv/BV/YouTube 链接。用户必须显式说"用 paper-learn skill 读这篇论文"或输入 `$paper-learn <url>` 才会触发。
+1. **前 4 个内容 skill（learn/capture/lint/query）**：识别用户意图，匹配触发词后自动调度。SKILL.md frontmatter 里的 `disable-model-invocation: true` 是 Claude Code / Codex 语义（指"禁止模型无用户触发时自动调用"），CodeBuddy / Qoder / Trae 会忽略该字段；这不影响"用户消息触发后自动调度"——所有 agent 都按本调度规则执行。
+2. **结构类 skill（start/project/sync）与产出类 skill（paper-learn/bilibili-render-pdf/youtube-render-pdf）**：**只接受手动触发或 `$` 触发**——agent 不得基于用户消息内容自动调用它们。用户必须显式说"用 start 初始化"或输入 `$project <name>` / `$sync` 才会触发。这类 skill 直接改动仓库状态与远程，禁止语义自动触发以免误推远程。
 3. **用 Read 工具读取对应的 SKILL.md 文件**。不要跳过——表格只是索引。
 4. 严格按 SKILL.md 中的流程执行，包括校验步骤。
 5. 写 wiki 笔记前必须再读 `.agents/conventions.md`。写 paper 笔记前读 paper-learn SKILL.md 内的模板说明。
@@ -127,6 +130,9 @@ grounds/
 | `capture` | "整理一下"、"沉淀" | 一次对话 → 多个原子洞察 → 各归其位。面经搜索三个源（小红书/知乎/牛客）必须全搜完。 |
 | `lint` | "体检"、"检查仓库" | 默认只报告不修改。**只扫 `wiki/`**，不扫 `paper/` 和 `video/`。 |
 | `query` | "复习一下 X"、"对比 A 和 B" | 先扫 summaries 定位，再精准加载。答案必须可溯源到仓库笔记。内容不足时明说并建议 learn。 |
+| `start` | **手动 / `$` 触发** | 把 workBase clone 初始化为派生工作仓：建内容占位目录、写 `.buildconfig`、移除指向 workBase 的 origin。 |
+| `project` | **手动 / `$` 触发** | 单参数自动判别（URL→clone / 本地目录→软链 / 名字→新建），收纳进 `project/<name>/` 并切换项目模式；非空项目首次进入自动 onboard 盘点。 |
+| `sync` | **手动 / `$` 触发** | push：笔记→grounds、agent 改进→workBase（本地优先覆盖）；`sync pull`：workBase 最新 agent 覆盖式拉回本仓。 |
 | `paper-learn` | **手动 / `$` 触发** | 学习者视角为主、批判性读者为辅。一篇论文一个 md 文件。 |
 | `bilibili-render-pdf` | **手动 / `$` 触发** | 字幕三级回退（CC→Whisper→OCR）。产出 `.tex`+`.pdf`+`index.md`，工作目录与成品目录合一。 |
 | `youtube-render-pdf` | **手动 / `$` 触发** | 同 bilibili-render-pdf，省略 B 站专属适配。 |
