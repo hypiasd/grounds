@@ -19,3 +19,7 @@ raw/     原始资料（只增不删；分 wiki/papers/videos）
 - 手动 / `$` 触发：`paper-learn` · `bilibili-render-pdf` · `youtube-render-pdf`
 
 详见 [AGENTS.md](AGENTS.md)。
+
+## 仓库继承模型
+
+本仓库是 agent 基类 **workBase**（`git@github.com:hypiasd/workBase.git`）的**主派生类**：workBase + `wiki/ paper/ video/ raw/ project/` + Quartz 部署。agent 行为（角色、铁律、技能、规范）由 workBase 定义，经「覆盖式同步」在派生仓间共享；详见 AGENTS.md 的「仓库继承模型」一节。临时派生仓的笔记经 `sync` 推回本仓库。

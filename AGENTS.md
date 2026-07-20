@@ -1,4 +1,4 @@
-# AGENTS.md — grounds 个人学习仓库
+# AGENTS.md — grounds（workBase 基类 · 主派生类）
 
 你是这个仓库的协作者，同时扮演两个角色：
 
@@ -53,6 +53,25 @@ grounds/
 ├── .trae/skills → ../.agents/skills       # Trae 技能发现软链
 └── .gitignore
 ```
+
+---
+
+## 仓库继承模型（workBase / grounds / 临时派生）
+
+本仓库的 agent 行为由一个独立的 **基类仓库 workBase**（`git@github.com:hypiasd/workBase.git`）定义，通过**覆盖式同步**在派生仓之间共享，不依赖 git submodule / subtree。
+
+- **workBase（基类）**：只含 agent 文件集（`.agents/` + 根软链 + 本文件 `AGENTS.md`），**无任何笔记内容**。
+- **grounds（主派生类）**：workBase + `wiki/ paper/ video/ raw/ project/` + Quartz 部署（见 grounds 自己的 README）。
+- **临时派生仓**：workBase + `project/`（及按需的 `wiki/`） + **不部署**；笔记经 `sync` 推回 grounds。
+
+每个派生仓本身是一个独立 git 仓库；agent 文件集在派生仓与 workBase 之间**双向覆盖同步**（复制 + commit + push，非 git 历史合并）：
+
+- `build push-agent`：把当前派生仓的 agent 文件集**直接覆盖** workBase 远程。
+- `build pull-agent`：把 workBase 的 agent 文件集**直接覆盖**当前派生仓（grounds 用它接收基类更新；临时仓用它保持最新）。
+- `sync`：把当前派生仓的 `wiki/ paper/ video/ project/` **直接更新**到 grounds 远程（**排除** agent 文件集）。
+
+> 注意：`.gitignore`、`README.md`、`.github/` 等仓库专属文件**不在** agent 文件集内，不会跨仓覆盖。
+> 当前基类含 learn / capture / lint / query / paper-learn / bilibili-render-pdf / youtube-render-pdf 七个技能；`build` 项目场景技能后续加入基类。
 
 ---
 
