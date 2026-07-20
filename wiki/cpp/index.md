@@ -4,7 +4,7 @@ topic: cpp
 tags: [cpp]
 summary: C++ 语言层面的语法特性、惯用法和容易踩坑的细节。
 created: 2026-07-17
-updated: 2026-07-19
+updated: 2026-07-20
 ---
 
 ## 这个主题是什么 / 学习目标
@@ -12,6 +12,8 @@ updated: 2026-07-19
 C++ 语言层面的语法特性、惯用法和容易踩坑的细节。重点不是 C++ 教程，而是实际写题/写项目中遇到的"为什么能这样写"的问题。
 
 ## 包含笔记
+
+- [编译模型](compilation-model.md) — C++ 源码变可执行文件的规则网：翻译单元、编译/链接两阶段、头文件守卫、ODR、inline、模板分离编译、标准库 .a/.so 辨析
 
 - [Templates](templates.md) — C++ 编译期泛型编程全景：基础实例化、特化、变参模板、SFINAE/Type Traits/Concepts、非类型模板参数与编译期计算
 - [Braced-Init-List](braced-init-list.md) — 花括号初始化列表本身无类型，编译器根据目标类型决定调用哪个构造函数
