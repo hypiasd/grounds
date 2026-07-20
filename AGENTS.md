@@ -130,19 +130,7 @@ grounds/
 
 ## 笔记规范
 
-写 wiki 笔记前必须先读 `.agents/conventions.md`。核心要点：
-
-- **原子性**：一篇笔记只讲一个概念
-- **标题是概念名**："Dropout"，不是"Dropout 笔记"
-- **Frontmatter 必填**：`title`、`topic`、`tags`、`summary`、`created`、`updated`
-- **有公式必须写出来**：使用 LaTeX 格式（`$...$` 或 `$$...$$`）
-- **tags 是跨主题发现的安全网**：`[regularization, practical-tips]`
-- **summary 是 query 扫描用的**：agent 读 summaries 定位笔记，无需加载全文
-- **链接必须说明关系**：`[Dropout](note.md) — 和 BatchNorm 同属正则化，但机制不同`
-- **Topic 分配**：选一个 topic 放，tags 补其他维度。不确定时先放再调——结构会演化。
-- **参考范例**：`wiki/cpp/move-semantics.md`
-
-paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `conventions.md`。
+写 wiki 笔记前必读 `.agents/conventions.md`（细则全在里头：原子性、标题、frontmatter、公式、tags、summary、互链、topic 分配）。paper 笔记模板见 `paper-learn` SKILL.md，video 笔记见 `bilibili-render-pdf` / `youtube-render-pdf` SKILL.md，二者都不套用 `conventions.md`。
 
 ---
 
@@ -186,25 +174,13 @@ paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `con
 
 ## Gotchas（agent 最常犯的错）
 
-- **不读 conventions 就写笔记** → frontmatter 缺字段。写 wiki 笔记前必须 Read `.agents/conventions.md`。
-- **不读 SKILL.md 就执行** → 遗漏关键步骤（如 learn 的检验、答疑循环、外部资料处理；learn-capture 的面经搜索；paper-learn 的论文-代码对照）。触发后必须先 Read 对应 SKILL.md。
-- **忘记更新 index.md** → wiki 笔记变孤儿页。
-- **讲完忘 commit + push** → 下次打开仓库状态不一致。commit 之后不 push，换个机器就看不到。
-- **把 query 当 learn 用** → 用户问已有知识时应该查笔记作答。
-- **learn 讲完跳过检验** → 检验是固定阶段，讲完必须主动出题。
-- **有公式不写** → 不能说"用 softmax 归一化"而不给 softmax 公式。
-- **重复建笔记** → 讲之前先查仓库，已有笔记走更新模式。
-- **自动触发手动 skill** → 5 个手动 skill（learn-capture/project-capture/paper-learn/bilibili-render-pdf/youtube-render-pdf）只接受手动 / `$` 触发，agent 不得基于用户消息内容自动调用。
-- **在 paper/ 或 video/ 建互链** → 互链只管 wiki/。paper 笔记可单向引用 wiki，但 wiki 不反向链接 paper/video。
+- **写任何笔记前必读规范**：wiki 笔记前 Read `.agents/conventions.md`；paper/video 笔记前 Read 对应 SKILL.md 模板。这是「没触发 skill 也直接写笔记」场景的兜底——不靠 skill 内部规则。
+- **触发任何 skill 前必读其 SKILL.md**：调度规则已要求，这里再强调一遍（遗漏关键步骤基本都源于没读）。
+- **query vs learn 边界**：用户问已有知识应查笔记作答（query），不要当 learn 重写一遍。详见 `query` SKILL.md。
 
 ---
 
 ## 注意事项
 
-- 废弃笔记移入 `.agents/archive/`，不要直接删除。
+- 废弃笔记移入 `.agents/archive/`，不要直接删除（冷归档，跨 skill 通用）。
 - `raw/` 只增不删，分两个子目录：`raw/wiki/`（learn/learn-capture/query 资料）、`raw/papers/`（论文 PDF）。
-- `paper/` 笔记按主题分目录，但**不存在合并拆分问题**——一篇论文一个 md 文件，文件名即论文标题，论文不会移动。
-- `video/` 是工作目录与成品目录合一：`.tex` + `.pdf` + `index.md` 进 git；`sources/`、`figures/`、`ocr/`、`cover.jpg` 由 `.gitignore` 排除不进 git。
-- `lint` 只扫 `wiki/`，不扫 `paper/` 和 `video/`。
-- `wiki/<topic>/index.md` 是 Quartz 的 folder note，访问 `/wiki/<topic>/` 时直接渲染。
-- 互链只管 `wiki/`：wiki 笔记之间互链，wiki 笔记可引用 `raw/wiki/` 资料。`paper/` 和 `video/` 不参与互链（paper 笔记可单向引用 wiki，但不建立反链）。
