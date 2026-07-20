@@ -103,9 +103,13 @@ git remote remove origin
 - 若用户**想保留**自己的远程（给临时仓建了独立 repo），应在跑 `start` 前自己 `git remote set-url origin <自己的URL>` 或 `git remote add mine <URL>`；`start` 只负责**移除指向 workBase 的 origin**，不碰其他 remote。
 - 移除后提示：「已移除指向 workBase 的 origin，避免内容误推回基类。如需把本仓备份到自己的远程，请手动 `git remote add origin <你的URL>`。」
 
-### 第五步：校验 + 收尾
+### 第五步：提交占位目录 + 校验 + 收尾
 
 ```bash
+# 提交占位目录（raw/ 和 .buildconfig 被 gitignore，不用 add）
+git add wiki/.gitkeep paper/.gitkeep video/.gitkeep project/.gitkeep project_logs/.gitkeep
+git commit -m "start: 初始化派生工作仓占位目录"
+
 test -f .buildconfig && test -d project && echo "start OK"
 ```
 

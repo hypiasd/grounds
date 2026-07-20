@@ -96,7 +96,11 @@ if ! $IS_GROUNDS; then
     git add -A
     git commit -m "sync: 推送派生仓笔记 $(date +%Y-%m-%dT%H-%M)" || echo "nothing to commit"
     git pull --no-edit -X ours "$grounds_remote" main 2>/dev/null || true
-    git push "$grounds_remote" main
+    if git push "$grounds_remote" main; then
+      echo "笔记已推到 grounds"
+    else
+      echo "⚠️ 笔记推送失败，请检查网络或手动 push"
+    fi
   )
   # 仅临时 clone 才清理；local_grounds_path 模式保留本地副本
   [ -z "$local_grounds_path" ] && rm -rf "$GROUNDS"
@@ -117,12 +121,18 @@ fi
 # 下面 git log / git status 一律内联字面列表，不依靠变量展开。
 # 提交时间只取自"已提交"的 agent 文件集；未提交改动不再抬高 LOCAL_TS，
 # 否则会盖过 workBase 上"更新的已提交版本"，导致上游改进被静默丢失。
-LOCAL_TS=$(git log -1 --format=%ct -- .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae 2>/dev/null || echo 0)
+LOCAL_TS=$(git log -1 --format=%ct -- .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae 2>/dev/null)
+LOCAL_TS=${LOCAL_TS:-0}
 LOCAL_DIRTY=$(git status --porcelain -- .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae 2>/dev/null)
 
 WB=$(mktemp -d)
-git clone "$workbase_remote" "$WB" >/dev/null 2>&1
-BASE_TS=$(cd "$WB" && git log -1 --format=%ct -- .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae 2>/dev/null || echo 0)
+if ! git clone "$workbase_remote" "$WB" >/dev/null 2>&1 || [ ! -d "$WB/.git" ]; then
+  echo "⚠️ workBase clone 失败（网络/SSH 问题），跳过 agent 同步。"
+  rm -rf "$WB"
+  # 直接跳到第六步收尾
+else
+BASE_TS=$(cd "$WB" && git log -1 --format=%ct -- .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae 2>/dev/null)
+BASE_TS=${BASE_TS:-0}
 
 # 方向判定（按"已提交"时间定，谁的新提交谁赢）：
 #   LOCAL_TS  > BASE_TS       → 本地提交更新 → 推 workBase
@@ -170,6 +180,7 @@ case "$MODE" in
     ;;
 esac
 rm -rf "$WB"
+fi  # end of workBase clone 成功分支
 ```
 
 > **为什么用提交时间而非文件 mtime**：clone / pull 会重置文件 mtime，跨机不可比；git 提交时间是稳定的墙钟时间，可正确判断"谁改得更晚"。方向严格按"已提交时间"定：workBase 的更新提交永远优先拉回本仓（不会因本地有未提交草稿而被回写覆盖）；只有当双方提交时间相同、且本地确有未提交改动时，才把本地草稿当作更新推给 workBase（此时 workBase 并未更新，安全）。

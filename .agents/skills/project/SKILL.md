@@ -81,8 +81,9 @@ local_grounds_path=
 current_project=
 EOF
 # 更新 current_project 字段（不存在则追加）
+# 注意：用 sed -i.bak + rm 代替 sed -i ''（后者是 macOS 专属，Linux 不兼容）
 if grep -q '^current_project=' .buildconfig; then
-  sed -i '' "s/^current_project=.*/current_project=$NAME/" .buildconfig
+  sed -i.bak "s/^current_project=.*/current_project=$NAME/" .buildconfig && rm -f .buildconfig.bak
 else
   echo "current_project=$NAME" >> .buildconfig
 fi
@@ -135,7 +136,7 @@ fi
 if ! grep -q '^onboarded=' .buildconfig 2>/dev/null; then
   echo "onboarded=$NAME" >> .buildconfig
 elif ! grep '^onboarded=' .buildconfig | cut -d= -f2- | grep -q " $NAME "; then
-  sed -i '' "s/^onboarded=.*/onboarded=$(grep '^onboarded=' .buildconfig | cut -d= -f2-) $NAME/" .buildconfig
+  sed -i.bak "s/^onboarded=.*/onboarded=$(grep '^onboarded=' .buildconfig | cut -d= -f2-) $NAME/" .buildconfig && rm -f .buildconfig.bak
 fi
 ```
 
