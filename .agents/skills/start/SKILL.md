@@ -106,5 +106,5 @@ test -f .buildconfig && test -d project && echo "start OK"
 ## Gotchas（真实踩过的坑）
 - **复制 agent 文件集必须保留软链**：`.claude` 是软链到 `.agents`，`.codebuddy/.qoder/.trae` 内含软链到 `.agents/skills`。任何 `cp` 都要 `-R`（macOS 默认不跟随符号链接，符合预期），切勿用 `cp -L` 或解引用。
 - **已 start 过不重复**：检测到 `.buildconfig` 直接停止，不要覆盖用户已有的 `project/` 内容。
-- **start 不碰 agent 文件集**：本 skill 只建内容目录 + 写配置 + 处理 origin；agent 文件集的更新由 `sync pull`（拉基类）和 `sync`（push-agent 推回基类）负责。
+- **start 不碰 agent 文件集**：本 skill 只建内容目录 + 写配置 + 处理 origin；agent 文件集的更新由 `sync`（推本仓改进到 workBase + 拉最新基类回本仓）统一负责。
 - **不要 git add -A 后乱 commit**：start 只应新增占位目录与 `.buildconfig`，不碰 agent 文件集的既有跟踪状态。

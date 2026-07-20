@@ -132,7 +132,7 @@ grounds/
 | `query` | "复习一下 X"、"对比 A 和 B" | 先扫 summaries 定位，再精准加载。答案必须可溯源到仓库笔记。内容不足时明说并建议 learn。 |
 | `start` | **手动 / `$` 触发** | 把 workBase clone 初始化为派生工作仓：建内容占位目录、写 `.buildconfig`、移除指向 workBase 的 origin。 |
 | `project` | **手动 / `$` 触发** | 单参数自动判别（URL→clone / 本地目录→软链 / 名字→新建），收纳进 `project/<name>/` 并切换项目模式；非空项目首次进入自动 onboard 盘点。 |
-| `sync` | **手动 / `$` 触发** | push：笔记→grounds、agent 改进→workBase（本地优先覆盖）；`sync pull`：workBase 最新 agent 覆盖式拉回本仓。 |
+| `sync` | **手动 / `$` 触发** | 笔记→grounds（合并式）、agent 双向同步（推本仓改进到 workBase + 拉最新基类回本仓）。无子命令，单条 `$sync` 完成。 |
 | `paper-learn` | **手动 / `$` 触发** | 学习者视角为主、批判性读者为辅。一篇论文一个 md 文件。 |
 | `bilibili-render-pdf` | **手动 / `$` 触发** | 字幕三级回退（CC→Whisper→OCR）。产出 `.tex`+`.pdf`+`index.md`，工作目录与成品目录合一。 |
 | `youtube-render-pdf` | **手动 / `$` 触发** | 同 bilibili-render-pdf，省略 B 站专属适配。 |
