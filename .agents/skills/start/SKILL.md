@@ -59,7 +59,6 @@ done
 
 ```bash
 cat > .buildconfig <<'EOF'
-role=temp-derived
 grounds_url=git@github.com:hypiasd/grounds.git
 workbase_url=git@github.com:hypiasd/workBase.git
 # 可选：本机已有 grounds 本地路径，sync 时优先直接用，省去 clone
@@ -69,7 +68,7 @@ current_project=
 EOF
 ```
 
-- `role`：固定 `temp-derived`（主派生类 grounds 自身为 `main-derived`）。
+- **不再有 `role` 字段**：`sync` 现在按**仓库名**（目录名 `grounds` 或远端 URL 含 `grounds`）判定"当前是不是 grounds"，无需显式标记。
 - `local_grounds_path`：留空即可；本机已有 grounds（如 `/Users/tian/Documents/sys/grounds`）填上去能让 `sync` 跳过 clone。
 
 ### 第四步：处理 origin
@@ -94,7 +93,7 @@ test -f .buildconfig && test -d project && echo "start OK"
 ```
 派生工作仓已就绪（零内容、全技能可用）：
 - 内容目录：wiki/ paper/ video/ raw/ project/ 已建好
-- .buildconfig：role=temp-derived，已指向 grounds / workBase 远程
+- .buildconfig：已指向 grounds / workBase 远程（无 role 字段，是否 grounds 由仓库名判定）
 - origin：已移除指向 workBase 的引用
 
 接下来：
