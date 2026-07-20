@@ -80,8 +80,8 @@ done
 
 ```bash
 cat > .buildconfig <<'EOF'
-grounds_url=git@github.com:hypiasd/grounds.git
-workbase_url=git@github.com:hypiasd/workBase.git
+grounds_remote=git@github.com:hypiasd/grounds.git
+workbase_remote=git@github.com:hypiasd/workBase.git
 # 可选：本机已有 grounds 本地路径，sync 时优先直接用，省去 clone
 local_grounds_path=
 # 可选：当前处于项目模式的项目名（由 project skill 维护）

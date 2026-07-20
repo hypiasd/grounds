@@ -75,8 +75,8 @@ mkdir -p "project/$NAME/notes"
 ```bash
 # 若 .buildconfig 不存在先建（理论上 start 已建；这里兜底）
 [ -f .buildconfig ] || cat > .buildconfig <<'EOF'
-grounds_url=git@github.com:hypiasd/grounds.git
-workbase_url=git@github.com:hypiasd/workBase.git
+grounds_remote=git@github.com:hypiasd/grounds.git
+workbase_remote=git@github.com:hypiasd/workBase.git
 local_grounds_path=
 current_project=
 EOF
