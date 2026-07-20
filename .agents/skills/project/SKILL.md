@@ -48,24 +48,33 @@ ARG="$1"
 [ -z "$ARG" ] && { echo "用法：$project <name|本地路径|git URL>"; exit 1; }
 # 取 name：clone 取 URL basename 去 .git；其余取路径 basename
 NAME=$(basename "${ARG%.git}")
+# 校验：项目名不能含空格（会破坏 .buildconfig 的空格分隔列表和 shell 分词）
+case "$NAME" in
+  *" "*) echo "❌ 项目名不能含空格：'$NAME'。请用中划线代替（如 my-project）"; exit 1 ;;
+esac
 ```
 
 ### 第二步：按 MODE 收纳
 
 ```bash
 mkdir -p project
-case "$MODE" in
-  clone)
-    git clone "$ARG" "project/$NAME"
-    ;;
-  link)
-    ln -s "$(cd "$ARG" && pwd)" "project/$NAME"
-    ;;
-  new)
-    git init "project/$NAME" >/dev/null 2>&1
-    echo "new: 已 git init project/$NAME（独立仓库，父仓库忽略其内容）"
-    ;;
-esac
+# 重入检测：project/$NAME 已存在（之前 clone/link/new 过）→ 跳过收纳，直接切换上下文
+if [ -e "project/$NAME" ] || [ -L "project/$NAME" ]; then
+  echo "项目 project/$NAME 已存在，直接切换。"
+else
+  case "$MODE" in
+    clone)
+      git clone "$ARG" "project/$NAME"
+      ;;
+    link)
+      ln -s "$(cd "$ARG" && pwd)" "project/$NAME"
+      ;;
+    new)
+      git init "project/$NAME" >/dev/null 2>&1
+      echo "new: 已 git init project/$NAME（独立仓库，父仓库忽略其内容）"
+      ;;
+  esac
+fi
 # 任何模式都确保项目笔记目录存在（与 project/ 解耦，project/ 是独立 git 仓库，父仓库忽略）
 mkdir -p "project_logs/$NAME"
 ```
@@ -106,7 +115,7 @@ cnt=$(find "$TARGET" -mindepth 1 -maxdepth 1 \
 # 读取已 onboard 列表（持久化在 .buildconfig，空格分隔；不进 sync，属本机状态）
 ONBOARDED=""
 [ -f .buildconfig ] && ONBOARDED=$(grep '^onboarded=' .buildconfig 2>/dev/null | cut -d= -f2-)
-already() { echo " $ONBOARDED " | grep -q " $1 "; }
+already() { echo " $ONBOARDED " | grep -qF " $1 "; }
 if [ -n "$cnt" ] && ! already "$NAME"; then
   echo "ONBOARD=yes"   # 命中：执行下方 onboard 盘点（生成 project_logs/<name>/index.md + decisions.md）
 else
