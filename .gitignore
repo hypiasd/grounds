@@ -9,6 +9,7 @@
 # 依赖（若未来引入校验脚本）
 node_modules/
 __pycache__/
+*.pyc
 
 # 原始资料：PDF / 源码快照 / 视频 / 字幕等大文件只留本地，全部不进 git
 # raw/ 目录会在 learn / paper-learn / video skill 使用时自动创建，无需 .gitkeep 维持骨架
