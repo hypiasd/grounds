@@ -11,7 +11,26 @@ sources:
 
 ## TL;DR
 
-Tensor 不拥有数据——它通过 `storage`（shared_ptr 指向一块设备内存）+ `offset`（字节偏移）+ `meta`（shape/strides/dtype）来"描述"数据。view/permute/slice 全部只修改 meta 或 offset，不搬移数据。这就是"形状是幻觉，内存是真相"——同一个 storage 可以被多个 Tensor 以不同形状/步长描述。
+Tensor 不拥有数据——它通过 `storage`（shared_ptr 指向一块设备内存）+ `offset`（字节偏移）+ `meta`（shape/strides/dtype）来“描述”数据。view/permute/slice 全部只修改 meta 或 offset，不搬移数据。这就是“形状是幻觉，内存是真相”——同一个 storage 可以被多个 Tensor 以不同形状/步长描述。
+
+## 设计决策：为什么这样设计
+
+**为什么 Tensor 不直接拥有数据（像 std::vector 那样）？**
+
+因为 LLM 推理中大量操作是“换个角度看同一块数据”：
+- Q/K/V 投影后需要 reshape（[seqlen, nh*dh] → [seqlen, nh, dh]）
+- Attention 输出需要 reshape 回去
+- KV Cache 需要 slice
+
+如果每次 reshape 都拷贝数据，1.5B 模型每层要拷贝几十 MB——完全不可接受。零拷贝的关键就是把“数据”和“描述”分离：storage 不动，只改 meta。
+
+**为什么 offset 是字节而不是元素数？**
+
+因为 slice 可能发生在非第一维。比如 shape [4, 8] slice(dim=0, start=2, end=4)，新 Tensor 的起始地址是 `base + 2 * stride[0] * elementSize()`。用字节偏移可以直接做指针算术，不用每次访问都重新计算。
+
+**为什么 view 要求连续？**
+
+view 是“重新解读 strides”——它假设内存中元素是紧密排列的，然后给一个新的 shape+strides 解读。如果 Tensor 不连续（比如 permute 过），元素在内存中的顺序和新 shape 假设的顺序不一致，强行 view 会读到错误数据。这时应该用 reshape（先 contiguous 再 view）。
 
 ## 核心概念
 
@@ -141,12 +160,15 @@ tensor_t Tensor::to(llaisysDeviceType_t device_type, int device) const {
 
 ## 直觉 / 类比
 
-Tensor 就像一张"地图"——storage 是实际地形（内存），shape/strides 是地图上的标注（怎么读地形）。permute 是旋转地图，slice 是裁掉一角，view 是换一种比例尺——地形本身没动。只有 contiguous() 是"按新地图重新铺一遍地形"。
+Tensor 就像一张“地图”——storage 是实际地形（内存），shape/strides 是地图上的标注（怎么读地形）。permute 是旋转地图，slice 是裁掉一角，view 是换一种比例尺——地形本身没动。只有 contiguous() 是“按新地图重新铺一遍地形”。
+
+另一个类比：storage 是一本书的原文，Tensor 是“从第 X 页开始、每隔 Y 行读一句、读成 Z 列的表格”这样的指令。view/permute/slice 只是改指令，不重印书。
 
 ## 常见误区
 
-- **"view 就是改 shape"** → 必须验证连续性。shape (2,3,5) strides (30,10,1) 可以 view 成 (2,15)，但 permute 后 strides 变了就不能直接 view。
-- **"strides 单位是字节"** → 不是，是**元素数**。实际字节偏移 = stride × elementSize()。
+- **“view 就是改 shape”** → 必须验证连续性。shape (2,3,5) strides (30,10,1) 可以 view 成 (2,15)，但 permute 后 strides 变了就不能直接 view。强行 view 不连续的 Tensor 会读到错误数据——不是报错，是静默错误。
+- **“strides 单位是字节”** → 不是，是**元素数**。实际字节偏移 = stride × elementSize()。这个区分在混合精度（FP16 和 FP32 混合）时尤其重要。
+- **“slice 后 Tensor 拥有新数据”** → 不是，slice 只改 offset 和 shape，底层 storage 是共享的。修改 slice 后的 Tensor 会影响原 Tensor。
 
 ## 关联
 

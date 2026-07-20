@@ -13,6 +13,20 @@ sources:
 
 每个算子遵循统一模式：`op.cpp` 做前置检查 + 设备分发（switch deviceType），`cpu/<name>_cpu.cpp` 用 C++ 模板实现 FP32/FP16/BF16 三种精度。半精度计算统一先 cast 到 float32 做运算再 cast 回去。self_attention 支持 GQA（nhead ≠ nkvhead 时按 group 映射）和 causal mask。
 
+## 设计决策
+
+**为什么半精度要先 cast 到 float32 再算？**
+
+FP16 只有 ~3 位有效十进制精度，BF16 只有 ~2 位。如果直接在半精度下做累加（比如 linear 的 4096 维点积），舍入误差会累积到不可接受。先 cast 到 float32（~7 位精度）做中间计算，最后再 cast 回去，是精度和性能的标准平衡点。PyTorch 内部也是这么做的。
+
+**为什么用模板而不是运行时多态？**
+
+算子的内层循环是性能热点。模板在编译期展开，编译器可以对每种 dtype 独立优化（向量化、循环展开）。运行时多态（虚函数）会在每次调用时查 vtable，内层循环里这个开销不可忽略。
+
+**为什么 self_attention 的 causal mask 用 -infinity 而不是 0？**
+
+softmax 中 $e^{-\infty} = 0$，所以 -infinity 位置的注意力权重精确为 0。如果用 0 作为 mask 值，$e^0 = 1$，这个位置还会分走一部分注意力权重——结果就错了。
+
 ## 统一模式
 
 ```cpp
@@ -204,8 +218,10 @@ void swiglu_(T *out, const T *gate, const T *up, size_t numel) {
 
 ## 常见误区
 
-- **"半精度直接算就行"** → FP16/BF16 必须先 cast 到 float32 做中间计算，否则精度损失会在累加中放大。
-- **"self_attention 的 nhead 一定等于 nkvhead"** → GQA（Grouped Query Attention）中 nkvhead < nhead，多个 Q head 共享一组 KV。
+- **“半精度直接算就行”** → FP16/BF16 必须先 cast 到 float32 做中间计算，否则精度损失会在累加中放大。尤其是 linear（4096 维点积）和 rms_norm（求平方和），累加次数多，误差累积显著。
+- **“self_attention 的 nhead 一定等于 nkvhead”** → GQA（Grouped Query Attention）中 nkvhead < nhead，多个 Q head 共享一组 KV。Qwen2-1.5B 是 16 个 Q head 共享 2 个 KV head（group_size=8）。
+- **“RoPE 是加在 embedding 上的”** → 不是，RoPE 加在 Q/K 上（每层都加），不是加在输入 embedding 上。它编码的是相对位置，不是绝对位置。
+- **“rms_norm 的精度无关紧要”** → 实际上 rms_norm 的平方和累加顺序会影响 fp16 结果。PyTorch 先在 native dtype 平方再累加，而不是先 cast 到 float32 再平方——这个顺序差异在 4096 维时能超过 1e-3 容差。
 
 ## 关联
 

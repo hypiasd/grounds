@@ -11,7 +11,21 @@ sources:
 
 ## TL;DR
 
-LLAISYS 用三层架构实现"一套接口，多套后端"：Python 前端通过 ctypes 调用 C API（`.so` 导出的 `__export` 函数），C API 桥接到 C++ 内部实现。设备抽象通过 `LlaisysRuntimeAPI` 函数指针表（C 风格虚函数表）实现——CPU 填 `std::malloc`/`std::memcpy`，GPU 填 `cudaMalloc`/`cudaMemcpy`，上层代码完全不感知底层设备。
+LLAISYS 用三层架构实现“一套接口，多套后端”：Python 前端通过 ctypes 调用 C API（`.so` 导出的 `__export` 函数），C API 桥接到 C++ 内部实现。设备抽象通过 `LlaisysRuntimeAPI` 函数指针表（C 风格虚函数表）实现——CPU 填 `std::malloc`/`std::memcpy`，GPU 填 `cudaMalloc`/`cudaMemcpy`，上层代码完全不感知底层设备。
+
+## 设计决策：为什么这样分层
+
+**为什么不用 pybind11 / C++ 直接暴露给 Python？**
+
+因为目标不只是 Python。C API 是最小的 ABI 公约数——Rust、Go、Java JNI 都能调。pybind11 会把你绑死在 C++ ABI 上（name mangling、STL 类型跨边界、异常传播都是坑）。C API 的代价是“多一层包装”，但收益是语言无关 + ABI 稳定。
+
+**为什么用函数指针表而不是 C++ 虚函数？**
+
+因为 Runtime API 要跨 C 边界暴露。虚函数需要 vtable，vtable 布局是编译器特定的（MSVC 和 GCC 不一样）。函数指针表是纯 C 的“接口多态”——任何编译器、任何语言都能理解。这和 Linux 内核的 `file_operations` 结构体是同一个设计模式。
+
+**为什么 Context 是 thread_local 而不是全局单例？**
+
+多线程推理时，线程 A 可能在 CPU 上跑，线程 B 可能在 GPU 上跑。如果是全局单例，切换设备就要加锁。thread_local 让每个线程独立拥有自己的设备上下文，零竞争。这和 CUDA 的 per-thread default stream 是同一思路。
 
 ## 核心概念
 
@@ -125,10 +139,13 @@ llaisys (shared)           ← 最终 .so，导出 C API
 
 把 LLAISYS 想象成迷你 OS 内核：对上提供统一 syscall（C API），对下通过驱动（Runtime API）适配不同硬件。用户程序（Python）不感知底层是 NVMe 还是 SATA——`read()` 就是 `read()`。
 
+函数指针表就是“驱动接口”——每个硬件厂商（CPU/NVIDIA/天数/沐曦）填一套自己的实现，上层代码只通过指针调用。加一个新设备 = 填一张新表，不改任何上层代码。
+
 ## 常见误区
 
-- **"C API 只是薄包装"** → 它是可移植性基石，决定了参数传递方式（opaque pointer）、错误跨边界传播、ABI 稳定性。
-- **"Context 是全局单例"** → 它是 `thread_local` 的，多线程各自独立。
+- **“C API 只是薄包装”** → 它是可移植性基石，决定了参数传递方式（opaque pointer）、错误跨边界传播、ABI 稳定性。没有这层，整个“后端 C++、前端任意语言”的架构就不成立。
+- **“Context 是全局单例”** → 它是 `thread_local` 的，多线程各自独立。这和 PyTorch 的 `c10::DeviceGuard` 思路一致，但 LLAISYS 用 C++ `thread_local` 直接实现，更轻量。
+- **“算子里的 switch 很丑，应该用多态”** → 在 C API 边界内不能用 C++ 多态。switch + 条件编译是 C 风格设备分发的标准做法，Linux 内核、CUDA Runtime 都是这么干的。
 
 ## 关联
 
