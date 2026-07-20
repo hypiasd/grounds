@@ -16,7 +16,7 @@ allowed-tools: Read, Write, Edit, Bash
 ## 目标（完成时仓库应处于的状态）
 - 目标项目已落在 `project/<name>/` 下（clone / 软链 / 新建之一）。
 - `.buildconfig` 的 `current_project=<name>` 已更新（标记"当前处于项目模式"）。
-- 若是**非空已有项目**首次进入 → 已自动 onboard（生成 `notes/index.md` + `notes/decisions.md`）。
+- 若是**非空已有项目**首次进入 → 已自动 onboard（生成 `notes/index.md` + `notes/decisions.md`）；**由 `.buildconfig` 的 `onboarded` 列表持久标记，保证只做一次**（重进同一项目不再重做盘点、不覆盖已写笔记）。
 - 已向用户打印「项目模式说明」（后续怎么工作）。
 
 ## 参数判别
@@ -93,19 +93,23 @@ fi
 判断"非空已有项目"：`project/$NAME/` 已存在且**不是本次新建的空壳**（即进入前已有内容，或 `MODE=link`/`clone` 拉来的是非空仓库）。
 
 ```bash
-# 检测"非空已有项目"：project/$NAME/ 下除 .gitkeep / notes 外是否还有内容
-# MODE=new 新建的空壳不含这些内容 → 不触发 onboard
-# MODE=link/clone 拉来的非空仓库 → 触发 onboard（仅一次）
+# 检测"非空已有项目 + 未 onboard 过"：
+#  1) project/$NAME/ 下除 .gitkeep / notes 外是否还有内容（非空才盘点）
+#  2) 是否已在 .buildconfig 的 onboarded 列表里（在则跳过，保证只做一次）
 # ⚠️ link 模式 project/$NAME 是软链：find 默认不跟随软链，软链自身又在 depth 0 被 -mindepth 1 排除，
 #    必须先用 readlink -f 解引用到真实目录再查，否则会误判 link 项目为"空壳"、永不 onboard。
 TARGET="project/$NAME"
 [ -L "$TARGET" ] && TARGET=$(readlink -f "$TARGET")
 cnt=$(find "$TARGET" -mindepth 1 -maxdepth 1 \
         -not -name .gitkeep -not -name notes 2>/dev/null | head -1)
-if [ -n "$cnt" ]; then
+# 读取已 onboard 列表（持久化在 .buildconfig，空格分隔；不进 sync，属本机状态）
+ONBOARDED=""
+[ -f .buildconfig ] && ONBOARDED=$(grep '^onboarded=' .buildconfig 2>/dev/null | cut -d= -f2-)
+already() { echo " $ONBOARDED " | grep -q " $1 "; }
+if [ -n "$cnt" ] && ! already "$NAME"; then
   echo "ONBOARD=yes"   # 命中：执行下方 onboard 盘点（生成 notes/index.md + notes/decisions.md）
 else
-  echo "ONBOARD=no"    # 空壳 / 新建：跳过，绝不生成 onboard 笔记（避免覆盖用户已写内容）
+  echo "ONBOARD=no"    # 空壳 / 已 onboard 过 / 新建：跳过，绝不重复生成（避免覆盖用户已写内容）
 fi
 ```
 
@@ -120,6 +124,17 @@ fi
 2. `notes/decisions.md`：从 commit / PR 记录提炼已有决策（ADR 雏形）；**不确定的地方标"待确认"**。
 
 > onboard 是自动动作，**不是子命令**。只在"进入一个非空已有项目"时触发一次；之后改项目就直接记 `log.md` / 更新 `index.md`，不再重做全盘盘点。
+
+生成两份笔记后**务必写入 `onboarded` 标记**（保证下次进入同一项目不再重做盘点、不覆盖已写笔记）：
+
+```bash
+# 把 NAME 追加进 .buildconfig 的 onboarded 列表（空格分隔；已存在则跳过追加）
+if ! grep -q '^onboarded=' .buildconfig 2>/dev/null; then
+  echo "onboarded=$NAME" >> .buildconfig
+elif ! grep '^onboarded=' .buildconfig | cut -d= -f2- | grep -q " $NAME "; then
+  sed -i '' "s/^onboarded=.*/onboarded=$(grep '^onboarded=' .buildconfig | cut -d= -f2-) $NAME/" .buildconfig
+fi
+```
 
 ### 第五步：打印「项目模式说明」
 
@@ -145,7 +160,7 @@ fi
 
 ## Gotchas（真实踩过的坑）
 - **收纳默认软链，不要默认移动**：`mv` 会破坏用户原项目路径；除非用户显式要"迁移"，否则用软链。
-- **onboard 只做一次**：仅在"进入非空已有项目"时自动盘点；之后改项目按说明记 `log.md` / 更新 `index.md`，禁止每次进入都重做全盘扫描（会覆盖用户已写的笔记）。
+- **onboard 只做一次**：由 `.buildconfig` 的 `onboarded` 列表保证——首次进入非空已有项目时盘点并写入标记，之后因标记存在不再触发；禁止每次进入都重做全盘扫描（会覆盖用户已写的笔记）。
 - **笔记只进 `project/<name>/notes/`**：代码、构建产物等放 `project/<name>/` 其它位置；`sync` 只收 `notes/`，绝不把代码推回 grounds。
 - **current_project 是模式标记，不是数据**：它只告诉后续 skill"当前上下文是哪个项目"，不存放笔记内容。
 - **`.buildconfig` 不进 sync**：它是派生仓自己的配置，推回 grounds 时排除（见 sync skill）。
