@@ -16,7 +16,7 @@ allowed-tools: Read, Write, Edit, Bash
 ## 目标（完成时仓库应处于的状态）
 - 目标项目已落在 `project/<name>/` 下（clone / 软链 / 新建之一）。
 - `.buildconfig` 的 `current_project=<name>` 已更新（标记"当前处于项目模式"）。
-- 若是**非空已有项目**首次进入 → 已自动 onboard（生成 `notes/index.md` + `notes/decisions.md`）；**由 `.buildconfig` 的 `onboarded` 列表持久标记，保证只做一次**（重进同一项目不再重做盘点、不覆盖已写笔记）。
+- 若是**非空已有项目**首次进入 → 已自动 onboard（生成 `project_logs/<name>/index.md` + `project_logs/<name>/decisions.md`）；**由 `.buildconfig` 的 `onboarded` 列表持久标记，保证只做一次**（重进同一项目不再重做盘点、不覆盖已写笔记）。
 - 已向用户打印「项目模式说明」（后续怎么工作）。
 
 ## 参数判别
@@ -35,7 +35,7 @@ esac
 
 - `MODE=clone`：把 `ARG`（git URL）clone 到 `project/<name>/`，`<name>` 取 URL 最后一段去 `.git`。
 - `MODE=link`：`ARG` 是本地已有目录 → 在 `project/` 下建**软链** `<name> → $ARG`（保留原路径，不移动）。
-- `MODE=new`：`ARG` 是纯名字 → 在 `project/<name>/` 下建空项目（含 `notes/`）。
+- `MODE=new`：`ARG` 是纯名字 → 在 `project/<name>/` 下 `git init` 空项目（独立 git 仓库，父仓库不跟踪其内容）。
 
 > **收纳默认用软链**（保留原项目路径，零风险）。若用户明确要求"移动 / 物理迁移"，再把软链换成 `mv`；否则不要用 `mv` 破坏原路径。
 
@@ -62,12 +62,12 @@ case "$MODE" in
     ln -s "$(cd "$ARG" && pwd)" "project/$NAME"
     ;;
   new)
-    mkdir -p "project/$NAME/notes"
-    touch "project/$NAME/.gitkeep"
+    git init "project/$NAME" >/dev/null 2>&1
+    echo "new: 已 git init project/$NAME（独立仓库，父仓库忽略其内容）"
     ;;
 esac
-# 任何模式都确保 notes/ 存在
-mkdir -p "project/$NAME/notes"
+# 任何模式都确保项目笔记目录存在（与 project/ 解耦，project/ 是独立 git 仓库，父仓库忽略）
+mkdir -p "project_logs/$NAME"
 ```
 
 ### 第三步：更新 .buildconfig 的 current_project
@@ -101,27 +101,27 @@ fi
 TARGET="project/$NAME"
 [ -L "$TARGET" ] && TARGET=$(readlink -f "$TARGET")
 cnt=$(find "$TARGET" -mindepth 1 -maxdepth 1 \
-        -not -name .gitkeep -not -name notes 2>/dev/null | head -1)
+        -not -name .gitkeep -not -name notes -not -name .git 2>/dev/null | head -1)
 # 读取已 onboard 列表（持久化在 .buildconfig，空格分隔；不进 sync，属本机状态）
 ONBOARDED=""
 [ -f .buildconfig ] && ONBOARDED=$(grep '^onboarded=' .buildconfig 2>/dev/null | cut -d= -f2-)
 already() { echo " $ONBOARDED " | grep -q " $1 "; }
 if [ -n "$cnt" ] && ! already "$NAME"; then
-  echo "ONBOARD=yes"   # 命中：执行下方 onboard 盘点（生成 notes/index.md + notes/decisions.md）
+  echo "ONBOARD=yes"   # 命中：执行下方 onboard 盘点（生成 project_logs/<name>/index.md + decisions.md）
 else
   echo "ONBOARD=no"    # 空壳 / 已 onboard 过 / 新建：跳过，绝不重复生成（避免覆盖用户已写内容）
 fi
 ```
 
-若满足，则 agent **主动盘点现状**，生成两份笔记（写进 `project/$NAME/notes/`）：
+若满足，则 agent **主动盘点现状**，生成两份笔记（写进 `project_logs/<name>/`）：
 
-1. `notes/index.md`：
+1. `project_logs/<name>/index.md`：
    - 项目是什么（从 README / 目录名推断）。
    - 结构地图（列主要子目录 / 模块）。
    - 当前状态 / 卡点（从近 N 条 commit 推断）。
    - 待办（从 issue / TODO 注释 / 最近 WIP commit 提取）。
    - 外部仓库 URL + 本地路径（让 grounds 能指回去）。
-2. `notes/decisions.md`：从 commit / PR 记录提炼已有决策（ADR 雏形）；**不确定的地方标"待确认"**。
+2. `project_logs/<name>/decisions.md`：从 commit / PR 记录提炼已有决策（ADR 雏形）；**不确定的地方标"待确认"**。
 
 > onboard 是自动动作，**不是子命令**。只在"进入一个非空已有项目"时触发一次；之后改项目就直接记 `log.md` / 更新 `index.md`，不再重做全盘盘点。
 
@@ -143,24 +143,24 @@ fi
 ```
 已进入项目模式：<name>
 - 项目位置：project/<name>/（clone/软链/新建）
-- 记进展/卡点：编辑 project/<name>/notes/log.md
-- 复盘：更新 project/<name>/notes/index.md 的状态与待办
-- 踩坑/通用知识点：用 $capture 沉淀；带 wiki 路由标记的笔记会在 $sync 时进入 wiki/
-- 原子决策：重要的架构选择补进 project/<name>/notes/decisions.md
-- 干完了：用 $sync 把 project/<name>/notes/ 推回 grounds
+- 记进展/卡点：编辑 project_logs/<name>/log.md
+- 复盘：更新 project_logs/<name>/index.md 的状态与待办
+- 踩坑/通用知识点：用 $project-capture 沉淀（笔记进 project_logs/<name>/，随 $sync 推回 grounds）；具通用价值的另用 $learn-capture 进 wiki/
+- 原子决策：重要的架构选择补进 project_logs/<name>/decisions.md
+- 干完了：用 $sync 把 project_logs/<name>/ 推回 grounds（只推笔记，不碰项目代码）
 ```
 
 ## 设计原则（为什么没有子命令）
 
 `project` 只负责"**收纳 + 切换上下文**"，不做项目过程管理的具体命令（不提供 `log` / `retro` / `add` / `clone` 子命令）。原因：
 
-- 记进展、复盘、沉淀这些是**普通的文件编辑 / `$capture` 调用**，不需要专门子命令；`project` 用"项目模式说明"指引用户即可。
+- 记进展、复盘、沉淀这些是**普通的文件编辑 / `$project-capture` 调用**，不需要专门子命令；`project` 用"项目模式说明"指引用户即可。
 - 保持 skill 职责单一：获取项目 = `project`，推送成果 = `sync`，初始化仓 = `start`，三者不重叠。
 - 远程 clone、本地软链、新建空项目，统一由"一个参数 + 自动判别"覆盖，无需用户记子命令。
 
 ## Gotchas（真实踩过的坑）
 - **收纳默认软链，不要默认移动**：`mv` 会破坏用户原项目路径；除非用户显式要"迁移"，否则用软链。
 - **onboard 只做一次**：由 `.buildconfig` 的 `onboarded` 列表保证——首次进入非空已有项目时盘点并写入标记，之后因标记存在不再触发；禁止每次进入都重做全盘扫描（会覆盖用户已写的笔记）。
-- **笔记只进 `project/<name>/notes/`**：代码、构建产物等放 `project/<name>/` 其它位置；`sync` 只收 `notes/`，绝不把代码推回 grounds。
+- **笔记只进 `project_logs/<name>/`**：代码、构建产物等放 `project/<name>/`（独立 git，父仓库忽略）；`sync` 只收 `project_logs/`，绝不把代码推回 grounds。
 - **current_project 是模式标记，不是数据**：它只告诉后续 skill"当前上下文是哪个项目"，不存放笔记内容。
 - **`.buildconfig` 不进 sync**：它是派生仓自己的配置，推回 grounds 时排除（见 sync skill）。

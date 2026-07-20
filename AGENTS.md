@@ -24,7 +24,7 @@ grounds/
 ├── CLAUDE.md → AGENTS.md  # Claude Code 入口软链
 ├── CODEBUDDY.md → AGENTS.md # CodeBuddy 入口软链
 ├── README.md
-├── wiki/                  # 学习笔记（learn/capture/query/lint 产出）
+├── wiki/                  # 学习笔记（learn/learn-capture 产出；query/lint 只读）
 │   └── <topic>/
 │       ├── index.md
 │       └── <note>.md
@@ -40,8 +40,10 @@ grounds/
 │       ├── sources/         # 不进 git
 │       ├── figures/         # 不进 git
 │       └── ocr/             # 不进 git
+├── project/               # 各 <name>/ 是独立 git 仓库，父仓库 .gitignore 忽略其内容
+├── project_logs/         # 项目笔记（project-capture 产出；进 git、随 sync 推回 grounds）
 ├── raw/                   # 原始资料（只增不删，分两类）
-│   ├── wiki/              # learn/capture/query 引用的资料
+│   ├── wiki/              # learn/learn-capture/query 引用的资料
 │   └── papers/            # 论文 PDF
 ├── .agents/               # 技能、规范、归档（唯一事实源）
 │   ├── conventions.md     # wiki 笔记模板（写笔记前必读）
@@ -61,17 +63,17 @@ grounds/
 本仓库的 agent 行为由一个独立的 **基类仓库 workBase**（`git@github.com:hypiasd/workBase.git`）定义，通过**覆盖式同步**在派生仓之间共享，不依赖 git submodule / subtree。
 
 - **workBase（基类）**：只含 agent 文件集（`.agents/` + 根软链 + 本文件 `AGENTS.md`），**无任何笔记内容**。
-- **grounds（主派生类）**：workBase + `wiki/ paper/ video/ raw/ project/` + Quartz 部署（见 grounds 自己的 README）。
-- **临时派生仓**：workBase + `project/`（及按需的 `wiki/`） + **不部署**；笔记经 `sync` 推回 grounds。
+- **grounds（主派生类）**：workBase + `wiki/ paper/ video/ raw/ project/ project_logs/` + Quartz 部署（见 grounds 自己的 README）。
+- **临时派生仓**：workBase + `project/`（各 <name>/ 是独立 git 仓库）+ `project_logs/`（及按需的 `wiki/`） + **不部署**；笔记经 `sync` 推回 grounds。
 
 每个派生仓本身是一个独立 git 仓库；agent 文件集在派生仓与 workBase 之间**双向覆盖同步**（复制 + commit + push，非 git 历史合并）：
 
 - `build push-agent`：把当前派生仓的 agent 文件集**直接覆盖** workBase 远程。
 - `build pull-agent`：把 workBase 的 agent 文件集**直接覆盖**当前派生仓（grounds 用它接收基类更新；临时仓用它保持最新）。
-- `sync`：把当前派生仓的 `wiki/ paper/ video/ project/` **直接更新**到 grounds 远程（**排除** agent 文件集）。
+- `sync`：把当前派生仓的 `wiki/ paper/ video/ project_logs/` **直接更新**到 grounds 远程（**排除** agent 文件集）。
 
 > 注意：`.gitignore`、`README.md`、`.github/` 等仓库专属文件**不在** agent 文件集内，不会跨仓覆盖。
-> 当前基类含 start / project / sync / learn / capture / lint / query / paper-learn / bilibili-render-pdf / youtube-render-pdf 十个技能；结构类（start/project/sync）只接受手动 / `$` 触发。
+> 当前基类含 start / project / sync / learn / learn-capture / project-capture / lint / query / paper-learn / bilibili-render-pdf / youtube-render-pdf 十一个技能；结构类（start/project/sync）只接受手动 / `$` 触发。
 
 ---
 
@@ -89,11 +91,11 @@ grounds/
 
 **原则**：所有软链都指向同一份 `AGENTS.md` / `.agents/skills/`，**不存在副本**——改一处即全局生效，绝不漂移。新增 / 修改 skill 只需动 `.agents/skills/`，五个 agent 同时可见。
 
-> **手动 skill 的自动触发防护**：`disable-model-invocation: true` 是 Claude Code / Codex 的 frontmatter 语义，CodeBuddy / Qoder / Trae 会忽略该字段。因此后 3 个手动 skill 的「不得自动触发」约束由 SKILL.md **正文指令**本身保证（每个手动 skill 开头都写明「只接受手动 / `$` 触发」），不依赖特定 agent 的 frontmatter 字段。
+> **手动 skill 的自动触发防护**：`disable-model-invocation: true` 是 Claude Code / Codex 的 frontmatter 语义，CodeBuddy / Qoder / Trae 会忽略该字段。因此 5 个手动 skill（learn-capture/project-capture/paper-learn/bilibili-render-pdf/youtube-render-pdf）的「不得自动触发」约束由 SKILL.md **正文指令**本身保证（每个手动 skill 开头都写明「只接受手动 / `$` 触发」），不依赖特定 agent 的 frontmatter 字段。
 
 ---
 
-## 十个 Skill
+## 十一个 Skill
 
 所有 skill 在 `.agents/skills/<name>/SKILL.md`。**必须先 Read 对应的 SKILL.md 文件**再执行——表格只是索引，SKILL.md 里的详细流程、Gotchas、质量示例才是执行标准。
 
@@ -103,7 +105,8 @@ grounds/
 | `project` | **手动 / `$` 触发** | `.agents/skills/project/SKILL.md` | 收纳项目 + 切换项目模式 | 单参数自动判别（URL→clone / 本地目录→软链 / 名字→新建）；非空项目首次进入自动 onboard |
 | `sync` | **手动 / `$` 触发** | `.agents/skills/sync/SKILL.md` | 笔记→grounds、agent↔workBase 同步 | 笔记合并式推送；agent 按提交时间定方向（推/拉） |
 | `learn` | 语义触发 | `.agents/skills/learn/SKILL.md` | wiki 笔记 | 先给地图再走路；同一概念永只有一篇 |
-| `capture` | 语义触发 | `.agents/skills/capture/SKILL.md` | wiki 笔记 | 一次对话→多个原子洞察→各归其位；面经三源（小红书/知乎/牛客）必须全搜 |
+| `learn-capture` | **手动 / `$` 触发** | `.agents/skills/learn-capture/SKILL.md` | wiki 笔记 | 一次对话→多个原子洞察→各归其位；面经三源（小红书/知乎/牛客）必须全搜 |
+| `project-capture` | **手动 / `$` 触发** | `.agents/skills/project-capture/SKILL.md` | project_logs 笔记 | 当前项目专属收获（踩坑/决策/知识点/代码）拆多 md 进 project_logs/<name>/；不补面经、不进 lint/query |
 | `lint` | 语义触发 | `.agents/skills/lint/SKILL.md` | 问题清单（默认只读） | 只扫 `wiki/`，不扫 `paper/` `video/` |
 | `query` | 语义触发 | `.agents/skills/query/SKILL.md` | 综合作答 | 先扫 summaries 定位，答案必须可溯源到仓库笔记 |
 | `paper-learn` | **手动 / `$` 触发** | `.agents/skills/paper-learn/SKILL.md` | paper/ 论文笔记 | 学习者视角为主、批判性读者为辅；一篇论文一个 md |
@@ -112,8 +115,8 @@ grounds/
 
 ### 调度规则（跨 agent 通用）
 
-1. **前 4 个内容 skill（learn/capture/lint/query）**：识别用户意图，匹配触发词后自动调度。SKILL.md frontmatter 里的 `disable-model-invocation: true` 是 Claude Code / Codex 语义（指"禁止模型无用户触发时自动调用"），CodeBuddy / Qoder / Trae 会忽略该字段；这不影响"用户消息触发后自动调度"——所有 agent 都按本调度规则执行。
-2. **结构类 skill（start/project/sync）与产出类 skill（paper-learn/bilibili-render-pdf/youtube-render-pdf）**：**只接受手动触发或 `$` 触发**——agent 不得基于用户消息内容自动调用它们。用户必须显式说"用 start 初始化"或输入 `$project <name>` / `$sync` 才会触发。这类 skill 直接改动仓库状态与远程，禁止语义自动触发以免误推远程。
+1. **前 3 个内容 skill（learn/lint/query）**——learn-capture 与 project-capture 已改为手动 / `$` 触发，不在此自动调度之列。：识别用户意图，匹配触发词后自动调度。SKILL.md frontmatter 里的 `disable-model-invocation: true` 是 Claude Code / Codex 语义（指"禁止模型无用户触发时自动调用"），CodeBuddy / Qoder / Trae 会忽略该字段；这不影响"用户消息触发后自动调度"——所有 agent 都按本调度规则执行。
+2. **结构类 skill（start/project/sync）与产出类 skill（learn-capture/project-capture/paper-learn/bilibili-render-pdf/youtube-render-pdf）**：**只接受手动触发或 `$` 触发**——agent 不得基于用户消息内容自动调用它们。用户必须显式说"用 start 初始化"或输入 `$project <name>` / `$sync` 才会触发。这类 skill 直接改动仓库状态与远程，禁止语义自动触发以免误推远程。
 3. **用 Read 工具读取对应的 SKILL.md 文件**。不要跳过——表格只是索引。
 4. 严格按 SKILL.md 中的流程执行，包括校验步骤。
 5. 写 wiki 笔记前必须再读 `.agents/conventions.md`。写 paper 笔记前读 paper-learn SKILL.md 内的模板说明。
@@ -122,7 +125,7 @@ grounds/
 
 ## Skill 一览
 
-> 十个技能的完整索引（触发 / 文件 / 产出 / 关键原则）已合并到上方「十个 Skill」总表，避免两处漂移。执行前**必须先 Read 对应 SKILL.md**。
+> 十一个技能的完整索引（触发 / 文件 / 产出 / 关键原则）已合并到上方「十一个 Skill」总表，避免两处漂移。执行前**必须先 Read 对应 SKILL.md**。
 
 ---
 
@@ -150,8 +153,8 @@ paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `con
 
 | 工具 | 用途 | 涉及 skill | 检查命令 |
 |------|------|------------|----------|
-| `opencli` | 中文面经搜索（小红书/知乎/牛客三大源统一入口） | capture | `which opencli` |
-| `mcporter`（含 Exa MCP） | 通用网页搜索（按需，非强制） | learn / capture / query | `mcporter tools list` |
+| `opencli` | 中文面经搜索（小红书/知乎/牛客三大源统一入口） | learn-capture | `which opencli` |
+| `mcporter`（含 Exa MCP） | 通用网页搜索（按需，非强制） | learn / learn-capture / query | `mcporter tools list` |
 | `yt-dlp` | 视频/字幕下载 | bilibili-render-pdf / youtube-render-pdf | `which yt-dlp` |
 | `ffmpeg` / `ffprobe` | 音频提取、帧提取、视频时长校验 | bilibili-render-pdf / youtube-render-pdf | `which ffmpeg && which ffprobe` |
 | `xelatex` | LaTeX → PDF 编译 | bilibili-render-pdf / youtube-render-pdf | `which xelatex` |
@@ -165,7 +168,7 @@ paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `con
 | `openai` Python 包 | 视觉模型 API 调用（SiliconFlow 兼容） | bilibili-render-pdf | `python3 -c "import openai"` |
 | `torch` | GPU 可用性检测（CUDA / MPS） | bilibili-render-pdf / youtube-render-pdf | `python3 -c "import torch"` |
 
-工具缺失时：对应 skill 需在 SKILL.md 的环境检查小节说明替代方案或报告用户——不要静默跳过必需步骤（如 capture 缺 `opencli` 时面经补充无法执行，必须问用户是否跳过）。
+工具缺失时：对应 skill 需在 SKILL.md 的环境检查小节说明替代方案或报告用户——不要静默跳过必需步骤（如 learn-capture 缺 `opencli` 时面经补充无法执行，必须问用户是否跳过）。
 
 ---
 
@@ -175,7 +178,7 @@ paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `con
 - 示例：
   - `learn deep-learning: 注意力机制笔记`
   - `lint: 修复孤儿页`
-  - `capture grounds: 沉淀对话笔记`
+  - `learn-capture grounds: 沉淀对话笔记`
   - `paper-learn llm: Attention Is All You Need`
   - `bilibili-render-pdf: <视频标题>`
   - `youtube-render-pdf: <视频标题>`
@@ -185,14 +188,14 @@ paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `con
 ## Gotchas（agent 最常犯的错）
 
 - **不读 conventions 就写笔记** → frontmatter 缺字段。写 wiki 笔记前必须 Read `.agents/conventions.md`。
-- **不读 SKILL.md 就执行** → 遗漏关键步骤（如 learn 的检验、答疑循环、外部资料处理；capture 的面经搜索；paper-learn 的论文-代码对照）。触发后必须先 Read 对应 SKILL.md。
+- **不读 SKILL.md 就执行** → 遗漏关键步骤（如 learn 的检验、答疑循环、外部资料处理；learn-capture 的面经搜索；paper-learn 的论文-代码对照）。触发后必须先 Read 对应 SKILL.md。
 - **忘记更新 index.md** → wiki 笔记变孤儿页。
 - **讲完忘 commit + push** → 下次打开仓库状态不一致。commit 之后不 push，换个机器就看不到。
 - **把 query 当 learn 用** → 用户问已有知识时应该查笔记作答。
 - **learn 讲完跳过检验** → 检验是固定阶段，讲完必须主动出题。
 - **有公式不写** → 不能说"用 softmax 归一化"而不给 softmax 公式。
 - **重复建笔记** → 讲之前先查仓库，已有笔记走更新模式。
-- **自动触发手动 skill** → 后 3 个 skill（paper-learn/bilibili-render-pdf/youtube-render-pdf）只接受手动 / `$` 触发，agent 不得基于用户提供的链接自动调用。
+- **自动触发手动 skill** → 5 个手动 skill（learn-capture/project-capture/paper-learn/bilibili-render-pdf/youtube-render-pdf）只接受手动 / `$` 触发，agent 不得基于用户消息内容自动调用。
 - **在 paper/ 或 video/ 建互链** → 互链只管 wiki/。paper 笔记可单向引用 wiki，但 wiki 不反向链接 paper/video。
 
 ---
@@ -200,7 +203,7 @@ paper 笔记的模板和 frontmatter 见 `paper-learn` SKILL.md，不套用 `con
 ## 注意事项
 
 - 废弃笔记移入 `.agents/archive/`，不要直接删除。
-- `raw/` 只增不删，分两个子目录：`raw/wiki/`（learn/capture/query 资料）、`raw/papers/`（论文 PDF）。
+- `raw/` 只增不删，分两个子目录：`raw/wiki/`（learn/learn-capture/query 资料）、`raw/papers/`（论文 PDF）。
 - `paper/` 笔记按主题分目录，但**不存在合并拆分问题**——一篇论文一个 md 文件，文件名即论文标题，论文不会移动。
 - `video/` 是工作目录与成品目录合一：`.tex` + `.pdf` + `index.md` 进 git；`sources/`、`figures/`、`ocr/`、`cover.jpg` 由 `.gitignore` 排除不进 git。
 - `lint` 只扫 `wiki/`，不扫 `paper/` 和 `video/`。

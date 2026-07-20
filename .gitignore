@@ -15,6 +15,9 @@ __pycache__/
 # raw/ 目录会在 learn / paper-learn / video skill 使用时自动创建，无需 .gitkeep 维持骨架
 raw/
 
+# 项目目录：每个 project/<name>/ 是独立 git 仓库，父仓库不跟踪其内部
+project/*/
+
 # video 成品目录：只追踪 .tex / .pdf / .md，排除误放的中间产物
 video/**/sources/
 video/**/figures/

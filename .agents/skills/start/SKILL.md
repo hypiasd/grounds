@@ -16,7 +16,7 @@ allowed-tools: Read, Write, Edit, Bash
 ## 目标（完成时仓库应处于的状态）
 - 当前目录已是一个**派生工作仓**：
   - 含 agent 文件集（本就来自 workBase clone，无需新建）。
-  - 含内容占位目录 `wiki/ paper/ video/ raw/ project/`（各放 `.gitkeep`）。
+  - 含内容占位目录 `wiki/ paper/ video/ raw/ project/ project_logs/`（各放 `.gitkeep`；`project/` 收纳项目，各 `<name>/` 是独立 git 仓库、父仓库忽略其内容）。
   - 含 `.buildconfig`（声明本仓角色、grounds 远程、workBase 远程）。
   - **origin 不再指向 workBase**（避免误把内容推回基类）。
 
@@ -66,13 +66,13 @@ fi
 ### 第二步：建内容占位目录
 
 ```bash
-for d in wiki paper video raw project; do
+for d in wiki paper video raw project project_logs; do
   mkdir -p "$d"
   touch "$d/.gitkeep"
 done
 ```
 
-> 占位目录让 `learn` / `capture` / `project` / `sync` 即刻可用，且 git 能跟踪空目录。
+> 占位目录让 `learn` / `learn-capture` / `project-capture` / `project` / `sync` 即刻可用，且 git 能跟踪空目录。
 
 ### 第三步：写 `.buildconfig`
 
@@ -113,13 +113,13 @@ test -f .buildconfig && test -d project && echo "start OK"
 
 ```
 派生工作仓已就绪（零内容、全技能可用）：
-- 内容目录：wiki/ paper/ video/ raw/ project/ 已建好
+- 内容目录：wiki/ paper/ video/ raw/ project/ project_logs/ 已建好（project/ 收纳项目、各 <name>/ 是独立 git 仓库父仓库忽略；project_logs/ 存项目笔记、随 $sync 推回 grounds）
 - .buildconfig：已指向 grounds / workBase 远程（无 role 字段，是否 grounds 由仓库名判定）
 - origin：已移除指向 workBase 的引用
 
 接下来：
 - 用 $project <name|path|url> 收纳一个项目并进入项目模式
-- 用 $learn / $capture 沉淀通用知识（笔记写进 wiki/）
+- 用 $learn-capture 沉淀通用知识（写进 wiki/）、用 $project-capture 沉淀项目笔记（写进 project_logs/<name>/）（笔记写进 wiki/）
 - 干完了用 $sync 把笔记推回 grounds、把 agent 改进推回 workBase
 ```
 

@@ -14,7 +14,7 @@ allowed-tools: Read, Bash
 
 ## 目标（完成时仓库应处于的状态）
 - 基于仓库笔记给出**带引用**的答案；内容不足时明说并建议 learn；不凭空编造。
-- query 默认不写文件，只有用户要求沉淀时才走 capture。
+- query 默认不写文件，只有用户要求沉淀时才走 learn-capture。
 
 ## 流程
 1. **定位**：
@@ -34,10 +34,10 @@ allowed-tools: Read, Bash
 3. **引用粒度**：引用到具体笔记文件（如 `[Dropout](deep-learning/dropout.md)`），如果有多个相关笔记，需逐一标注。**query 答案中的链接路径相对 `wiki/` 目录**（如 `deep-learning/dropout.md`），便于用户在仓库中定位。query 输出的链接不强制要求关系说明（conventions.md 约束的是笔记文件），但建议在链接后用一句话点明该笔记与用户问题的关系，方便用户判断是否点开。
 4. **校验（必做）**：对答案中每个引用路径执行 `test -f wiki/<topic>/<file>.md && echo OK`（Bash），未返回 OK 的链接必须从答案中删除或改为"（仓库中暂无相关笔记）"。不要引用不存在的笔记。
 5. **沉淀/修复建议**：根据情况建议不同 skill：
-   - 用户获得新理解/新角度 → 建议走 **capture**
-   - 发现已有笔记矛盾/过时/断链 → 建议跑 **lint**（不要用 capture 修笔记，capture 是增量沉淀不是修订）
-   - 同时存在两者 → 先建议 lint 修旧，再 capture 存新
-   - 答案本身是有价值的新综合视角 → 建议走 capture；query 本身不强制写文件。
+   - 用户获得新理解/新角度 → 建议走 **learn-capture**
+   - 发现已有笔记矛盾/过时/断链 → 建议跑 **lint**（不要用 learn-capture 修笔记，learn-capture 是增量沉淀不是修订）
+   - 同时存在两者 → 先建议 lint 修旧，再 learn-capture 存新
+   - 答案本身是有价值的新综合视角 → 建议走 learn-capture；query 本身不强制写文件。
 
 ## 何时进入边界判断
 
@@ -67,14 +67,14 @@ allowed-tools: Read, Bash
 - 其他平台（小红书/知乎等）：用 `opencli <platform> search "..." -f yaml`
 
 ## 建议
-- 满意的话可以走 capture 沉淀搜索发现
+- 满意的话可以走 learn-capture 沉淀搜索发现
 - 想深入理解可以走 learn（可带上搜到的文章链接）
 ```
 
 ## query vs learn 边界（部分覆盖场景）
 
 - 用户问的概念在仓库有"父概念/相邻概念"笔记，但没有该概念本身 → 走 **learn**（新建笔记），learn 流程会处理与相邻笔记的互链
-- 用户问的是已有笔记的某个子角度 → 走 **query**，答完后若子角度值得独立成篇则建议 capture
+- 用户问的是已有笔记的某个子角度 → 走 **query**，答完后若子角度值得独立成篇则建议 learn-capture
 - 不确定时优先 query（轻量），用户嫌浅再升级 learn
 
 ## 质量示例
@@ -105,5 +105,5 @@ allowed-tools: Read, Bash
 - **多笔记命中时不要硬全部加载**：超过 5 篇时按 summary 相关度排序后只加载前 5 篇，其余列出链接即可。
 
 ## 注意
-- query 默认不写文件；只有用户要求沉淀时才走 capture。
+- query 默认不写文件；只有用户要求沉淀时才走 learn-capture。
 - 关联：`AGENTS.md`、`.agents/conventions.md`

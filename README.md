@@ -13,10 +13,10 @@ video/   视频笔记成品（每个视频一个目录）
 raw/     原始资料（只增不删；分 wiki/papers/videos）
 ```
 
-## 七个 Skill
+## 十一个 Skill
 
-- 自动触发：`learn` · `capture` · `lint` · `query`
-- 手动 / `$` 触发：`paper-learn` · `bilibili-render-pdf` · `youtube-render-pdf`
+- 语义触发：`learn` · `lint` · `query`
+- 手动 / `$` 触发：`learn-capture` · `project-capture` · `paper-learn` · `bilibili-render-pdf` · `youtube-render-pdf`
 
 详见 [AGENTS.md](AGENTS.md)。
 

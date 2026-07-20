@@ -9,7 +9,7 @@ allowed-tools: Read, Write, Edit, Bash
 
 ## 何时用（触发）
 - 用户说"同步一下"、"推回 grounds"、"sync"、"接收基类更新 / 拉一下基类"。
-- 派生仓产生了笔记（wiki/ paper/ video/ project）或改进了 agent 文件集，需要推回上游。
+- 派生仓产生了笔记（wiki/ paper/ video/ project_logs）或改进了 agent 文件集，需要推回上游。
 
 **只接受手动 / `$` 触发**：agent 不得基于用户消息内容自动调用。
 
@@ -17,7 +17,7 @@ allowed-tools: Read, Write, Edit, Bash
 
 | 步骤 | 方向 | 判定 / 动作 |
 |---|---|---|
-| ① 推笔记 | 本仓 → grounds | **仅当本仓不是 grounds**（按仓库名判定）才推；合并式推 `wiki/ paper/ video/ project/*/notes/` |
+| ① 推笔记 | 本仓 → grounds | **仅当本仓不是 grounds**（按仓库名判定）才推；合并式推 `wiki/ paper/ video/ project_logs/` |
 | ② agent 同步 | 双向 | **按更新时间定方向**：本仓 agent 最近提交比 workBase 新 → 推；workBase 更新 → 拉；相同 → 跳过 |
 
 > **两个判定原则（按你的要求）**：
@@ -39,7 +39,7 @@ AGENT_FILESET=".agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qode
 # 流程
 
 ## 目标（完成时状态）
-- （若非 grounds）`wiki/ paper/ video/ project/*/notes/` 已合并式推到 grounds 远程。
+- （若非 grounds）`wiki/ paper/ video/ project_logs/` 已合并式推到 grounds 远程。
 - agent 文件集已按"更新时间"方向与 workBase 同步（推 / 拉 / 跳过其一）。
 - 冲突策略：agent 以**较新一方为准**（按提交时间判，非硬编码本地优先）。
 
@@ -84,19 +84,12 @@ fi
 ```bash
 if ! $IS_GROUNDS; then
   # 合并式复制：rsync -a（保留远程独有）；无 rsync 时回退 cp -R 内容
-  for d in wiki paper video; do
+  for d in wiki paper video project_logs; do
     [ -d "$d" ] || continue
     mkdir -p "$GROUNDS/$d"
     rsync -a "$d/" "$GROUNDS/$d/" 2>/dev/null || cp -R "$d/." "$GROUNDS/$d/"
   done
-  # project 只收各项目的 notes/（合并式，保留 notes/ 子目录本身）
-  mkdir -p "$GROUNDS/project"
-  for p in project/*/; do
-    name=$(basename "$p")
-    [ -d "$p/notes" ] || continue
-    mkdir -p "$GROUNDS/project/$name"
-    rsync -a "$p/notes" "$GROUNDS/project/$name/" 2>/dev/null || cp -R "$p/notes" "$GROUNDS/project/$name/"
-  done
+  # project_logs/ 已在上方的 wiki/paper/video 循环中一并推送（合并式）
   # 提交 + 推送 grounds（本地优先、合并式）
   (
     cd "$GROUNDS"
@@ -111,7 +104,7 @@ fi
 ```
 
 > 关键点：用 `rsync -a`（或 `cp -R 内容`）**合并**，不加 `--delete`，所以 grounds 里本仓没有的笔记、paper、video **全部保留**；本仓有而 grounds 没有的文件被新增；两边同名的冲突文件以**本地（本仓）为准**覆盖。
-> `project/*/notes/` 之外的代码、构建产物**不复制**，所以 grounds 永不被项目代码撑大。
+> `project/<name>/` 是独立 git 仓库、父仓库忽略其内容；`project_logs/` 之外的代码、构建产物**不复制**，所以 grounds 永不被项目代码撑大。
 > agent 文件集（`.agents` 等）和 `.buildconfig` **不复制**——它们不属于"笔记"，agent 改动走下面的 agent 同步。
 > 若本机直接用 `local_grounds_path`：`git push` 即推到本地仓（已 pull --ff-only），且不清理；用临时 clone 则自动 `rm -rf` 清理。`git commit` 无变更时失败（`|| echo`）属正常，不阻塞。
 
@@ -178,7 +171,7 @@ sync 完成：
 ## Gotchas（真实踩过的坑）
 - **复制必须保留软链**：`cp -R` 在 macOS 默认不跟随符号链接（符合预期）；切勿 `-L` / 解引用，否则 `.claude → .agents` 等链接会变成实体副本，pull 后链接关系丢失。
 - **按仓库名判定 grounds**：目录名 `grounds` 或远端 URL 含 `grounds` 即视为目的地，跳过笔记推送；不再依赖 `.buildconfig` 的 `role` 字段（已移除）。
-- **project 只收 `*/notes/`**：项目代码、构建产物绝不能进 grounds（那是目的地，不是代码仓）。
+- **project_logs 整体推送**：项目代码在 `project/<name>/`（各自 git，父仓库忽略），sync 只推 `project_logs/`（笔记），绝不把代码推回 grounds。
 - **`.buildconfig` 不进 sync**：它是派生仓私有配置，推回 grounds 时排除。
 - **agent 按更新时间定方向，覆盖式而非合并**：谁的最近提交时间新，就以谁为准覆盖对方；多机并发改 agent 时，后 sync 的一方（时间更新）覆盖先 sync 的，需协调时人工确认。
 - **临时 clone 要清理**：push / pull 用 `mktemp -d` 建临时区，结束务必 `rm -rf`，不留中间产物污染仓库。
