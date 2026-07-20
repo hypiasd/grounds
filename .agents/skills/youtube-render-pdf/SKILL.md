@@ -24,7 +24,7 @@ allowed-tools: Read, Write, Edit, Bash
 - `video/<视频标题>/` 是工作目录与成品目录合一的单一目录，包含：
   - `.tex` + `.pdf` + `index.md`（进 git）
   - `cover.jpg`、`sources/`、`figures/`、`ocr/`（不进 git，由 `.gitignore` 排除）
-- 已 `git commit`（**仅 grounds 才 push**），commit message：`youtube-render-pdf: <视频标题>`
+- 已 `git commit`（grounds 直接 push；临时派生仓 commit 后**自动 `$sync`** 推回），commit message：`youtube-render-pdf: <视频标题>`
 
 ---
 
@@ -450,10 +450,11 @@ git add "video/<视频标题>/<basename>.tex" \
         "video/<视频标题>/<basename>.pdf" \
         "video/<视频标题>/index.md"
 git commit -m "youtube-render-pdf: <视频标题>"
-# 仓库名判定（与 sync 一致）：是 grounds 才 push；临时派生仓无 origin，不 push，靠 $sync 推回
+# 仓库名判定（与 sync 一致）：grounds 直接 push；临时派生仓无 origin 不 push，commit 后自动 $sync 推回
 if [ "$(basename "$PWD")" = "grounds" ] || git remote -v 2>/dev/null | grep -qi grounds; then
   git push
 fi
+# 派生仓（非 grounds）：上方不 push，commit 完成后本 skill 自动运行 $sync 推回 grounds
 ```
 
 ---
@@ -482,7 +483,7 @@ YouTube 特定：
 - **帧选择偏召回高于精度**：多看候选优于错过关键帧。
 - **盲模式别用本地 tesseract 批量评估**：2+ 分钟/帧，用中点提取。
 - **成品必须 commit 进 git**：`.tex`+`.pdf`+`index.md` 进 git，`sources/figures/ocr/cover.jpg` 不进 git（.gitignore 自动排除）。换机器后需要 `video/<标题>/sources/` 等中间产物需重新下载。
-- **commit 之后**：是 grounds 必须 `git push`（否则换机器看不到）；临时派生仓只 commit，靠 `$sync` 推回 grounds。
+- **commit 之后**：grounds 必须 `git push`（否则换机器看不到）；临时派生仓 commit 后**自动 `$sync`** 推回 grounds（不要再只 commit 留本地）。
 
 ## 注意
 
