@@ -52,16 +52,20 @@ class Tensor {
 
 ### 完整实现
 
+**load：把主机内存的数据拷到 Tensor 所在的设备上。** 如果 Tensor 在 CPU 上，这就是一个 memcpy；如果在 GPU 上，走 cudaMemcpy。关键是先 `setDevice` 切换到目标设备的上下文，再调 Runtime API 的 `memcpy_sync`。
+
 ```cpp
-// === load: 从主机内存加载数据到 Tensor ===
 void Tensor::load(const void *src_) {
     size_t total_bytes = numel() * elementSize();
     core::context().setDevice(this->deviceType(), this->deviceId());
     core::context().runtime().api()->memcpy_sync(
         this->data(), src_, total_bytes, LLAISYS_MEMCPY_H2D);
 }
+```
 
-// === isContiguous: 判断内存是否连续 ===
+**isContiguous：从最后一维向前检查，每一维的 stride 是否等于“它后面所有维的 shape 之积”。** 比如 shape [2,3,5]，连续时 strides 应该是 [15,5,1]——stride[2]=1，stride[1]=5=shape[2]，stride[0]=15=shape[1]*shape[2]。任何一维不满足就不连续。
+
+```cpp
 bool Tensor::isContiguous() const {
     size_t ndim_ = ndim();
     if (ndim_ == 0) return true;
@@ -72,8 +76,11 @@ bool Tensor::isContiguous() const {
     }
     return true;
 }
+```
 
-// === permute: 重排维度顺序（零拷贝）===
+**permute：按 order 重排 shape 和 strides。** 比如 permute({2,0,1}) 把原来的 dim2 放到新的 dim0。注意只是“换标注”，storage 和 offset 不动。返回的新 Tensor 和原 Tensor 共享同一块内存。
+
+```cpp
 tensor_t Tensor::permute(const std::vector<size_t> &order) const {
     size_t ndim_ = ndim();
     TensorMeta new_meta;
@@ -81,13 +88,16 @@ tensor_t Tensor::permute(const std::vector<size_t> &order) const {
     new_meta.shape.resize(ndim_);
     new_meta.strides.resize(ndim_);
     for (size_t i = 0; i < ndim_; i++) {
-        new_meta.shape[i] = _meta.shape[order[i]];
+        new_meta.shape[i] = _meta.shape[order[i]];    // 新 dim_i = 旧 dim_order[i]
         new_meta.strides[i] = _meta.strides[order[i]];
     }
     return std::shared_ptr<Tensor>(new Tensor(new_meta, _storage, _offset));
 }
+```
 
-// === view: 重塑形状（零拷贝，要求连续）===
+**view：先确认连续，然后给新 shape 算出对应的连续 strides。** 核心逻辑是从后往前累乘：stride[ndim-1]=1，stride[i]=stride[i+1]*shape[i+1]。如果 numel 不匹配则报错——不能把 12 个元素 view 成 (5,3)。
+
+```cpp
 tensor_t Tensor::view(const std::vector<size_t> &shape) const {
     ASSERT(isContiguous(), "view: tensor must be contiguous");
     size_t new_numel = std::accumulate(shape.begin(), shape.end(),
@@ -103,8 +113,11 @@ tensor_t Tensor::view(const std::vector<size_t> &shape) const {
     TensorMeta new_meta{_meta.dtype, shape, new_strides};
     return std::shared_ptr<Tensor>(new Tensor(new_meta, _storage, _offset));
 }
+```
 
-// === slice: 沿某维切片（零拷贝）===
+**slice：沿 dim 切出 [start, end)。** shape 只改 dim 维的大小，strides 不变。关键是 offset 的移动：新起始地址 = 原 offset + start × stride[dim] × elementSize。比如 shape [4,8] slice(dim=0, start=2, end=4)，新 Tensor 从第 2 行开始，offset 跳过 2×8=16 个元素。
+
+```cpp
 tensor_t Tensor::slice(size_t dim, size_t start, size_t end) const {
     TensorMeta new_meta;
     new_meta.dtype = _meta.dtype;
@@ -115,22 +128,27 @@ tensor_t Tensor::slice(size_t dim, size_t start, size_t end) const {
         static_cast<size_t>(start * _meta.strides[dim]) * elementSize();
     return std::shared_ptr<Tensor>(new Tensor(new_meta, _storage, new_offset));
 }
+```
 
-// === contiguous: 使非连续 Tensor 变连续（拷贝数据）===
+**contiguous：如果已经不连续，就创建新 Tensor 并逐元素拷贝。** 用多维索引遍历每个逻辑位置，通过 strides 算出源地址，然后 memcpy 到目标的连续位置。这是唯一需要搬移数据的操作。
+
+```cpp
 tensor_t Tensor::contiguous() const {
     if (isContiguous())
         return std::shared_ptr<Tensor>(new Tensor(_meta, _storage, _offset));
     auto out = Tensor::create(_meta.shape, _meta.dtype, deviceType(), deviceId());
     size_t elem_size = elementSize();
     size_t total = numel(), ndim_ = ndim();
-    std::vector<size_t> idx(ndim_, 0);
+    std::vector<size_t> idx(ndim_, 0);  // 多维索引
     std::byte *dst_ptr = out->data();
     for (size_t i = 0; i < total; i++) {
+        // 用 strides 算出源元素在 storage 中的偏移
         ptrdiff_t src_elem_offset = 0;
         for (size_t d = 0; d < ndim_; d++)
             src_elem_offset += static_cast<ptrdiff_t>(idx[d]) * _meta.strides[d];
         std::memcpy(dst_ptr + i * elem_size,
                     this->data() + src_elem_offset * (ptrdiff_t)elem_size, elem_size);
+        // 多维索引 +1（行主序进位）
         for (size_t d = ndim_; d > 0; d--) {
             idx[d - 1]++;
             if (idx[d - 1] < _meta.shape[d - 1]) break;
@@ -139,8 +157,11 @@ tensor_t Tensor::contiguous() const {
     }
     return out;
 }
+```
 
-// === to: 跨设备迁移 ===
+**to：跨设备迁移。** 先判断源/目标是否是 CPU，确定 memcpy 方向（H2H/H2D/D2H/D2D），然后在目标设备上分配新 Tensor，拷贝数据。
+
+```cpp
 tensor_t Tensor::to(llaisysDeviceType_t device_type, int device) const {
     if (this->deviceType() == device_type && this->deviceId() == device)
         return std::shared_ptr<Tensor>(new Tensor(_meta, _storage, _offset));

@@ -62,6 +62,8 @@ void op(std::byte *out, ..., llaisysDataType_t type, ...) {
 
 ## argmax
 
+找 1D tensor 中最大值的索引和值。用 float32 做比较（避免半精度比较的精度问题），但存回原始值（不存 float32 转换后的值，避免精度损失）。
+
 ```cpp
 template <typename T>
 void argmax_(int64_t *max_idx, std::byte *max_val_raw, const T *vals, size_t numel) {
@@ -78,6 +80,8 @@ void argmax_(int64_t *max_idx, std::byte *max_val_raw, const T *vals, size_t num
 
 ## embedding
 
+最简单的算子——按索引拷贝行。index[i] 告诉你取 weight 的第几行，直接 memcpy 整行。不涉及计算，只涉及内存拷贝，所以不需要模板化 dtype——按字节拷就行。
+
 ```cpp
 // out[i] = weight[index[i]]（按行拷贝）
 void embedding(std::byte *out, const int64_t *index, const std::byte *weight,
@@ -91,6 +95,8 @@ void embedding(std::byte *out, const int64_t *index, const std::byte *weight,
 ```
 
 ## linear
+
+矩阵乘法 $Y = XW^T + b$。注意 weight 的形状是 [N, K]（不是 [K, N]），所以是 X[i,:] 点乘 W[j,:]。这是最朴素的三重循环 matmul，性能很差，但正确性有保证。生产环境会换成 cuBLAS/oneDNN。
 
 $$Y = XW^T + b$$
 
@@ -110,6 +116,8 @@ void linear_(T *out, const T *in, const T *weight, const T *bias,
 ```
 
 ## rms_norm
+
+对每一行做归一化。关键细节：平方和累加时，PyTorch 先在 native dtype 平方再转 float32 累加（而不是先转 float32 再平方）。这个顺序差异在 4096 维时能导致超过 1e-3 的误差。用 `rms_inv = 1/sqrt(...)` 而不是 `x / sqrt(...)`，因为乘法比除法快。
 
 $$Y_i = \frac{W_i \times X_i}{\sqrt{\frac{1}{d}\sum_{j=1}^d X_j^2 + \epsilon}}$$
 
@@ -132,6 +140,8 @@ void rms_norm_(T *out, const T *in, const T *weight, size_t rows, size_t d, floa
 ```
 
 ## rope（旋转位置编码）
+
+把向量分成前后两半 [a, b]，对每对 (a_j, b_j) 做 2D 旋转。角度 φ = pos / θ^(2j/d)——低维频率高（变化快），高维频率低（变化慢）。这让模型能感知相对位置：两个 token 的 Q·K 只取决于它们的相对距离。
 
 $$\phi_{i,j} = p_i / \theta^{2j/d}$$
 $$a'_{i,j} = a_{i,j}\cos\phi - b_{i,j}\sin\phi, \quad b'_{i,j} = b_{i,j}\cos\phi + a_{i,j}\sin\phi$$
@@ -159,6 +169,13 @@ void rope_(T *out, const T *in, const int64_t *pos_ids,
 ```
 
 ## self_attention（含 GQA + causal mask）
+
+最复杂的算子。三层循环：外层遍历每个 query token 和每个 head，中层计算该 query 和所有 key 的点积，内层做 softmax 和 V 的加权求和。
+
+关键设计：
+- **GQA 映射**：`kvh = h / group_size`，第 h 个 Q head 用第 kvh 个 KV head
+- **causal mask**：query 在位置 q_pos 只能看到 ≤ q_pos 的 key，未来的位置填 -infinity
+- **q_start_pos = total_len - seqlen**：当 KV Cache 存在时，query 的绝对位置不是从 0 开始的
 
 $$A = QK^\top \cdot \text{scale}, \quad Y = \text{causal\_softmax}(A) \cdot V$$
 
@@ -203,6 +220,8 @@ void self_attention_(T *attn_val, const T *q, const T *k, const T *v,
 ```
 
 ## swiglu（SwiGLU 激活）
+
+LLM FFN 的激活函数。本质是 SiLU(gate) × up = gate·σ(gate) × up。gate 和 up 是两个独立的 linear 投影的输出，SwiGLU 让它们交互——gate 控制“放行多少”，up 是“要放行的内容”。
 
 $$\text{out}_i = \text{up}_i \cdot \frac{\text{gate}_i}{1 + e^{-\text{gate}_i}} = \text{up}_i \cdot \text{SiLU}(\text{gate}_i)$$
 
