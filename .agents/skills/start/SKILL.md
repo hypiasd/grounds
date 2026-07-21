@@ -17,7 +17,7 @@ allowed-tools: Read, Write, Edit, Bash
 - 当前目录已是一个 **grounds 工作仓**（含 agent 文件集 `.agents/` + `AGENTS.md` 及各 agent 软链，以及全部内容目录 `wiki/ paper/ video/ raw/ project/ project_logs/ quartz/`）。
 - 已配好 GitHub SSH 认证，可随时 `$sync`。
 
-> 单一 grounds 模型下**无需** `.buildconfig`、无需移除 origin（origin 就是 grounds）、无需建占位目录（grounds 自带）。`$start` 只做校验与提示。
+> `.buildconfig` 现在是本机项目模式状态（current_project/onboarded），机器本地、不进 git；无需移除 origin（origin 就是 grounds）、无需建占位目录（grounds 自带）。`$start` 只做校验与提示。
 
 ## 流程
 
@@ -69,7 +69,7 @@ grounds 工作仓已就绪（全技能可用）：
 接下来：
 - 用 $project <name|path|url> 收纳一个项目并进入项目模式
 - 用 $learn-capture 沉淀通用知识（写进 wiki/）、用 $project-capture 沉淀项目笔记（写进 project_logs/<name>/）
-- 干完了用 $sync 把改动推回 grounds 远程、并拉取其他机器的更新
+- 干完了用 $sync 把改动推到 grounds 远程、并拉取其他机器的更新
 ```
 
 ---
@@ -78,4 +78,4 @@ grounds 工作仓已就绪（全技能可用）：
 - **本 skill 不创建 / 不修改 agent 文件集与内容目录**：它们由 `git clone grounds.git` 提供。不要手建占位目录或软链（易错且会破坏软链关系）。
 - **复制 agent 文件集必须保留软链**：若手动搬运，`.claude → .agents`、`.codebuddy/.qoder/.trae` 内含 `skills → ../.agents/skills` 都是软链，须 `cp -a` 保留，切勿解引用。
 - **新设备先配 SSH 再 start**：未通过认证时停下，不继续。
-- **单一 grounds：无 .buildconfig、无 origin 移除**：与旧版派生仓模型不同，别残留这些步骤。
+- **单一 grounds：无 workBase 基类、无派生仓、无 origin 移除**（origin 即 grounds）。`.buildconfig` 仅作本机项目模式状态，机器本地不进 git。

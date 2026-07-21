@@ -19,7 +19,7 @@ allowed-tools: Read, Write, Edit, Bash
 - 当前对话中属于「当前项目」的收获，已按类型切分并补进 project 的统一结构；
 - 每个洞察落在正确位置（见下方「类型与落点」），不新建游离文件、不与 project 实时写的卡片格式冲突；
 - `decisions.md` / `experiments/index.md` 索引已补对应链接；
-- 已 `git commit`（grounds 直接 push；临时派生仓 commit 后由用户 `$sync` 推回 grounds）。
+- 已 `git commit`（提交后 `git push origin main` 推到 grounds 远程）。
 
 ## 与 project 的关系（关键）
 
@@ -101,15 +101,14 @@ if [ "$(basename "$PWD")" = "grounds" ] || git remote -v 2>/dev/null | grep -qi 
 fi
 ```
 
-### 四步：发布闭环提示（临时派生仓）
+### 四步：发布闭环提示
 
-若在**临时派生仓**（非 grounds）沉淀，commit 只落在本仓，笔记要真正"上站"还需三个条件同时满足，收尾时提醒用户：
+笔记落在 `project_logs/<current_project>/` 并已随 `$sync` 推到 grounds 远程，但要真正"上站"还需两个条件：
 
-1. **`$sync` 推回 grounds**：本仓 commit 不会自动到 grounds，必须跑 `$sync`。
-2. **进 deploy 白名单**：grounds 的 `.github/workflows/deploy.yml` 的 `paths:` 必须包含 `project_logs/**`，否则改动不触发 CI 部署。
-3. **`publish: true`**：Quartz explicit-publish 插件只发布 frontmatter 带 `publish: true` 的页；项目笔记若要上站，对应 md 需加该字段（不想公开则保持默认不发布）。
+1. **进 deploy 白名单**：grounds 的 `.github/workflows/deploy.yml` 的 `paths:` 必须包含 `project_logs/**`，否则改动不触发 CI 部署。
+2. **`publish: true`**：Quartz explicit-publish 插件只发布 frontmatter 带 `publish: true` 的页；项目笔记若要上站，对应 md 需加该字段（不想公开则保持默认不发布）。
 
-> 三者缺一，就会出现"推到了 grounds 却没部署前端"的情况。
+> 二者缺一，就会出现"推到了 grounds 却没部署前端"的情况。
 
 ## Gotchas
 

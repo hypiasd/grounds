@@ -23,7 +23,7 @@ allowed-tools: Read, Write, Edit, Bash
 
 - `video/<视频标题>/` 是工作目录与成品目录合一的单一目录，最终保留（进 git）：`.tex` + `.pdf` + `index.md`。
 - `cover.jpg`、`sources/`、`figures/`、`ocr/` 是**临时中间产物**（不进 git，由 `.gitignore` 排除）——仅在编译期存在，交付 commit 后由 skill 自动删除，不长期占用本地磁盘。
-- 已 `git commit`（grounds 直接 push；临时派生仓 commit 后**自动 `$sync`** 推回），commit message：`youtube-render-pdf: <视频标题>`
+- 已 `git commit` 并 `git push origin main` 推到 grounds 远程，commit message：`youtube-render-pdf: <视频标题>`
 
 ---
 
@@ -449,11 +449,10 @@ git add "video/<视频标题>/<basename>.tex" \
         "video/<视频标题>/<basename>.pdf" \
         "video/<视频标题>/index.md"
 git commit -m "youtube-render-pdf: <视频标题>"
-# 仓库名判定（与 sync 一致）：grounds 直接 push；临时派生仓无 origin 不 push，commit 后自动 $sync 推回
+# 单一 grounds 模型：当前仓即 grounds 时直接推送到远程
 if [ "$(basename "$PWD")" = "grounds" ] || git remote -v 2>/dev/null | grep -qi grounds; then
   git push
 fi
-# 派生仓（非 grounds）：上方不 push，commit 完成后本 skill 自动运行 $sync 推回 grounds
 
 # 6. 清理临时中间产物（不进 git，成品 .tex/.pdf/index.md 已 commit；删除回收本地磁盘空间）
 #    注意：删除后 .tex 无法直接 xelatex 重编译，需重跑「源获取 + 帧提取」流程才能再编译
@@ -488,7 +487,7 @@ YouTube 特定：
 - **帧选择偏召回高于精度**：多看候选优于错过关键帧。
 - **盲模式别用本地 tesseract 批量评估**：2+ 分钟/帧，用中点提取。
 - **成品必须 commit 进 git**：`.tex`+`.pdf`+`index.md` 进 git；`sources/figures/ocr/cover.jpg` 是临时中间产物（.gitignore 自动排除），**commit 后 skill 自动删除**回收本地空间。换机器后如需重编译/重看源，需重跑「源获取 + 帧提取」流程重新下载。
-- **commit 之后**：grounds 必须 `git push`（否则换机器看不到）；临时派生仓 commit 后**自动 `$sync`** 推回 grounds（不要再只 commit 留本地）。
+- **commit 之后**：必须 `git push origin main` 推到 grounds 远程（否则换机器看不到）。
 
 ## 注意
 

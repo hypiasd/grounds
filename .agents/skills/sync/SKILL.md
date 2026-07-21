@@ -9,7 +9,7 @@ allowed-tools: Read, Write, Edit, Bash
 
 ## 何时用（触发）
 - 用户说"同步一下"、"推一下"、"sync"、"拉一下最新"。
-- 当前 grounds 工作仓产生了笔记（wiki/ paper/ video/ project_logs）或改进了 agent 文件，需要推回 grounds 远程 / 拉取其他机器（他人）的改动。
+- 当前 grounds 工作仓产生了笔记（wiki/ paper/ video/ project_logs）或改进了 agent 文件，需要推到 grounds 远程 / 拉取其他机器（他人）的改动。
 
 **只接受手动 / `$` 触发**：agent 不得基于用户消息内容自动调用。
 

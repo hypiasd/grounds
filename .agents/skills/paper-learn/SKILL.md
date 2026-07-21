@@ -18,7 +18,7 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch
 ## 目标（完成时仓库应处于的状态）
 
 - 用户对这篇论文有**结构化理解**：解决什么问题、提什么方法、关键贡献、局限、在领域中的位置。
-- 仓库新增一篇 `paper/<topic>/<论文标题>.md`（或更新已有笔记），已 `git commit`（grounds 直接 push；临时派生仓 commit 后**自动 `$sync`** 推回）。
+- 仓库新增一篇 `paper/<topic>/<论文标题>.md`（或更新已有笔记），已 `git commit`（提交后 `git push origin main` 推到 grounds 远程）。
 - 源 PDF 存放于 `raw/papers/<arxiv-id 或短标题>.pdf`。
 
 ## 核心原则
@@ -238,7 +238,7 @@ print('authors:', '; '.join(authors))
      - 引用 wiki 的链接（如 `../../wiki/cuda/triton.md`）——wiki 笔记可能被改名/移动
      - `sources` 字段指向的 `raw/papers/` PDF——本机存在即可（raw/ 不进 git）
    - `git status` 确认改动符合预期
-4. **提交**：先 `git status` 确认仅本笔记 + 两级 `index.md` 改动；显式 `git add "paper/<topic>/<论文标题>.md" "paper/<topic>/index.md" "paper/index.md"`（用仓库根相对路径 + 引号，论文标题常含空格/中文/特殊字符；不要 `git add -A`，避免误带其他未完成改动）；`git commit -m "paper-learn <topic>: <一句话>"`。**仓库名判定（与 sync 一致）：grounds 直接 `git push`；临时派生仓无 origin 不 push，commit 后**自动 `$sync`** 把笔记推回 grounds。**
+4. **提交**：先 `git status` 确认仅本笔记 + 两级 `index.md` 改动；显式 `git add "paper/<topic>/<论文标题>.md" "paper/<topic>/index.md" "paper/index.md"`（用仓库根相对路径 + 引号，论文标题常含空格/中文/特殊字符；不要 `git add -A`，避免误带其他未完成改动）；`git commit -m "paper-learn <topic>: <一句话>"`。提交后 `git push origin main` 推到 grounds 远程。
 
 ---
 
@@ -400,7 +400,7 @@ updated: YYYY-MM-DD
 - **同一篇论文永远只有一篇笔记**：已有笔记 → 更新模式。
 - **论文-代码对照是可选的**：不强制每次都搜 GitHub，只在用户深读 Method 或要复现时启用。
 - **不要做 Accept/Reject 评审**：本 skill 是学习者视角，不是 reviewer。方法论评估表是可选的反思工具，不是评审结论。
-- **讲完忘收口**：commit 之后——grounds 必须 `git push`（否则换机器看不到）；临时派生仓 commit 后**自动 `$sync`** 推回 grounds（不要再只 commit 留本地）。
+- **讲完忘收口**：commit 之后——必须 `git push origin main` 推到 grounds 远程（否则换机器看不到）。
 
 ## 注意
 

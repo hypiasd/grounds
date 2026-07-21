@@ -23,7 +23,7 @@ AI 时代代码大多是 agent 写的。如果你只给 prompt、看测试结果
 ## 何时用（触发）
 
 - 用户说「进入项目 X」「把 X 收进项目」「project X」「切换到项目模式」。
-- 用户给了一个项目名 / 本地路径 / git URL，想把它纳入当前派生仓的 `project/` 下，并**以学习为目的**地推进。
+- 用户给了一个项目名 / 本地路径 / git URL，想把它纳入 grounds 的 `project/` 下，并**以学习为目的**地推进。
 
 **只接受手动 / `$` 触发**：agent 不得基于用户消息内容自动调用。
 
@@ -80,12 +80,11 @@ fi
 mkdir -p "project_logs/$NAME"
 ```
 
-### 第三步：更新 .buildconfig 的 current_project（与旧版一致）
+### 第三步：更新 .buildconfig 的 current_project
 
 ```bash
 [ -f .buildconfig ] || cat > .buildconfig <<'EOF'
 grounds_remote=git@github.com:hypiasd/grounds.git
-workbase_remote=git@github.com:hypiasd/workBase.git
 local_grounds_path=
 current_project=
 EOF
@@ -285,11 +284,11 @@ updated: <YYYY-MM-DD>
 
 - **收纳默认软链，不要默认移动**：`mv` 会破坏用户原项目路径；除非用户显式要「迁移」，否则用软链（见第一步–第二步）。
 - **onboard 只做一次**：由 `.buildconfig` 的 `onboarded` 保证；禁止每次进入重做全盘扫描（会覆盖已写笔记）。
-- **笔记只进 `project_logs/<name>/`**：代码 / 构建产物放 `project/<name>/`（独立 git，父仓库忽略）；`sync` 只收 `project_logs/`，绝不把代码推回 grounds。
+- **笔记只进 `project_logs/<name>/`**：代码 / 构建产物放 `project/<name>/`（独立 git，父仓库忽略）；`sync` 只收 `project_logs/`，绝不把代码推上 grounds 远程。
 - **current_project 是模式标记，不是数据**：只告诉后续 skill「当前上下文是哪个项目」。
-- **`.buildconfig` 不进 sync**：派生仓自己的配置，推回 grounds 时排除。
+- **`.buildconfig` 不进 git**：本机项目模式状态（current_project/onboarded），机器本地配置。
 - **白盒不是啰嗦**：M1 摊方案要有结构（问题 / 选项 / 推荐 / 拍板点），不是长篇流水；用户说「直接做」时可精简，但**关键决策仍留 Decision 块**（写进 runbook 比口头说更易回溯）。
 - **本机绝对路径不进笔记**：外部仓库节只写远程 URL + 软链名（见第四步）。
-- **工作目录锁死 `project/<name>/`（硬性）**：激活的项目，其唯一工作目录是 `project/<name>/`，所有相关代码（含上游 fork / 依赖源码）都应**物理放在该目录内**作为子目录（如 `project/MiniCPM/llama.cpp-omni/`）。两条红线：(1) **不得**把上游依赖当成独立顶层 `project/<othername>/` 收纳——它属于当前项目，应内嵌为子目录；(2) **不得**用软链从 workBase 外挂入（优先 `mv`/`cp` 进工作目录，而非在 `/workspace/xxx` 另开工作区再摘成果）。外部指南给了别的绝对路径时，先把源码收纳进当前项目工作目录，再把笔记路径改写为 `project/<name>/...` 相对路径并注明「原指南路径 → 实际路径」。
+- **工作目录锁死 `project/<name>/`（硬性）**：激活的项目，其唯一工作目录是 `project/<name>/`，所有相关代码（含上游 fork / 依赖源码）都应**物理放在该目录内**作为子目录（如 `project/MiniCPM/llama.cpp-omni/`）。两条红线：(1) **不得**把上游依赖当成独立顶层 `project/<othername>/` 收纳——它属于当前项目，应内嵌为子目录；(2) **不得**用软链从 grounds 仓外挂入（优先 `mv`/`cp` 进工作目录，而非在 `/workspace/xxx` 另开工作区再摘成果）。外部指南给了别的绝对路径时，先把源码收纳进当前项目工作目录，再把笔记路径改写为 `project/<name>/...` 相对路径并注明「原指南路径 → 实际路径」。
   - 注：此条优先于下方「收纳默认软链」——后者只适用于把一个**全新独立项目**收纳为顶层 `project/<name>/` 的情形；同一项目内的上游依赖须物理内嵌，不建顶层、不软链。（MiniCPM 初版就因错把 llama.cpp-omni 收成顶层 `project/llama.cpp-omni` + 软链而游离于工作目录之外，后纠正为 `project/MiniCPM/llama.cpp-omni/`。）
 - **淡出要真淡出**：阶段 3 时 agent 别再抢着给方案，主动退到「把关」角色，逼用户自己思考——这才是能力增长的来源。

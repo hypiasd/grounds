@@ -41,7 +41,7 @@ grounds/
 │       ├── figures/         # 不进 git
 │       └── ocr/             # 不进 git
 ├── project/               # 各 <name>/ 是独立 git 仓库，父仓库 .gitignore 忽略其内容
-├── project_logs/         # 项目笔记（project-capture 产出；进 git、随 sync 推回 grounds）
+├── project_logs/         # 项目笔记（project-capture 产出；进 git、随 sync 推到 grounds 远程）
 ├── raw/                   # 原始资料（只增不删，分两类）
 │   ├── wiki/              # learn/learn-capture/query 引用的资料
 │   └── papers/            # 论文 PDF
@@ -66,14 +66,14 @@ grounds/
 git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 ```
 
-即可——无需 workBase 基类、无需派生仓、无需 `.buildconfig`。
+即可——无需 workBase 基类、无需派生仓（`.buildconfig` 仅作本机项目模式状态，机器本地不进 git）。
 
 - **内容目录**：`wiki/ paper/ video/ raw/ project/ project_logs/` 全部在 grounds 内（见上方仓库地图）。
 - **agent 文件集**：`.agents/` + `AGENTS.md` + 各 agent 软链，是 grounds 的普通跟踪文件，随普通 `git pull/push` 同步——**不再有覆盖式 `AGENT_FILESET` 机制**。
 - **project 仓**：`project/<name>/` 各是独立 git 仓库，父仓库 `.gitignore` 忽略其内容（见 `.gitignore` 的 `project/*`），可独立推自己的远程。
 - **不进 git 的内容**：`raw/`、`video/` 中间产物（见 `.gitignore`），以及 `project/<name>/` 内部。
 
-> 历史背景：本仓早期采用 workBase 基类 + 派生仓的「分层 + 覆盖式同步」模型。因 grounds 全量仅约 63M（无大文件，最大单文件 3.5M PDF），单仓即可承载全部内容，故统一回退为单一 grounds 模型，去掉 workBase 基类与 `.buildconfig`。`README.md`、`.github/` 仍为仓库专属文件。
+> 历史背景：本仓早期采用 workBase 基类 + 派生仓的「分层 + 覆盖式同步」模型。因 grounds 全量仅约 63M（无大文件，最大单文件 3.5M PDF），单仓即可承载全部内容，故统一回退为单一 grounds 模型，去掉 workBase 基类、派生仓分层与覆盖式 `AGENT_FILESET` 机制；`.buildconfig` 保留为机器本地的项目模式状态（current_project/onboarded），不进 git。`README.md`、`.github/` 仍为仓库专属文件。
 
 ---
 
