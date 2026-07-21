@@ -1,3 +1,9 @@
+---
+title: vllm-plus 决策记录（ADR embryo）
+tags: [project, vllm-plus]
+created: 2026-07-21
+updated: 2026-07-21
+---
 # vllm-plus 决策记录（ADR embryo）
 
 > 从 git 提交记录 + `experiment_results.md` 提炼的**已落地决策**。每条带实测依据；不确定的标「待确认」。

@@ -1,3 +1,9 @@
+---
+title: vllm-plus 踩坑 / 知识点账本（Pitfall & Learning Log）
+tags: [project, vllm-plus]
+created: 2026-07-21
+updated: 2026-07-21
+---
 # vllm-plus 踩坑 / 知识点账本（Pitfall & Learning Log）
 
 > 实时 append：遇到坑、顿悟、非显然知识点，**发生瞬间就写**（见 project skill M3）。

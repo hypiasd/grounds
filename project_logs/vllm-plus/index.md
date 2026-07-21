@@ -1,3 +1,9 @@
+---
+title: vllm-plus 项目全景
+tags: [project, vllm-plus]
+created: 2026-07-21
+updated: 2026-07-21
+---
 # vllm-plus 项目全景
 
 > 压成认知版的项目手册：目标、技术栈、命令、结构、现状、待办、决策指针、外部仓库。

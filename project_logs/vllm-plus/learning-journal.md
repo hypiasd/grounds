@@ -1,3 +1,9 @@
+---
+title: vllm-plus 能力账本（Learning Journal）
+tags: [project, vllm-plus]
+created: 2026-07-21
+updated: 2026-07-21
+---
 # vllm-plus 能力账本（Learning Journal）
 
 > 跟踪你从「agent 给完整方案」到「自己提方案、agent 把关」的成长（见 project skill M5 淡出机制）。

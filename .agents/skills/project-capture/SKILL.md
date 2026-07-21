@@ -69,6 +69,8 @@ project 的 M0–M5 实时白盒工作流**已在协作中自动写**：
 
 ### 二步：归位（写多个位置）
 
+> **Frontmatter**：`decision-<topic>.md` / `exp-<slug>.md` 等独立文件开头带 frontmatter（title 与 H1 同名、tags: [project, <name>]、created/updated），与 project M1/M2 同构；`pitfalls.md` / `changes.md` 创建时带一次 frontmatter，之后 append 小节。
+
 对每个洞察，写到对应落点：
 
 - **决策** → 写 `decisions/decision-<topic>.md`（决策卡格式），并在 `decisions.md` 索引表追加：`| <topic> | <一句话> | [卡片](decisions/decision-<topic>.md) |`

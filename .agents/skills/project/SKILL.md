@@ -135,7 +135,18 @@ fi
 
 ### M0 · 全局掌控视图
 
-`project_logs/<name>/` 是项目的「白盒仪表盘」。任何推进都要回写对应文件，让用户随时 `cat` 一眼就知道全局。各文件职责见第四步。原则：**改了东西就更新 index 的「现状 / 待办」，做了决策就加 Decision Card，跑了实验就填 Experiment Card，踩了坑就 append pitfalls。**
+`project_logs/<name>/` 是项目的「白盒仪表盘」。
+
+> **Frontmatter 规范（前端对齐 Quartz 必须）**：上述每个独立 md 文件开头都要带 frontmatter，否则前端会显示成文件名而非中文标题。格式：
+> ```markdown
+> ---
+> title: <中文标题，与 H1 同名>
+> tags: [project, <name>]
+> created: <YYYY-MM-DD>
+> updated: <YYYY-MM-DD>
+> ---
+> ```
+> `pitfalls.md` / `changes.md` 在**文件创建时**带一次 frontmatter，之后只 append `###` 小节（小节不带 frontmatter）。任何推进都要回写对应文件，让用户随时 `cat` 一眼就知道全局。各文件职责见第四步。原则：**改了东西就更新 index 的「现状 / 待办」，做了决策就加 Decision Card，跑了实验就填 Experiment Card，踩了坑就 append pitfalls。**
 
 ### M1 · 决策卡 Decision Card（白盒核心）
 
@@ -144,6 +155,13 @@ fi
 Card 字段（吸收工程决策日志：Context / Options / Decision / Rationale / Consequences）：
 
 ```markdown
+---
+title: 决策：<一句话主题>
+tags: [project, <name>, decision]
+created: <YYYY-MM-DD>
+updated: <YYYY-MM-DD>
+---
+
 # 决策：<一句话主题>
 
 - **问题（what & why）**：现在要解决什么？为什么现在必须定？
@@ -165,6 +183,13 @@ Card 字段（吸收工程决策日志：Context / Options / Decision / Rational
 用户想验证某个优化 / 假设（如「KV 量化到底有没有用」）时，agent **先帮把实验设计白盒化**，跑完一起填结论，形成可复看的记录。
 
 ```markdown
+---
+title: 实验：<假设一句话>
+tags: [project, <name>, experiment]
+created: <YYYY-MM-DD>
+updated: <YYYY-MM-DD>
+---
+
 # 实验：<假设一句话>
 
 - **假设**：如果做 X，预期 Y 会改善（明确因→果）

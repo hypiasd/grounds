@@ -1,3 +1,9 @@
+---
+title: vllm-plus 实验记录台（Experiment Log）
+tags: [project, vllm-plus]
+created: 2026-07-21
+updated: 2026-07-21
+---
 # vllm-plus 实验记录台（Experiment Log）
 
 > 每个实验一张卡：`experiments/exp-<slug>.md`（见 project skill M2）。
