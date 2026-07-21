@@ -29,7 +29,7 @@ updated: 2026-07-21
 
 ```bash
 # 进入项目（已软链）
-cd project/vllm-plus        # 软链到本机外部目录（真实绝对路径属本机状态，不写死以避免泄露本机路径）
+cd project/vllm-plus        # 软链到本机外部目录（真实绝对路径属本机状态，见 .buildconfig 的 local_grounds_path，不写死以避免泄露本机路径）
 
 # 基础推理
 python example.py           # 单/小批量对话
