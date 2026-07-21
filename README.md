@@ -2,7 +2,7 @@
 
 个人学习仓库 —— 用对话学知识，用 git 管笔记。
 
-**入口**：[`AGENTS.md`](AGENTS.md) — Claude Code 和 Codex 通用，包含完整约定与十一个 skill。
+**入口**：[`AGENTS.md`](AGENTS.md) — Claude Code 和 Codex 通用，包含完整约定与十个 skill。
 
 ## 结构
 
@@ -13,10 +13,10 @@ video/   视频笔记成品（每个视频一个目录）
 raw/     原始资料（只增不删；分 wiki/papers/videos）
 ```
 
-## 十一个 Skill
+## 十个 Skill
 
 - 语义触发：`learn` · `lint` · `query`
-- 手动 / `$` 触发：`learn-capture` · `project-capture` · `paper-learn` · `bilibili-render-pdf` · `youtube-render-pdf`
+- 手动 / `$` 触发：`start` · `project` · `learn-capture` · `project-capture` · `paper-learn` · `bilibili-render-pdf` · `youtube-render-pdf`
 
 详见 [AGENTS.md](AGENTS.md)。
 
@@ -28,4 +28,4 @@ raw/     原始资料（只增不删；分 wiki/papers/videos）
 git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 ```
 
-agent 行为（角色、铁律、技能、规范）的完整定义见 [`AGENTS.md`](AGENTS.md)；笔记改动经 `$sync`（`git pull --rebase` + `git push`）推到 grounds 远程，并拉取其他机器的改动。
+agent 行为（角色、铁律、技能、规范）的完整定义见 [`AGENTS.md`](AGENTS.md)；笔记由各 skill 提交后 `git push origin main` 推到 grounds 远程；换机器前用 `$start` 拉取远程最新（`git pull --rebase`）。

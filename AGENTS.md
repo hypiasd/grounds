@@ -41,7 +41,7 @@ grounds/
 │       ├── figures/         # 不进 git
 │       └── ocr/             # 不进 git
 ├── project/               # 各 <name>/ 是独立 git 仓库，父仓库 .gitignore 忽略其内容
-├── project_logs/         # 项目笔记（project-capture 产出；进 git、随 sync 推到 grounds 远程）
+├── project_logs/         # 项目笔记（project-capture 产出；进 git、随 git push 推到 grounds 远程）
 ├── raw/                   # 原始资料（只增不删，分两类）
 │   ├── wiki/              # learn/learn-capture/query 引用的资料
 │   └── papers/            # 论文 PDF
@@ -66,14 +66,14 @@ grounds/
 git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 ```
 
-即可——无需 workBase 基类、无需派生仓（`.buildconfig` 仅作本机项目模式状态，机器本地不进 git）。
+即可——无需 workBase 基类、无需派生仓、无需本机状态文件。
 
 - **内容目录**：`wiki/ paper/ video/ raw/ project/ project_logs/` 全部在 grounds 内（见上方仓库地图）。
 - **agent 文件集**：`.agents/` + `AGENTS.md` + 各 agent 软链，是 grounds 的普通跟踪文件，随普通 `git pull/push` 同步——**不再有覆盖式 `AGENT_FILESET` 机制**。
 - **project 仓**：`project/<name>/` 各是独立 git 仓库，父仓库 `.gitignore` 忽略其内容（见 `.gitignore` 的 `project/*`），可独立推自己的远程。
 - **不进 git 的内容**：`raw/`、`video/` 中间产物（见 `.gitignore`），以及 `project/<name>/` 内部。
 
-> 历史背景：本仓早期采用 workBase 基类 + 派生仓的「分层 + 覆盖式同步」模型。因 grounds 全量仅约 63M（无大文件，最大单文件 3.5M PDF），单仓即可承载全部内容，故统一回退为单一 grounds 模型，去掉 workBase 基类、派生仓分层与覆盖式 `AGENT_FILESET` 机制；`.buildconfig` 保留为机器本地的项目模式状态（current_project/onboarded），不进 git。`README.md`、`.github/` 仍为仓库专属文件。
+> 历史背景：本仓早期采用 workBase 基类 + 派生仓的「分层 + 覆盖式同步」模型。因 grounds 全量仅约 63M（无大文件，最大单文件 3.5M PDF），单仓即可承载全部内容，故统一回退为单一 grounds 模型，去掉 workBase 基类、派生仓分层与覆盖式 `AGENT_FILESET` 机制；`.buildconfig` 也已在后续简化中废弃移除（项目模式改为会话级、onboard 判据改为 runbook.md 是否存在）。`README.md`、`.github/` 仍为仓库专属文件。
 
 ---
 
@@ -88,7 +88,7 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 按「一次 skill 动作」原子提交（message 格式见下方「提交规范」），别攒一堆不推；项目仓代码按里程碑提交。
 
 ### 3. 推送
-- **笔记 / agent 文件**：在当前 grounds 仓直接 `git commit` + `git push origin main`（或由 `$sync` 统一执行 pull+push）。
+- **笔记 / agent 文件**：在当前 grounds 仓直接 `git commit` + `git push origin main`。
 - **project/<name> 仓**：各自独立 `git push` 自己的远程，不走 grounds。
 
 ### 4. 项目仓初始化纪律
@@ -114,15 +114,14 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 
 ---
 
-## 十一个 Skill
+## 十个 Skill
 
 所有 skill 在 `.agents/skills/<name>/SKILL.md`。**必须先 Read 对应的 SKILL.md 文件**再执行——表格只是索引，SKILL.md 里的详细流程、Gotchas、质量示例才是执行标准。
 
 | Skill | 触发 | 文件 | 产出 | 关键原则 |
 |-------|------|------|------|-----------|
-| `start` | **手动 / `$` 触发** | `.agents/skills/start/SKILL.md` | （可选）初始化新工作目录 | 新机器 `git clone grounds.git` 即可，无额外步骤；`$start` 仅作提示/占位 |
+| `start` | **手动 / `$` 触发** | `.agents/skills/start/SKILL.md` | 从 grounds 远程拉取最新（pull --rebase） | 只拉不推；推送由各 skill 自己 `git push origin main` |
 | `project` | **手动 / `$` 触发** | `.agents/skills/project/SKILL.md` | 收纳项目 + 切换项目模式 + 定义学习导向白盒协作工作流 | 单参数自动判别（URL→clone / 本地目录→软链 / 名字→新建）；非空项目首次进入自动 onboard 建 M0 全局视图；**白盒工作流（M0–M6：决策卡/实验卡/踩坑卡/能力账本/淡出 + M6 收尾闸门强制回写 runbook）进入即生效，详见该 skill** |
-| `sync` | **手动 / `$` 触发** | `.agents/skills/sync/SKILL.md` | 与 grounds 远程同步（pull+push） | `git pull --rebase` 取最新 + `git push` 本仓改动；可选遍历 `project/*/` 各自 push |
 | `learn` | 语义触发 | `.agents/skills/learn/SKILL.md` | wiki 笔记 | 先给地图再走路；同一概念永只有一篇 |
 | `learn-capture` | **手动 / `$` 触发** | `.agents/skills/learn-capture/SKILL.md` | wiki 笔记 | 一次对话→多个原子洞察→各归其位；面经三源（小红书/知乎/牛客）必须全搜 |
 | `project-capture` | **手动 / `$` 触发** | `.agents/skills/project-capture/SKILL.md` | 项目收获收尾沉淀 | 当前项目专属收获（决策/实验/踩坑/改动/能力账本），**统一内联进 `project_logs/<name>/runbook.md` 的时间线节点**（决策→「决策」块、踩坑→「问题/解决」块、验证→「结果」块、产物→末尾清单、能力→末尾账本），作为 M0–M6 实时白盒工作流（含 M6 收尾闸门）的收尾补漏；不补面经、不进 lint/query |
@@ -135,7 +134,7 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 ### 调度规则（跨 agent 通用）
 
 1. **前 3 个内容 skill（learn/lint/query）**——learn-capture 与 project-capture 已改为手动 / `$` 触发，不在此自动调度之列。：识别用户意图，匹配触发词后自动调度。SKILL.md frontmatter 里的 `disable-model-invocation: true` 是 Claude Code / Codex 语义（指"禁止模型无用户触发时自动调用"），CodeBuddy / Qoder / Trae 会忽略该字段；这不影响"用户消息触发后自动调度"——所有 agent 都按本调度规则执行。
-2. **结构类 skill（start/project/sync）与产出类 skill（learn-capture/project-capture/paper-learn/bilibili-render-pdf/youtube-render-pdf）**：**只接受手动触发或 `$` 触发**——agent 不得基于用户消息内容自动调用它们。用户必须显式说"用 start 初始化"或输入 `$project <name>` / `$sync` 才会触发。这类 skill 直接改动仓库状态与远程，禁止语义自动触发以免误推远程。
+2. **结构类 skill（start/project）与产出类 skill（learn-capture/project-capture/paper-learn/bilibili-render-pdf/youtube-render-pdf）**：**只接受手动触发或 `$` 触发**——agent 不得基于用户消息内容自动调用它们。用户必须显式说"用 start 拉取最新"或输入 `$project <name>` 才会触发。这类 skill 直接改动仓库状态与远程，禁止语义自动触发以免误推远程。
 3. **用 Read 工具读取对应的 SKILL.md 文件**。不要跳过——表格只是索引。
 4. 严格按 SKILL.md 中的流程执行，包括校验步骤。
 5. 写 wiki 笔记前必须再读 `.agents/conventions.md`。写 paper 笔记前读 paper-learn SKILL.md 内的模板说明。
@@ -144,7 +143,7 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 
 ## Skill 一览
 
-> 十一个技能的完整索引（触发 / 文件 / 产出 / 关键原则）已合并到上方「十一个 Skill」总表，避免两处漂移。执行前**必须先 Read 对应 SKILL.md**。
+> 十个技能的完整索引（触发 / 文件 / 产出 / 关键原则）已合并到上方「十个 Skill」总表，避免两处漂移。执行前**必须先 Read 对应 SKILL.md**。
 
 ---
 
@@ -181,7 +180,7 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 
 ## 提交规范
 
-- commit message 格式：`<skill> <topic>: <一句话>`。提交后推送到 grounds（`git push origin main` 或 `$sync`）；project 代码推各自独立仓。
+- commit message 格式：`<skill> <topic>: <一句话>`。提交后推送到 grounds（`git push origin main`）；project 代码推各自独立仓。
 - 示例：
   - `learn deep-learning: 注意力机制笔记`
   - `lint: 修复孤儿页`

@@ -30,8 +30,8 @@ AI 时代代码大多是 agent 写的。如果你只给 prompt、看测试结果
 ## 目标（完成时仓库应处于的状态）
 
 - 目标项目已落在 `project/<name>/` 下（clone / 软链 / 新建之一）。
-- `.buildconfig` 的 `current_project=<name>` 已更新（标记「当前处于项目模式」）。
-- 首次进入非空已有项目 → 已 onboard，并在 `project_logs/<name>/` 下建好 **M0 全局掌控视图**全套骨架（见下方）。由 `.buildconfig` 的 `onboarded` 列表持久标记，只做一次。
+- 已将「当前项目」记为 `<name>`（**会话级模式标记**：本会话内 `$project-capture` 等后续 skill 据此知道上下文是哪个项目；不落盘、不跨会话）。
+- 首次进入且 `project_logs/<name>/runbook.md` 尚不存在 → 已 onboard，并在 `project_logs/<name>/` 下建好 **M0 全局掌控视图**全套骨架（见下方）。由「runbook.md 是否已存在」自动判据，只做一次、不覆盖已写笔记。
 - 项目推进中，每个非平凡决策都有 **Decision Card** 留痕（写入 runbook 对应节点的「决策」块）；每次实验有 **Experiment Card**（写入「结果」块）；踩坑 / 顿悟实时进 runbook 对应节点的「问题 / 解决」块。
 
 ## 参数判别（与旧版一致）
@@ -80,20 +80,9 @@ fi
 mkdir -p "project_logs/$NAME"
 ```
 
-### 第三步：更新 .buildconfig 的 current_project
+### 第三步：记下当前项目（会话级，不落盘）
 
-```bash
-[ -f .buildconfig ] || cat > .buildconfig <<'EOF'
-grounds_remote=git@github.com:hypiasd/grounds.git
-local_grounds_path=
-current_project=
-EOF
-if grep -q '^current_project=' .buildconfig; then
-  sed -i.bak "s/^current_project=.*/current_project=$NAME/" .buildconfig && rm -f .buildconfig.bak
-else
-  echo "current_project=$NAME" >> .buildconfig
-fi
-```
+无需写文件：直接把「当前项目 = `<name>`」作为**本会话**的模式标记（后续 `$project-capture` 等 skill 据此判断上下文）。项目模式随会话结束即失效，不跨会话、不产生本机状态文件。
 
 ### 第四步：onboard（首次进入非空已有项目）—— 建好 M0 全景骨架
 
@@ -102,9 +91,8 @@ fi
 ```bash
 TARGET="project/$NAME"; [ -L "$TARGET" ] && TARGET=$(readlink -f "$TARGET")
 cnt=$(find "$TARGET" -mindepth 1 -maxdepth 1 -not -name .gitkeep -not -name notes -not -name .git 2>/dev/null | head -1)
-ONBOARDED=""; [ -f .buildconfig ] && ONBOARDED=$(grep '^onboarded=' .buildconfig 2>/dev/null | cut -d= -f2-)
-already() { echo " $ONBOARDED " | grep -qF " $1 "; }
-if [ -n "$cnt" ] && ! already "$NAME"; then echo "ONBOARD=yes"; else echo "ONBOARD=no"; fi
+# onboard 只做一次：以 runbook.md 是否已存在为判据（不再用 .buildconfig 的 onboarded 列表）
+if [ -n "$cnt" ] && [ ! -f "project_logs/$NAME/runbook.md" ]; then echo "ONBOARD=yes"; else echo "ONBOARD=no"; fi
 ```
 
 若 `ONBOARD=yes`，agent **主动盘点**并生成 **M0 全套骨架**（写进 `project_logs/<name>/`）：
@@ -113,17 +101,9 @@ if [ -n "$cnt" ] && ! already "$NAME"; then echo "ONBOARD=yes"; else echo "ONBOA
 2. `runbook.md`：**单一主线记录（时间线）** —— 按时间线串起「决策 / 实施 / 问题 / 解决」，是整个项目**唯一详写文件**。每个时间线节点内联：决策用「决策」块（问题 / 候选方案 / 推荐 + 理由 / 需拍板点）、踩坑用「问题 / 解决」块、验证用「结果」块；文件末尾「交付产物清单」集中登记可复用文件（上手指南 / 测试脚本集 / 启动脚本 / 服务单元 / 配置模板）。**其他视角（决策卡 / 踩坑 / 实验 / 改动 / 能力账本）一律内联进 runbook 对应节点，不再独立成文件**，从根上避免同一件事在多个文件重复写。
 > 老项目若已用多文件结构（`decisions/` / `pitfalls.md` 等）可保留，不必回退；新模式仅约束**新 onboard 项目**。
 
-外部仓库节**只写远程 URL + 软链名，绝不写本机绝对路径**（如 `/Users/tian/...`）——`project_logs/` 会随 `$sync` 进 git 推远程，写本机绝对路径会泄露本机用户名与目录结构；真实本地路径记在 `.buildconfig` 的 `local_grounds_path`，不进笔记。
+外部仓库节**只写远程 URL + 软链名，绝不写本机绝对路径**（如 `/Users/tian/...`）——`project_logs/` 会随 `git push` 进 git 推远程，写本机绝对路径会泄露本机用户名与目录结构。
 
-生成后务必写入 `onboarded` 标记（保证只做一次、不覆盖已写笔记）：
-
-```bash
-if ! grep -q '^onboarded=' .buildconfig 2>/dev/null; then
-  echo "onboarded=$NAME" >> .buildconfig
-elif ! grep '^onboarded=' .buildconfig | cut -d= -f2- | grep -q " $NAME "; then
-  sed -i.bak "s/^onboarded=.*/onboarded=$(grep '^onboarded=' .buildconfig | cut -d= -f2-) $NAME/" .buildconfig && rm -f .buildconfig.bak
-fi
-```
+生成后**无需再写任何标记**：下次进入时由「`project_logs/$NAME/runbook.md` 是否已存在」自动判定是否已 onboard（见第四步判据），天然只做一次、不覆盖已写笔记。
 
 ## 白盒协作工作流（本 skill 的核心）
 
@@ -278,15 +258,14 @@ updated: <YYYY-MM-DD>
 
 ## 设计原则（为什么没有子命令）
 
-`project` 只负责「**收纳 + 切换 + 定义学习导向白盒工作流**」，不做项目过程管理的具体命令（不提供 `log` / `retro` / `add`）。记进展、复盘、沉淀是普通文件编辑 / `$project-capture` 调用。保持职责单一：获取项目 = `project`，推送成果 = `sync`，初始化仓 = `start`。
+`project` 只负责「**收纳 + 切换 + 定义学习导向白盒工作流**」，不做项目过程管理的具体命令（不提供 `log` / `retro` / `add`）。记进展、复盘、沉淀是普通文件编辑 / `$project-capture` 调用。保持职责单一：获取项目 = `project`，拉取远程最新 = `$start`，推送成果由各 skill 自己 `git push origin main`。
 
 ## Gotchas（真实踩过的坑）
 
 - **收纳默认软链，不要默认移动**：`mv` 会破坏用户原项目路径；除非用户显式要「迁移」，否则用软链（见第一步–第二步）。
-- **onboard 只做一次**：由 `.buildconfig` 的 `onboarded` 保证；禁止每次进入重做全盘扫描（会覆盖已写笔记）。
-- **笔记只进 `project_logs/<name>/`**：代码 / 构建产物放 `project/<name>/`（独立 git，父仓库忽略）；`sync` 只收 `project_logs/`，绝不把代码推上 grounds 远程。
-- **current_project 是模式标记，不是数据**：只告诉后续 skill「当前上下文是哪个项目」。
-- **`.buildconfig` 不进 git**：本机项目模式状态（current_project/onboarded），机器本地配置。
+- **onboard 只做一次**：由 `project_logs/<name>/runbook.md` 是否已存在保证；禁止每次进入重做全盘扫描（会覆盖已写笔记）。
+- **笔记只进 `project_logs/<name>/`**：代码 / 构建产物放 `project/<name>/`（独立 git，父仓库忽略）；笔记推上 grounds 远程只含 `project_logs/`，绝不把代码推上 grounds。
+- **当前项目是会话级模式标记，不是数据**：只告诉后续 skill「当前上下文是哪个项目」（不落盘、不跨会话）。
 - **白盒不是啰嗦**：M1 摊方案要有结构（问题 / 选项 / 推荐 / 拍板点），不是长篇流水；用户说「直接做」时可精简，但**关键决策仍留 Decision 块**（写进 runbook 比口头说更易回溯）。
 - **本机绝对路径不进笔记**：外部仓库节只写远程 URL + 软链名（见第四步）。
 - **工作目录锁死 `project/<name>/`（硬性）**：激活的项目，其唯一工作目录是 `project/<name>/`，所有相关代码（含上游 fork / 依赖源码）都应**物理放在该目录内**作为子目录（如 `project/MiniCPM/llama.cpp-omni/`）。两条红线：(1) **不得**把上游依赖当成独立顶层 `project/<othername>/` 收纳——它属于当前项目，应内嵌为子目录；(2) **不得**用软链从 grounds 仓外挂入（优先 `mv`/`cp` 进工作目录，而非在 `/workspace/xxx` 另开工作区再摘成果）。外部指南给了别的绝对路径时，先把源码收纳进当前项目工作目录，再把笔记路径改写为 `project/<name>/...` 相对路径并注明「原指南路径 → 实际路径」。

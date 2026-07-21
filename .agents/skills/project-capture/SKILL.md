@@ -12,7 +12,7 @@ allowed-tools: Read, Write, Edit, Bash
 ## 触发与约束
 
 - **只接受手动 / `$` 触发**：用户显式输入 `$project-capture` 才执行；agent 不得基于对话内容自动调用。
-- 必须先处于项目模式：`current_project`（在 `.buildconfig`）已设置。未设置 → 提示用户先 `$project <name>` 并退出。
+- 必须先处于项目模式：本会话已通过 `$project <name>` 进入。未进入 → 提示用户先 `$project <name>` 并退出。
 
 ## 目标（完成时）
 
@@ -103,7 +103,7 @@ fi
 
 ### 四步：发布闭环提示
 
-笔记落在 `project_logs/<current_project>/` 并已随 `$sync` 推到 grounds 远程，但要真正"上站"还需两个条件：
+笔记落在 `project_logs/<current_project>/`，提交后 `git push origin main` 推到 grounds 远程，但要真正"上站"还需两个条件：
 
 1. **进 deploy 白名单**：grounds 的 `.github/workflows/deploy.yml` 的 `paths:` 必须包含 `project_logs/**`，否则改动不触发 CI 部署。
 2. **`publish: true`**：Quartz explicit-publish 插件只发布 frontmatter 带 `publish: true` 的页；项目笔记若要上站，对应 md 需加该字段（不想公开则保持默认不发布）。
@@ -112,8 +112,8 @@ fi
 
 ## Gotchas
 
-- **必须处于项目模式**：`current_project` 未设置就拒绝执行，提示先 `$project <name>`。
-- **绝不写进 `project/`**：项目目录是独立 git 仓库，笔记放 `project_logs/` 才随父仓库 / `$sync` 流转。
+- **必须处于项目模式**：本会话未通过 `$project <name>` 进入就拒绝执行，提示先 `$project <name>`。
+- **绝不写进 `project/`**：项目目录是独立 git 仓库，笔记放 `project_logs/` 才随父仓库 `git push` 流转。
 - **落点必须对齐 project 统一结构**：决策进 `decisions/decision-*.md`（不是内联 `decisions.md`）、实验进 `experiments/exp-*.md`（不是根 `exp-*.md`）、踩坑进 `pitfalls.md`（不是 `note-*.md`）、改动进 `changes.md`。否则会与 project 实时写的卡片格式分裂。
 - **格式同构**：decision / exp 卡片格式与 project M1 / M2 一致；不要发明新模板。
 - **有代码必贴**：关键代码要落在卡片里，并注明语言。

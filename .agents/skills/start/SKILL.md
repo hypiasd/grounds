@@ -1,6 +1,6 @@
 ---
 name: start
-description: 在全新机器 / 新目录准备一个可用的 grounds 工作仓。单一 grounds 模型下只需 git clone grounds.git 即可；本 skill 做校验 + SSH 检查，无额外初始化。只接受手动 / $ 触发。
+description: 从 grounds 远程拉取最新版本（git pull --rebase origin main），并做最小连通性预检。只接受手动 / $ 触发。
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash
 ---
@@ -8,74 +8,57 @@ allowed-tools: Read, Write, Edit, Bash
 # start
 
 ## 何时用（触发）
-- 用户说"初始化工作仓"、"start 一下"、"用 start 初始化"。
-- 一台新机器 / 新目录，需要准备一个能跑全部 skill 的 grounds 工作仓。
+- 用户说"拉取最新"、"pull 一下"、"更新一下仓库"、"start"。
+- 想把 grounds 远程（`origin/main`）的最新改动拉到本机当前工作仓。
 
 **只接受手动 / `$` 触发**：agent 不得基于用户消息内容自动调用。
 
 ## 目标（完成时状态）
-- 当前目录已是一个 **grounds 工作仓**（含 agent 文件集 `.agents/` + `AGENTS.md` 及各 agent 软链，以及全部内容目录 `wiki/ paper/ video/ raw/ project/ project_logs/ quartz/`）。
-- 已配好 GitHub SSH 认证，可随时 `$sync`。
+- 当前工作仓已与 grounds 远程 `origin/main` 拉齐（`git pull --rebase origin main` 成功，或本地已是最新）。
+- 已报告拉取结果（fast-forward / 已最新 / 有冲突需手动解）。
 
-> `.buildconfig` 现在是本机项目模式状态（current_project/onboarded），机器本地、不进 git；无需移除 origin（origin 就是 grounds）、无需建占位目录（grounds 自带）。`$start` 只做校验与提示。
+> 单一 grounds 模型下，agent 文件（`.agents/` 等）与笔记同仓同 git 历史，所以 `git pull` 自然把最新 skills 与笔记一并拉齐——**`start` 只负责「拉」，不负责「推」**。推送由各 skill 提交后自己 `git push origin main` 完成。
 
 ## 流程
 
-### 第一步：前置校验
-
-确认当前目录是 grounds 的工作仓（已含 agent 文件集与内容目录）：
-
+### 第一步：确认是 grounds 工作仓
 ```bash
-test -d .agents -a -f AGENTS.md -a -d wiki -a -d project_logs && echo OK || echo MISSING
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 && echo OK || echo NOT_GIT
 ```
-
-- 输出 `OK` → 跳到第二步（SSH 检查）。
-- 输出 `MISSING` → **停止**，提示用户：
-  「当前目录不是 grounds 工作仓。请先：
+- `NOT_GIT` → **停止**，提示用户先：
   ```bash
   git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
   ```
-  再运行 `$start`（或 clone 后直接开始，无需 `$start`）。」
+- `OK` → 继续。
 
-### 第二步：SSH 认证检查（新设备必须配，否则 `$sync` 推拉会失败）
+### 第二步：连通性 / 身份预检（受限网络逃生通道）
+若 `ssh -T git@github.com` 超时，多半是直连 github.com 的 22 端口被防火墙阻断。改走 SSH-over-HTTPS，在 `~/.ssh/config` 写入：
+> ```
+> Host github.com
+>     Hostname ssh.github.com
+>     Port 443
+>     User git
+>     IdentityFile ~/.ssh/id_ed25519
+>     StrictHostKeyChecking no
+> ```
+> 连通性预检：
+> ```bash
+> ssh -T -o ConnectTimeout=8 git@github.com 2>&1 | grep -q "successfully authenticated" \
+>   && echo "SSH OK" || echo "SSH 不通，检查上面的逃生通道 / 代理"
+> ```
 
+### 第三步：拉取最新（rebase 保持线性）
 ```bash
-echo "== 检查 GitHub SSH 认证 =="
-if ssh -T -o StrictHostKeyChecking=accept-new -o BatchMode=yes git@github.com 2>&1 | grep -qi "successfully authenticated"; then
-  echo "SSH_OK"
-else
-  echo "SSH_FAIL"
-fi
+git pull --rebase origin main
 ```
-
-- `SSH_OK` → 完成，打印收尾提示。
-- `SSH_FAIL` → **停止**，打印配置指引：
-
-  > **本机还没配好 GitHub SSH key，`$sync` 无法推拉 grounds。请：**
-  > 1. 生成 key（没有的话）：`ssh-keygen -t ed25519 -C "你的邮箱"`
-  > 2. 公钥贴到 GitHub：复制 `cat ~/.ssh/id_ed25519.pub` → Settings → SSH and GPG keys → New SSH key
-  > 3. 若 key 有 passphrase：`ssh-add ~/.ssh/id_ed25519`
-  > 4. 验证：`ssh -T git@github.com` 出现 "successfully authenticated"
-  > 配好后再跑一次 `$start`。
-
-### 第三步：收尾提示
-
-```
-grounds 工作仓已就绪（全技能可用）：
-- agent 文件集：.agents/ + AGENTS.md + 各 agent 软链（Claude/Codex/CodeBuddy/Qoder/Trae 均已桥接）
-- 内容目录：wiki/ paper/ video/ raw/ project/ project_logs/ quartz/ 齐备
-- origin：指向 grounds.git（即推送目的地，无需改动）
-
-接下来：
-- 用 $project <name|path|url> 收纳一个项目并进入项目模式
-- 用 $learn-capture 沉淀通用知识（写进 wiki/）、用 $project-capture 沉淀项目笔记（写进 project_logs/<name>/）
-- 干完了用 $sync 把改动推到 grounds 远程、并拉取其他机器的更新
-```
+- 冲突 → **停下**告知用户手动解决（`git status` 看冲突文件），不静默覆盖。
+- 成功 → 打印结果（已 fast-forward / 已最新 / rebase 完成）。
 
 ---
 
 ## Gotchas
-- **本 skill 不创建 / 不修改 agent 文件集与内容目录**：它们由 `git clone grounds.git` 提供。不要手建占位目录或软链（易错且会破坏软链关系）。
-- **复制 agent 文件集必须保留软链**：若手动搬运，`.claude → .agents`、`.codebuddy/.qoder/.trae` 内含 `skills → ../.agents/skills` 都是软链，须 `cp -a` 保留，切勿解引用。
-- **新设备先配 SSH 再 start**：未通过认证时停下，不继续。
-- **单一 grounds：无 workBase 基类、无派生仓、无 origin 移除**（origin 即 grounds）。`.buildconfig` 仅作本机项目模式状态，机器本地不进 git。
+- **pull 用 `--rebase` 而非 merge**：避免一堆无意义 merge commit，历史保持线性。
+- **冲突别静默覆盖**：rebase 冲突必须停下手解，不能自动 `--ours` 强推。
+- **只拉不推**：`start` 只把远程最新拉到本机；推送由各个 skill 自己 `git push origin main`（如 learn-capture 提交后即推）。
+- **SSH 逃生通道**：直连 github.com 22 端口常被封，`ssh.github.com:443` 可绕过（见第二步）。
+- **新机器先配 SSH 再 start**：未通过认证时停下，不继续。

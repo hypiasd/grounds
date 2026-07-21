@@ -41,8 +41,5 @@ video/**/part*.tex
 quartz/node_modules/
 quartz/public/
 quartz/.quartz/
-
-# 机器本地配置：记录当前项目模式状态（current_project/onboarded），不进 git
-.buildconfig
 .superpowers/
 zhihu-articles/
