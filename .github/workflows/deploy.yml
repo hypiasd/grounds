@@ -8,6 +8,7 @@ on:
       - 'paper/**'
       - 'video/**'
       - 'quartz/**'
+      - 'project_logs/**'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
 

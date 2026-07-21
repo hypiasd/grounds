@@ -3,7 +3,9 @@ title: CANN 后端 GGML_OP_SQR 断言放宽（Token2Mel 兼容）
 tags: [project, MiniCPM, decision, cann, bugfix]
 created: 2026-07-21
 updated: 2026-07-21
+publish: true
 ---
+
 
 # 决策：CANN 后端 GGML_OP_SQR 断言放宽
 

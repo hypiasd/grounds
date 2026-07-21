@@ -3,7 +3,9 @@ title: 决策：CANN 版本 beta.3 与指南 beta.1 不一致
 tags: [project, MiniCPM, decision]
 created: 2026-07-21
 updated: 2026-07-21
+publish: true
 ---
+
 
 # 决策：CANN 版本 beta.3 与指南 beta.1 不一致
 

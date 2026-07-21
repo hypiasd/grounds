@@ -3,7 +3,9 @@ title: 踩坑 / 知识点账本
 tags: [project, MiniCPM]
 created: 2026-07-21
 updated: 2026-07-21
+publish: true
 ---
+
 
 ### 2026-07-21 实测环境与指南偏差
 - **现象**：指南写 CANN=`cann-9.1.0-beta.1`、系统 Ubuntu 22.04；实测 `cann-9.1.0-beta.3`、openEuler 24.03。

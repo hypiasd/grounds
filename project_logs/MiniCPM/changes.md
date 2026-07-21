@@ -3,7 +3,9 @@ title: 改动记录（deployment artifacts 归位）
 tags: [project, MiniCPM]
 created: 2026-07-21
 updated: 2026-07-21
+publish: true
 ---
+
 
 # 改动记录
 

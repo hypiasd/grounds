@@ -3,7 +3,9 @@ title: 实验卡（指南第 8 节验证矩阵）
 tags: [project, MiniCPM, experiment]
 created: 2026-07-21
 updated: 2026-07-21
+publish: true
 ---
+
 
 # 实验卡：指南第 8 节"后续可继续测试的内容"
 

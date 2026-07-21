@@ -3,7 +3,9 @@ title: 决策索引
 tags: [project, MiniCPM, decision]
 created: 2026-07-21
 updated: 2026-07-21
+publish: true
 ---
+
 
 # 决策索引
 

@@ -3,7 +3,9 @@ title: 能力账本（淡出机制）
 tags: [project, MiniCPM]
 created: 2026-07-21
 updated: 2026-07-21
+publish: true
 ---
+
 
 # 能力账本（M5 淡出）
 

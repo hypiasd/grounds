@@ -3,7 +3,9 @@ title: MiniCPM 项目全景（Ascend 910C 部署）
 tags: [project, MiniCPM]
 created: 2026-07-21
 updated: 2026-07-21
+publish: true
 ---
+
 
 # MiniCPM · 全局掌控视图
 

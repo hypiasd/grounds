@@ -3,7 +3,9 @@ title: 决策：CANN 后端 free 空设备上下文守卫
 tags: [project, MiniCPM, decision]
 created: 2026-07-21
 updated: 2026-07-21
+publish: true
 ---
+
 
 # 决策：CANN 后端 free 空设备上下文守卫
 

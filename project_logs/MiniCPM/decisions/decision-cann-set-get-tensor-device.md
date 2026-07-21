@@ -3,7 +3,9 @@ title: CANN 后端 set/get_tensor_async 补设备上下文（根因修复）
 tags: [project, MiniCPM, decision, cann, bugfix]
 created: 2026-07-21
 updated: 2026-07-21
+publish: true
 ---
+
 
 # 决策：CANN 后端 set/get_tensor_async 补设备上下文
 
