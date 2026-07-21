@@ -105,7 +105,7 @@ grounds/
 | `sync` | **手动 / `$` 触发** | `.agents/skills/sync/SKILL.md` | 笔记→grounds、agent↔workBase 同步 | 笔记合并式推送；agent 按提交时间定方向（推/拉） |
 | `learn` | 语义触发 | `.agents/skills/learn/SKILL.md` | wiki 笔记 | 先给地图再走路；同一概念永只有一篇 |
 | `learn-capture` | **手动 / `$` 触发** | `.agents/skills/learn-capture/SKILL.md` | wiki 笔记 | 一次对话→多个原子洞察→各归其位；面经三源（小红书/知乎/牛客）必须全搜 |
-| `project-capture` | **手动 / `$` 触发** | `.agents/skills/project-capture/SKILL.md` | project_logs 笔记 | 当前项目专属收获（踩坑/决策/知识点/代码）拆多 md 进 project_logs/<name>/；不补面经、不进 lint/query |
+| `project-capture` | **手动 / `$` 触发** | `.agents/skills/project-capture/SKILL.md` | 项目收获收尾沉淀 | 当前项目专属收获（决策/实验/踩坑/改动），按 **project 的统一结构**（`decisions/`、`experiments/`、`pitfalls.md`、`changes.md`）对齐补进 `project_logs/<name>/`，作为 M0–M5 实时白盒工作流的收尾补漏；不补面经、不进 lint/query |
 | `lint` | 语义触发 | `.agents/skills/lint/SKILL.md` | 问题清单（默认只读） | 只扫 `wiki/`，不扫 `paper/` `video/` |
 | `query` | 语义触发 | `.agents/skills/query/SKILL.md` | 综合作答 | 先扫 summaries 定位，答案必须可溯源到仓库笔记 |
 | `paper-learn` | **手动 / `$` 触发** | `.agents/skills/paper-learn/SKILL.md` | paper/ 论文笔记 | 学习者视角为主、批判性读者为辅；一篇论文一个 md |
