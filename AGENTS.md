@@ -110,33 +110,50 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 
 **原则**：所有软链都指向同一份 `AGENTS.md` / `.agents/skills/`，**不存在副本**——改一处即全局生效，绝不漂移。新增 / 修改 skill 只需动 `.agents/skills/`，五个 agent 同时可见。
 
-> **手动 skill 的自动触发防护**：`disable-model-invocation: true` 是 Claude Code / Codex 的 frontmatter 语义，CodeBuddy / Qoder / Trae 会忽略该字段。因此 6 个手动 skill（start/project/learn-capture/project-capture/paper-learn/video-render-pdf）的「不得自动触发」约束由 SKILL.md **正文指令**本身保证（每个手动 skill 开头都写明「只接受手动 / `$` 触发」），不依赖特定 agent 的 frontmatter 字段。
+> **手动 skill 的自动触发防护**：`disable-model-invocation: true` 是 Claude Code / Codex 的 frontmatter 语义，CodeBuddy / Qoder / Trae 会忽略该字段。因此各场景标明「手动 / `$` 触发」的 skill（start / learn-capture / paper-learn / video-render-pdf / project / project-capture，共 6 个）的「不得自动触发」约束由 SKILL.md **正文指令**本身保证，不依赖特定 agent 的 frontmatter 字段。
 
 ---
 
-## 九个 Skill
+## Skill 按场景组织
 
-所有 skill 在 `.agents/skills/<name>/SKILL.md`。**必须先 Read 对应的 SKILL.md 文件**再执行——表格只是索引，SKILL.md 里的详细流程、Gotchas、质量示例才是执行标准。
+所有 skill 在 `.agents/skills/<name>/SKILL.md`。**必须先 Read 对应的 SKILL.md 文件**再执行——下表只是索引，SKILL.md 里的详细流程、Gotchas、质量示例才是执行标准。
 
+按使用场景分组；场景间基本互斥（处理视频时不会碰论文，做项目时不会同时跑 lint），按需只看相关场景即可。
+
+### 1. meta（仓库元操作）
 | Skill | 触发 | 文件 | 产出 | 关键原则 |
 |-------|------|------|------|-----------|
 | `start` | **手动 / `$` 触发** | `.agents/skills/start/SKILL.md` | 从 grounds 远程拉取最新（pull --rebase） | 只拉不推；推送由各 skill 自己 `git push origin main` |
-| `project` | **手动 / `$` 触发** | `.agents/skills/project/SKILL.md` | 收纳项目 + 切换项目模式 + 定义学习导向白盒协作工作流 | 单参数自动判别（URL→clone / 本地目录→软链 / 名字→新建）；非空项目首次进入自动 onboard 建 M0 全局视图；**白盒工作流（M0–M6：决策卡/实验卡/踩坑卡/能力账本/淡出 + M6 收尾闸门强制回写 runbook）进入即生效，详见该 skill** |
+
+### 2. learning（学习 / 笔记）— 作用于 `wiki/`
+| Skill | 触发 | 文件 | 产出 | 关键原则 |
+|-------|------|------|------|-----------|
 | `learn` | 语义触发 | `.agents/skills/learn/SKILL.md` | wiki 笔记 | 先给地图再走路；同一概念永只有一篇 |
 | `learn-capture` | **手动 / `$` 触发** | `.agents/skills/learn-capture/SKILL.md` | wiki 笔记 | 一次对话→多个原子洞察→各归其位；面经三源（小红书/知乎/牛客）必须全搜 |
-| `project-capture` | **手动 / `$` 触发** | `.agents/skills/project-capture/SKILL.md` | 项目收获收尾沉淀 | 当前项目专属收获（决策/实验/踩坑/改动/能力账本），**统一内联进 `project_logs/<name>/runbook.md` 的时间线节点**（决策→「决策」块、踩坑→「问题/解决」块、验证→「结果」块、产物→末尾清单、能力→末尾账本），作为 M0–M6 实时白盒工作流（含 M6 收尾闸门）的收尾补漏；不补面经、不进 lint/query |
 | `lint` | 语义触发 | `.agents/skills/lint/SKILL.md` | 问题清单（默认只读） | 只扫 `wiki/`，不扫 `paper/` `video/` |
 | `query` | 语义触发 | `.agents/skills/query/SKILL.md` | 综合作答 | 先扫 summaries 定位，答案必须可溯源到仓库笔记 |
+
+### 3. paper（论文）— 作用于 `paper/`
+| Skill | 触发 | 文件 | 产出 | 关键原则 |
+|-------|------|------|------|-----------|
 | `paper-learn` | **手动 / `$` 触发** | `.agents/skills/paper-learn/SKILL.md` | paper/ 论文笔记 | 学习者视角为主、批判性读者为辅；一篇论文一个 md |
+
+### 4. video（视频）— 作用于 `video/`
+| Skill | 触发 | 文件 | 产出 | 关键原则 |
+|-------|------|------|------|-----------|
 | `video-render-pdf` | **手动 / `$` 触发** | `.agents/skills/video-render-pdf/SKILL.md` | video/ LaTeX+PDF | 字幕三级回退（CC→Whisper→OCR）；B 站/YouTube 统一，平台差异在 SKILL 内以 [B 站]/[YouTube] 标注 |
 
-### 调度规则（跨 agent 通用）
+### 5. project（项目）— 作用于 `project/` `project_logs/`
+| Skill | 触发 | 文件 | 产出 | 关键原则 |
+|-------|------|------|------|-----------|
+| `project` | **手动 / `$` 触发** | `.agents/skills/project/SKILL.md` | 收纳项目 + 切换项目模式 + 定义学习导向白盒协作工作流 | 单参数自动判别（URL→clone / 本地目录→软链 / 名字→新建）；非空项目首次进入自动 onboard 建 M0 全局视图；白盒工作流（M0–M6）进入即生效 |
+| `project-capture` | **手动 / `$` 触发** | `.agents/skills/project-capture/SKILL.md` | 项目收获收尾沉淀 | 当前项目专属收获统一内联进 `project_logs/<name>/runbook.md` 时间线节点；不补面经、不进 lint/query |
 
-1. **前 3 个内容 skill（learn/lint/query）**：识别用户意图，匹配触发词后自动调度（learn-capture 与 project-capture 已改为手动 / `$` 触发，不在此自动调度之列）。SKILL.md frontmatter 里的 `disable-model-invocation: true` 是 Claude Code / Codex 语义（指"禁止模型无用户触发时自动调用"），CodeBuddy / Qoder / Trae 会忽略该字段；这不影响"用户消息触发后自动调度"——所有 agent 都按本调度规则执行。
-2. **结构类 skill（start/project）与产出类 skill（learn-capture/project-capture/paper-learn/video-render-pdf）**：**只接受手动触发或 `$` 触发**——agent 不得基于用户消息内容自动调用它们。用户必须显式说"用 start 拉取最新"或输入 `$project <name>` 才会触发。这类 skill 直接改动仓库状态与远程，禁止语义自动触发以免误推远程。
-3. **用 Read 工具读取对应的 SKILL.md 文件**。不要跳过——表格只是索引。
-4. 严格按 SKILL.md 中的流程执行，包括校验步骤。
-5. 写 wiki 笔记前必须再读 `.agents/conventions.md`。写 paper 笔记前读 paper-learn SKILL.md 内的模板说明。
+### 触发与调度
+- **语义触发（自动调度）**：仅 learning 场景的 `learn` / `lint` / `query`。识别用户意图、匹配触发词后自动调度。
+- **手动 / `$` 触发（禁止语义自动调用）**：meta 的 `start`、learning 的 `learn-capture`、paper 的 `paper-learn`、video 的 `video-render-pdf`、project 的 `project` / `project-capture`。这类 skill 直接改动仓库状态与远程，用户必须显式说"用 X 处理"或输入 `$X <参数>` 才触发，以免误推远程。
+- **执行前必读 SKILL.md**：不要跳过——表格只是索引。严格按 SKILL.md 流程（含校验步骤）执行。
+- **写笔记前读规范**：wiki 前读 `.agents/conventions.md`；paper 前读 `paper-learn` SKILL.md 模板；video 前读 `video-render-pdf` SKILL.md 模板。三者都不套用 `conventions.md`。
 
 ---
 
@@ -152,22 +169,22 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 
 各 skill 执行时依赖的外部命令行工具（首次执行或换机器时检查）：
 
-| 工具 | 用途 | 涉及 skill | 检查命令 |
-|------|------|------------|----------|
-| `opencli` | 中文面经搜索（小红书/知乎/牛客三大源统一入口） | learn-capture | `which opencli` |
-| `mcporter`（含 Exa MCP） | 通用网页搜索（按需，非强制） | learn / learn-capture / query | `mcporter tools list` |
-| `yt-dlp` | 视频/字幕下载 | video-render-pdf | `which yt-dlp` |
-| `ffmpeg` / `ffprobe` | 音频提取、帧提取、视频时长校验 | video-render-pdf | `which ffmpeg && which ffprobe` |
-| `xelatex` | LaTeX → PDF 编译 | video-render-pdf | `which xelatex` |
-| `faster-whisper` / `whisper` | 语音转字幕（CC 字幕失败时回退；优先 faster-whisper） | video-render-pdf | `python3 -c "import faster_whisper"` 或 `which whisper` |
-| `tesseract` | OCR 回退（视觉模式） | video-render-pdf | `which tesseract` |
-| `pdftotext` | PDF 文本提取（成品 PDF 抽查） | paper-learn；video-render-pdf | `which pdftotext` |
-| `pdfinfo` | PDF 元数据 | paper-learn | `which pdfinfo` |
-| `qpdf` / `ocrmypdf` / `pdftoppm` | PDF 解密 / OCR / 转图片（扫描版论文） | paper-learn | `which qpdf && which ocrmypdf && which pdftoppm` |
-| `gh`（GitHub CLI） | 论文-代码对照搜仓库（可选） | paper-learn | `which gh` |
-| `ImageMagick`（`montage` / `magick`） | 帧拼接缩略图（视觉模式） | video-render-pdf | `which montage \|\| which magick` |
-| `openai` Python 包 | 视觉模型 API 调用（SiliconFlow 兼容） | video-render-pdf | `python3 -c "import openai"` |
-| `torch` | GPU 可用性检测（CUDA / MPS） | video-render-pdf | `python3 -c "import torch"` |
+| 工具 | 用途 | 场景 | 检查命令 |
+|------|------|------|----------|
+| `opencli` | 中文面经搜索（小红书/知乎/牛客三大源统一入口） | learning | `which opencli` |
+| `mcporter`（含 Exa MCP） | 通用网页搜索（按需，非强制） | learning | `mcporter tools list` |
+| `pdftotext` | PDF 文本提取（成品抽查） | paper / video | `which pdftotext` |
+| `pdfinfo` | PDF 元数据 | paper | `which pdfinfo` |
+| `qpdf` / `ocrmypdf` / `pdftoppm` | PDF 解密 / OCR / 转图片（扫描版论文） | paper | `which qpdf && which ocrmypdf && which pdftoppm` |
+| `gh`（GitHub CLI） | 论文-代码对照搜仓库（可选） | paper | `which gh` |
+| `yt-dlp` | 视频/字幕下载 | video | `which yt-dlp` |
+| `ffmpeg` / `ffprobe` | 音频提取、帧提取、视频时长校验 | video | `which ffmpeg && which ffprobe` |
+| `xelatex` | LaTeX → PDF 编译 | video | `which xelatex` |
+| `faster-whisper` / `whisper` | 语音转字幕（CC 失败时回退；优先 faster-whisper） | video | `python3 -c "import faster_whisper"` 或 `which whisper` |
+| `tesseract` | OCR 回退（视觉模式） | video | `which tesseract` |
+| `ImageMagick`（`montage` / `magick`） | 帧拼接缩略图（视觉模式） | video | `which montage \|\| which magick` |
+| `openai` Python 包 | 视觉模型 API 调用（SiliconFlow 兼容） | video | `python3 -c "import openai"` |
+| `torch` | GPU 可用性检测（CUDA / MPS） | video | `python3 -c "import torch"` |
 
 工具缺失时：对应 skill 需在 SKILL.md 的环境检查小节说明替代方案或报告用户——不要静默跳过必需步骤（如 learn-capture 缺 `opencli` 时面经补充无法执行，必须问用户是否跳过）。
 
