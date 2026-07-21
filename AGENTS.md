@@ -101,7 +101,7 @@ grounds/
 | Skill | 触发 | 文件 | 产出 | 关键原则 |
 |-------|------|------|------|-----------|
 | `start` | **手动 / `$` 触发** | `.agents/skills/start/SKILL.md` | 初始化派生工作仓 | 建内容占位目录、写 `.buildconfig`、移除指向 workBase 的 origin |
-| `project` | **手动 / `$` 触发** | `.agents/skills/project/SKILL.md` | 收纳项目 + 切换项目模式 + 定义做项目规则 | 单参数自动判别（URL→clone / 本地目录→软链 / 名字→新建）；非空项目首次进入自动 onboard；**做项目规则（R1–R7）进入即生效，详见该 skill「做项目规则」节** |
+| `project` | **手动 / `$` 触发** | `.agents/skills/project/SKILL.md` | 收纳项目 + 切换项目模式 + 定义学习导向白盒协作工作流 | 单参数自动判别（URL→clone / 本地目录→软链 / 名字→新建）；非空项目首次进入自动 onboard 建 M0 全局视图；**白盒工作流（M0–M5：决策卡/实验卡/踩坑卡/能力账本/淡出）进入即生效，详见该 skill** |
 | `sync` | **手动 / `$` 触发** | `.agents/skills/sync/SKILL.md` | 笔记→grounds、agent↔workBase 同步 | 笔记合并式推送；agent 按提交时间定方向（推/拉） |
 | `learn` | 语义触发 | `.agents/skills/learn/SKILL.md` | wiki 笔记 | 先给地图再走路；同一概念永只有一篇 |
 | `learn-capture` | **手动 / `$` 触发** | `.agents/skills/learn-capture/SKILL.md` | wiki 笔记 | 一次对话→多个原子洞察→各归其位；面经三源（小红书/知乎/牛客）必须全搜 |
