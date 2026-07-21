@@ -33,7 +33,6 @@ AI 时代代码大多是 agent 写的。如果你只给 prompt、看测试结果
 - `.buildconfig` 的 `current_project=<name>` 已更新（标记「当前处于项目模式」）。
 - 首次进入非空已有项目 → 已 onboard，并在 `project_logs/<name>/` 下建好 **M0 全局掌控视图**全套骨架（见下方）。由 `.buildconfig` 的 `onboarded` 列表持久标记，只做一次。
 - 项目推进中，每个非平凡决策都有 **Decision Card** 留痕；每次实验有 **Experiment Card**；踩坑 / 顿悟实时进 **pitfalls / learning-journal**。
-- 已向用户打印「项目模式说明（学习导向版）」。
 
 ## 参数判别（与旧版一致）
 
@@ -129,28 +128,6 @@ elif ! grep '^onboarded=' .buildconfig | cut -d= -f2- | grep -q " $NAME "; then
   sed -i.bak "s/^onboarded=.*/onboarded=$(grep '^onboarded=' .buildconfig | cut -d= -f2-) $NAME/" .buildconfig && rm -f .buildconfig.bak
 fi
 ```
-
-### 第五步：打印「项目模式说明（学习导向版）」
-
-```
-已进入项目模式（学习导向）：<name>
-本模式不为「做完」，为「学会」。每一步 agent 都会：
-  · 决策前先摊开方案（Decision Card），等你懂了 / 拍板再动 —— 你守 what & why
-  · 实验前先写假设 + 度量，跑完一起填结论（Experiment Card）
-  · 踩坑 / 顿悟实时进 pitfalls.md / learning-journal.md
-  · 新概念必用大白话讲清，不丢天书代码
-  · 随你成长逐步放权（淡出）：从「agent 给方案」到「你自己定，agent 把关」
-文件地图（project_logs/<name>/）：
-  index.md            项目全景（控制台）
-  decisions/          决策卡（每条 why + 备选 + 后果）
-  experiments/        实验记录台
-  pitfalls.md         踩坑 / 知识点账本
-  learning-journal.md 能力账本（你学到了什么 / 还不会什么）
-沉淀：$project-capture 把对话收获补进上述文件；通用知识另用 $learn-capture 进 wiki/。
-回流：干完用 $sync 把 project_logs/<name>/ 推回 grounds（只推笔记，不碰项目代码）。
-```
-
----
 
 ## 白盒协作工作流（本 skill 的核心）
 
