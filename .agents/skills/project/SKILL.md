@@ -34,7 +34,7 @@ AI 时代代码大多是 agent 写的。如果你只给 prompt、看测试结果
 - 首次进入且 `project_logs/<name>/runbook.md` 尚不存在 → 已 onboard，并在 `project_logs/<name>/` 下建好 **M0 全局掌控视图**全套骨架（见下方）。由「runbook.md 是否已存在」自动判据，只做一次、不覆盖已写笔记。
 - 项目推进中，每个非平凡决策都有 **Decision Card** 留痕（写入 runbook 对应节点的「决策」块）；每次实验有 **Experiment Card**（写入「结果」块）；踩坑 / 顿悟实时进 runbook 对应节点的「问题 / 解决」块。
 
-## 参数判别（与旧版一致）
+## 参数判别
 
 `project` 只认一个参数（名称 / 本地路径 / git URL），按优先级自动判别：
 
@@ -52,7 +52,7 @@ esac
 
 ## 流程
 
-### 第一步：解析参数与 <name>（与旧版一致）
+### 第一步：解析参数与 <name>
 
 ```bash
 ARG="$1"
@@ -63,7 +63,7 @@ case "$NAME" in
 esac
 ```
 
-### 第二步：按 MODE 收纳（与旧版一致）
+### 第二步：按 MODE 收纳
 
 ```bash
 mkdir -p project
@@ -86,7 +86,7 @@ mkdir -p "project_logs/$NAME"
 
 ### 第四步：onboard（首次进入非空已有项目）—— 建好 M0 全景骨架
 
-判定「非空已有项目」：`project/$NAME/` 已存在且不是本次新建空壳。link 模式需用 `readlink -f` 解引用再查（否则软链误判为空壳，见旧版 Gotchas）。
+判定「非空已有项目」：`project/$NAME/` 已存在且不是本次新建空壳。link 模式需用 `readlink -f` 解引用再查（否则软链误判为空壳，见下方 Gotchas）。
 
 ```bash
 TARGET="project/$NAME"; [ -L "$TARGET" ] && TARGET=$(readlink -f "$TARGET")
