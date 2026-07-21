@@ -39,7 +39,7 @@ publish: true
   - 决策：选 A。**需拍板点**：是否接受 beta.3 替代 beta.1（默认接受，已确认环境变量指向它）。
 - **问题 / 解决（编译期 3 个 CANN 适配 bug，均在 `ggml/src/ggml-cann/ggml-cann.cpp`，增量重编 `llama-omni-server`）**：
   1. **free 空设备上下文崩溃**（HTTP `omni_init` 触发，`ggml_backend_cann_free → aclrtSynchronizeDevice` 报空指针 / -1 → `GGML_ABORT`；根因 `vision_backend` 默认 `metal`，昇腾上视觉 CANN 上下文为空）。
-     - **决策**：加守卫——`aclrtGetDevice` 拿到 -1 时跳过 synchronize/reset（最小防御补丁，不动推理主链路；真正 vision CANN 路径留后续）。**需拍板点**：是否接受以空上下文守卫绕过视觉后端缺失（默认接受已落地）。
+     - **决策**：加空上下文守卫——`aclrtGetDevice` 拿到 -1 时跳过 synchronize/reset（最小防御补丁，不动推理主链路；真正 vision CANN 路径留后续）。候选方案：A 守卫绕过（采用）/ B 实现 vision CANN 真正路径（成本高、超出本次范围）/ C 禁用 HTTP 旧版 API 只用 WS（会丢失指南 6.4 测试覆盖）。**需拍板点**：是否接受以空上下文守卫绕过视觉后端缺失（默认接受已落地）。
   2. **set/get_tensor_async 缺设备上下文**（开启 TTS 后崩，栈在 `set_tensor_async → aclrtMemcpyAsync` 空指针 / -1，发生于 Token2W 的 t2w 线程）。
      - 根因：CANN 设备上下文是**线程局部**；除这两个异步回调外，其它回调入口都先 `ggml_cann_set_device`；独 t2w 线程从未 set 过设备。
      - **决策**：**根因修复**——在 `set_tensor_async` / `get_tensor_async` 入口补 `ggml_cann_set_device(cann_ctx->device);`（与同类回调一致）。**需拍板点**：根因修复 vs 仅防御（选根因修复）。
