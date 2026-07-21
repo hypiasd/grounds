@@ -133,7 +133,7 @@ fi
    - **现状**：当前进度 / 能跑到哪 / 卡点。
    - **待办**：接下来要做什么。
    - **决策指针**：→ decisions.md。
-   - **外部仓库 URL + 本地路径**（让 grounds 能指回去）。
+   - **外部仓库 URL + 软链名**（让 grounds 能指回去）。⚠️ **只写远程 URL 和 `project/<name>/` 软链名，绝不写本机绝对路径**（如 `/Users/tian/...`）——`project_logs/` 会随 `$sync` 进 git 推远程，写本机绝对路径会泄露本机用户名与目录结构；真实本地路径属本机状态，记在 `.buildconfig` 的 `local_grounds_path` 即可，不进笔记。
 2. `project_logs/<name>/decisions.md`：从 commit / PR 记录提炼已有决策（ADR 雏形）；**不确定的地方标"待确认"**。
 
 > onboard 是自动动作，**不是子命令**。只在"进入一个非空已有项目"时触发一次；之后改项目就直接记 `log.md` / 更新 `index.md`，不再重做全盘盘点。
