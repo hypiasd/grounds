@@ -1,4 +1,4 @@
-# AGENTS.md — 个人学习仓库（workBase 基类）
+# AGENTS.md — 个人学习仓库（grounds 单一仓）
 
 你是这个仓库的协作者，同时扮演两个角色：
 
@@ -58,21 +58,41 @@ grounds/
 
 ---
 
-## 仓库继承模型（workBase / grounds / 临时派生）
+## 仓库模型（单一 grounds）
 
-本仓库的 agent 行为由一个独立的 **基类仓库 workBase**（`git@github.com:hypiasd/workBase.git`）定义，通过**覆盖式同步**在派生仓之间共享，不依赖 git submodule / subtree。
+本仓库是**唯一仓** `grounds`（`git@github.com:hypiasd/grounds.git`），agent 文件与全部笔记内容同仓共存。任何机器上开始工作只需：
 
-- **workBase（基类）**：只含 agent 文件集（`.agents/` + 根软链 + 本文件 `AGENTS.md`），**无任何笔记内容**。
-- **grounds（主派生类）**：workBase + `wiki/ paper/ video/ raw/ project/ project_logs/` + Quartz 部署（见 grounds 自己的 README）。
-- **临时派生仓**：workBase + `project/`（各 <name>/ 是独立 git 仓库）+ `project_logs/`（及按需的 `wiki/`） + **不部署**；笔记经 `sync` 推回 grounds。
+```bash
+git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
+```
 
-每个派生仓本身是一个独立 git 仓库；agent 文件集在派生仓与 workBase 之间**双向覆盖同步**（按提交时间定方向，复制 + commit + push，非 git 历史合并）：
+即可——无需 workBase 基类、无需派生仓、无需 `.buildconfig`。
 
-- **`$sync`（统一入口）**：笔记与 agent 同步都走它——笔记把 `wiki/ paper/ video/ project_logs/` 合并式推到 grounds 远程（非 grounds 仓才推）；agent 比对本地与 workBase 的 agent 文件集**最近提交时间**，谁新以谁为准（本地新→推 workBase，workBase 新→拉回本仓），覆盖式同步。详见 `sync` skill 第五步。
-- （旧机制 `build push-agent` / `build pull-agent` 已废弃，统一并入 `$sync`。）
+- **内容目录**：`wiki/ paper/ video/ raw/ project/ project_logs/` 全部在 grounds 内（见上方仓库地图）。
+- **agent 文件集**：`.agents/` + `AGENTS.md` + 各 agent 软链，是 grounds 的普通跟踪文件，随普通 `git pull/push` 同步——**不再有覆盖式 `AGENT_FILESET` 机制**。
+- **project 仓**：`project/<name>/` 各是独立 git 仓库，父仓库 `.gitignore` 忽略其内容（见 `.gitignore` 的 `project/*`），可独立推自己的远程。
+- **不进 git 的内容**：`raw/`、`video/` 中间产物（见 `.gitignore`），以及 `project/<name>/` 内部。
 
-> 注意：`.gitignore`、`README.md`、`.github/` 等仓库专属文件**不在** agent 文件集内，不会跨仓覆盖。
-> 当前基类含 start / project / sync / learn / learn-capture / project-capture / lint / query / paper-learn / bilibili-render-pdf / youtube-render-pdf 十一个技能；结构类（start/project/sync）只接受手动 / `$` 触发。
+> 历史背景：本仓早期采用 workBase 基类 + 派生仓的「分层 + 覆盖式同步」模型。因 grounds 全量仅约 63M（无大文件，最大单文件 3.5M PDF），单仓即可承载全部内容，故统一回退为单一 grounds 模型，去掉 workBase 基类与 `.buildconfig`。`README.md`、`.github/` 仍为仓库专属文件。
+
+---
+
+## Git 仓库管理纪律
+
+本仓是单一 git 仓库（grounds），agent 文件与笔记同仓。以下为强制纪律：
+
+### 1. 有范围的 add
+永远 `git add <具体文件>`，**绝不 `git add -A` / `git add .`**。（后备闸：本仓 `.gitignore` 已忽略 `project/`、`raw/`、`video/` 中间产物等，即便误 `add -A` 也吞不进这些。）
+
+### 2. 提交节奏
+按「一次 skill 动作」原子提交（message 格式见下方「提交规范」），别攒一堆不推；项目仓代码按里程碑提交。
+
+### 3. 推送
+- **笔记 / agent 文件**：在当前 grounds 仓直接 `git commit` + `git push origin main`（或由 `$sync` 统一执行 pull+push）。
+- **project/<name> 仓**：各自独立 `git push` 自己的远程，不走 grounds。
+
+### 4. 项目仓初始化纪律
+`$project` 收纳时即设远程 + 定首次提交策略（整棵树还是排除 `build/`），不留空仓悬浮。
 
 ---
 
@@ -100,12 +120,12 @@ grounds/
 
 | Skill | 触发 | 文件 | 产出 | 关键原则 |
 |-------|------|------|------|-----------|
-| `start` | **手动 / `$` 触发** | `.agents/skills/start/SKILL.md` | 初始化派生工作仓 | 建内容占位目录、写 `.buildconfig`、移除指向 workBase 的 origin |
-| `project` | **手动 / `$` 触发** | `.agents/skills/project/SKILL.md` | 收纳项目 + 切换项目模式 + 定义学习导向白盒协作工作流 | 单参数自动判别（URL→clone / 本地目录→软链 / 名字→新建）；非空项目首次进入自动 onboard 建 M0 全局视图；**白盒工作流（M0–M5：决策卡/实验卡/踩坑卡/能力账本/淡出）进入即生效，详见该 skill** |
-| `sync` | **手动 / `$` 触发** | `.agents/skills/sync/SKILL.md` | 笔记→grounds、agent↔workBase 同步 | 笔记合并式推送；agent 按提交时间定方向（推/拉） |
+| `start` | **手动 / `$` 触发** | `.agents/skills/start/SKILL.md` | （可选）初始化新工作目录 | 新机器 `git clone grounds.git` 即可，无额外步骤；`$start` 仅作提示/占位 |
+| `project` | **手动 / `$` 触发** | `.agents/skills/project/SKILL.md` | 收纳项目 + 切换项目模式 + 定义学习导向白盒协作工作流 | 单参数自动判别（URL→clone / 本地目录→软链 / 名字→新建）；非空项目首次进入自动 onboard 建 M0 全局视图；**白盒工作流（M0–M6：决策卡/实验卡/踩坑卡/能力账本/淡出 + M6 收尾闸门强制回写 runbook）进入即生效，详见该 skill** |
+| `sync` | **手动 / `$` 触发** | `.agents/skills/sync/SKILL.md` | 与 grounds 远程同步（pull+push） | `git pull --rebase` 取最新 + `git push` 本仓改动；可选遍历 `project/*/` 各自 push |
 | `learn` | 语义触发 | `.agents/skills/learn/SKILL.md` | wiki 笔记 | 先给地图再走路；同一概念永只有一篇 |
 | `learn-capture` | **手动 / `$` 触发** | `.agents/skills/learn-capture/SKILL.md` | wiki 笔记 | 一次对话→多个原子洞察→各归其位；面经三源（小红书/知乎/牛客）必须全搜 |
-| `project-capture` | **手动 / `$` 触发** | `.agents/skills/project-capture/SKILL.md` | 项目收获收尾沉淀 | 当前项目专属收获（决策/实验/踩坑/改动），按 **project 的统一结构**（`decisions/`、`experiments/`、`pitfalls.md`、`changes.md`）对齐补进 `project_logs/<name>/`，作为 M0–M5 实时白盒工作流的收尾补漏；不补面经、不进 lint/query |
+| `project-capture` | **手动 / `$` 触发** | `.agents/skills/project-capture/SKILL.md` | 项目收获收尾沉淀 | 当前项目专属收获（决策/实验/踩坑/改动/能力账本），**统一内联进 `project_logs/<name>/runbook.md` 的时间线节点**（决策→「决策」块、踩坑→「问题/解决」块、验证→「结果」块、产物→末尾清单、能力→末尾账本），作为 M0–M6 实时白盒工作流（含 M6 收尾闸门）的收尾补漏；不补面经、不进 lint/query |
 | `lint` | 语义触发 | `.agents/skills/lint/SKILL.md` | 问题清单（默认只读） | 只扫 `wiki/`，不扫 `paper/` `video/` |
 | `query` | 语义触发 | `.agents/skills/query/SKILL.md` | 综合作答 | 先扫 summaries 定位，答案必须可溯源到仓库笔记 |
 | `paper-learn` | **手动 / `$` 触发** | `.agents/skills/paper-learn/SKILL.md` | paper/ 论文笔记 | 学习者视角为主、批判性读者为辅；一篇论文一个 md |
@@ -161,7 +181,7 @@ grounds/
 
 ## 提交规范
 
-- commit message 格式：`<skill> <topic>: <一句话>`，commit 之后必须 `git push`
+- commit message 格式：`<skill> <topic>: <一句话>`。提交后推送到 grounds（`git push origin main` 或 `$sync`）；project 代码推各自独立仓。
 - 示例：
   - `learn deep-learning: 注意力机制笔记`
   - `lint: 修复孤儿页`

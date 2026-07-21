@@ -1,6 +1,6 @@
 ---
 name: sync
-description: 把派生仓的笔记推回 grounds（按仓库名判定是否 grounds），agent 文件集按更新时间定方向与 workBase 同步（推/拉）。无子命令，单条 `$sync` 即完成。只接受手动 / `$` 触发。
+description: 把当前 grounds 工作仓的改动同步到 grounds 远程（pull --rebase 取最新 + push 本仓改动），并可选遍历 project/* 各独立仓分别 push。无子命令，单条 $sync 即完成。只接受手动 / $ 触发。
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash
 ---
@@ -8,202 +8,92 @@ allowed-tools: Read, Write, Edit, Bash
 # sync
 
 ## 何时用（触发）
-- 用户说"同步一下"、"推回 grounds"、"sync"、"接收基类更新 / 拉一下基类"。
-- 派生仓产生了笔记（wiki/ paper/ video/ project_logs）或改进了 agent 文件集，需要推回上游。
+- 用户说"同步一下"、"推一下"、"sync"、"拉一下最新"。
+- 当前 grounds 工作仓产生了笔记（wiki/ paper/ video/ project_logs）或改进了 agent 文件，需要推回 grounds 远程 / 拉取其他机器（他人）的改动。
 
 **只接受手动 / `$` 触发**：agent 不得基于用户消息内容自动调用。
 
 ## 动作总览（无子命令，单条 `$sync`）
 
-| 步骤 | 方向 | 判定 / 动作 |
+| 步骤 | 方向 | 动作 |
 |---|---|---|
-| ① 推笔记 | 本仓 → grounds | **仅当本仓不是 grounds**（按仓库名判定）才推；合并式推 `wiki/ paper/ video/ project_logs/` |
-| ② agent 同步 | 双向 | **按更新时间定方向**：本仓 agent 最近提交比 workBase 新 → 推；workBase 更新 → 拉；相同 → 跳过 |
+| ① 拉取 | 远程 → 本仓 | `git pull --rebase origin main` 取 grounds 远程最新（agent 文件与笔记都是普通跟踪文件，一并拉齐） |
+| ② 推送 | 本仓 → 远程 | `git push origin main` 推本仓改动 |
+| ③ 项目仓 | 各自独立 | 可选：遍历 `project/*/`（各是独立 git 仓），分别 `git push` 自己的远程 |
 
-> **两个判定原则（按你的要求）**：
-> 1. **agent 推还是拉，看更新时间**：比较本仓与 workBase 上 agent 文件集的最近提交时间，谁新谁赢，不再"本地必胜"。
-> 2. **是否 grounds，看仓库名**：目录名 `grounds` 或远端 URL 含 `grounds` 即视为目的地，不再依赖 `.buildconfig` 的 `role` 字段。
+> **模型说明**：单一 grounds 仓下，agent 文件（`.agents` 等）与笔记**同仓同 git 历史**，因此不再有"覆盖式 `AGENT_FILESET` 同步"与"笔记线 / agent 线分流"——全部由普通 `git pull/push` 完成。`$sync` 本质是一次"先 rebase 拉齐、再 push"的安全包装。切换机器前跑一次 `$sync` 即保证各端一致。
 
-## agent 文件集（固定清单，步骤② agent 同步用）
+## 环境预检（关键）
 
+**受限网络（GitHub 22/443 被封）逃生通道**：若 `ssh -T git@github.com` 超时，多半是直连 github.com 的 22 端口被防火墙阻断。改走 SSH-over-HTTPS，在 `~/.ssh/config` 写入：
+> ```
+> Host github.com
+>     Hostname ssh.github.com
+>     Port 443
+>     User git
+>     IdentityFile ~/.ssh/id_ed25519
+>     StrictHostKeyChecking no
+> ```
+> 连通性预检：
+> ```bash
+> ssh -T -o ConnectTimeout=8 git@github.com 2>&1 | grep -q "successfully authenticated" \
+>   && echo "SSH OK" || echo "SSH 不通，检查上面的逃生通道 / 代理"
+> ```
+
+**git 身份保障（commit 前必做）**：受限 / 临时环境常缺 `user.name/email`。本 skill 用仓库级兜底（优先复用历史作者，不动 --global）：
+> ```bash
+> git config user.email >/dev/null 2>&1 || git config user.email "$(git log -1 --format=%ae 2>/dev/null || echo you@example.com)"
+> git config user.name  >/dev/null 2>&1 || git config user.name  "$(git log -1 --format=%an 2>/dev/null || echo you)"
+> ```
+
+## 流程
+
+### 第一步：脏检查（有未提交改动先提交）
 ```bash
-# 用 bash 数组声明——"${AGENT_FILESET[@]}" 在 bash 与 zsh 下都能正确拆成多个参数。
-AGENT_FILESET=(.agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae)
+git status --porcelain
 ```
+- 若有未提交改动 → 按「提交规范」分文件 `git add <具体文件>` + `git commit`（**绝不 `git add -A`**，避免误吞 `project/` 内容或 `raw/` 本地资料——虽 `.gitignore` 已兜底，仍保持好习惯）。
+- 若无改动 → 直接进入第二步。
 
-复制 / 覆盖这些文件时务必**保留软链**（`cp -R` / `rsync -a`，不要解引用）。`.claude` 是软链到 `.agents`，`.codebuddy/.qoder/.trae` 内含软链到 `.agents/skills`——解引用会让链接失效。
-
-> ⚠️ **shell 兼容性**：zsh 不会按空格自动分词裸变量（`$AGENT_FILESET` 在 zsh 下是单个字符串，不会被拆成多个参数）。一律用 bash 数组 + `"${AGENT_FILESET[@]}"` 展开（bash / zsh 行为一致），不要写裸 `$AGENT_FILESET`。
-
----
-
-# 流程
-
-## 目标（完成时状态）
-- （若非 grounds）`wiki/ paper/ video/ project_logs/` 已合并式推到 grounds 远程。
-- agent 文件集已按"更新时间"方向与 workBase 同步（推 / 拉 / 跳过其一）。
-- 冲突策略：agent 以**较新一方为准**（按提交时间判，非硬编码本地优先）。
-
-### 第一步：读 .buildconfig + 判定是否 grounds
-
+### 第二步：拉取最新（rebase 避免无谓 merge commit）
 ```bash
-set -a; . ./.buildconfig; set +a
-# 现在可用：$grounds_remote  $workbase_remote  $local_grounds_path  $current_project
-
-# 按仓库名判定是否 grounds（目录名 / 远端 URL 任一含 grounds 即算）
-REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
-REPO_NAME=$(basename "$REPO_ROOT")
-REMOTE_HINT=$(git remote -v 2>/dev/null | tr 'A-Z' 'a-z')
-IS_GROUNDS=false
-case "$REPO_NAME" in grounds) IS_GROUNDS=true ;; esac
-echo "$REMOTE_HINT" | grep -q grounds && IS_GROUNDS=true
+git pull --rebase origin main
 ```
+- 若 rebase 冲突 → **停下**告知用户手动解决（`git status` 看冲突文件），不要静默覆盖。
+- 若本地落后且无冲突 → 自动 fast-forward / rebase 完成。
 
-- 若 `.buildconfig` 不存在 → 停止，提示「当前目录未初始化（缺 .buildconfig）。请先 `$start`，或用 `$project` 进入项目模式。」
-- **是否 grounds（按仓库名）**：若 `IS_GROUNDS=true`，本仓就是笔记目的地，**跳过笔记推送**（不能推给自己）；但 agent 同步仍按时间照常进行。
-
-### 第二步：准备 grounds 本地副本（仅非 grounds 时）
-
+### 第三步：推送本仓
 ```bash
-if $IS_GROUNDS; then
-  echo "本仓是 grounds（按仓库名判定），跳过笔记推送。"
-else
-  if [ -n "$local_grounds_path" ] && [ -d "$local_grounds_path/.git" ]; then
-    GROUNDS="$local_grounds_path"
-    git -C "$GROUNDS" pull --ff-only 2>/dev/null || true
-  else
-    GROUNDS=$(mktemp -d)
-    git clone "$grounds_remote" "$GROUNDS"
-  fi
-fi
+git push origin main
 ```
+- 失败（如远端有未拉取的更新）→ 回到第二步重 pull 再 push；仍失败则提示用户检查网络 / 权限。
 
-### 第三、四步：合并式复制笔记 + 提交推送（仅非 grounds）
-
-> 仅当 `IS_GROUNDS=false`（本仓不是 grounds）才执行；是 grounds 则整段跳过，不推笔记给自己。
-
+### 第四步（可选）：遍历 project/* 各独立仓 push
 ```bash
-if ! $IS_GROUNDS; then
-  # 合并式复制：rsync -a（保留远程独有）；无 rsync 时回退 cp -R 内容
-  for d in wiki paper video project_logs; do
-    [ -d "$d" ] || continue
-    mkdir -p "$GROUNDS/$d"
-    rsync -a "$d/" "$GROUNDS/$d/" 2>/dev/null || cp -R "$d/." "$GROUNDS/$d/"
-  done
-  # project_logs/ 已在上方的 wiki/paper/video 循环中一并推送（合并式）
-  # 提交 + 推送 grounds（本地优先、合并式）
+for p in project/*/; do
+  [ -d "$p/.git" ] || continue
   (
-    cd "$GROUNDS"
-    git add -A
-    git commit -m "sync: 推送派生仓笔记 $(date +%Y-%m-%dT%H-%M)" || echo "nothing to commit"
-    git pull --no-edit -X ours "$grounds_remote" main 2>/dev/null || true
-    if git push "$grounds_remote" main; then
-      echo "笔记已推到 grounds"
-    else
-      echo "⚠️ 笔记推送失败，请检查网络或手动 push"
-    fi
+    cd "$p"
+    git push 2>/dev/null && echo "已推 $p" || echo "⚠️ $p 推送失败（可能未设远程）"
   )
-  # 仅临时 clone 才清理；local_grounds_path 模式保留本地副本
-  [ -z "$local_grounds_path" ] && rm -rf "$GROUNDS"
-fi
+done
 ```
+- `project/<name>/` 是各自独立的 git 仓（父仓库 `.gitignore` 忽略其内容），**不走 grounds**，各自推自己的远程。
 
-> 关键点：用 `rsync -a`（或 `cp -R 内容`）**合并**，不加 `--delete`，所以 grounds 里本仓没有的笔记、paper、video **全部保留**；本仓有而 grounds 没有的文件被新增；两边同名的冲突文件以**本地（本仓）为准**覆盖。
-> `project/<name>/` 是独立 git 仓库、父仓库忽略其内容；`project_logs/` 之外的代码、构建产物**不复制**，所以 grounds 永不被项目代码撑大。
-> agent 文件集（`.agents` 等）和 `.buildconfig` **不复制**——它们不属于"笔记"，agent 改动走下面的 agent 同步。
-> 若本机直接用 `local_grounds_path`：`git push` 即推到本地仓（已 pull --ff-only），且不清理；用临时 clone 则自动 `rm -rf` 清理。`git commit` 无变更时失败（`|| echo`）属正常，不阻塞。
-
-### 第五步：agent 同步（按更新时间定方向）
-
-克隆 workBase，比较本仓与 workBase 上 agent 文件集的**最近提交时间**，决定推 / 拉 / 跳过：
-
-```bash
-# 用 bash 数组保存 agent 文件集；"${AGENT_FILESET[@]}" 在 bash 和 zsh 下
-# 都能正确展开为多个参数（裸 $VAR 在 zsh 下不按空格分词，会导致单参数匹配失败）。
-# 提交时间只取自"已提交"的 agent 文件集；未提交改动不再抬高 LOCAL_TS，
-# 否则会盖过 workBase 上"更新的已提交版本"，导致上游改进被静默丢失。
-AGENT_FILESET=(.agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae)
-
-LOCAL_TS=$(git log -1 --format=%ct -- "${AGENT_FILESET[@]}" 2>/dev/null)
-LOCAL_TS=${LOCAL_TS:-0}
-LOCAL_DIRTY=$(git status --porcelain -- "${AGENT_FILESET[@]}" 2>/dev/null)
-
-WB=$(mktemp -d)
-if ! git clone "$workbase_remote" "$WB" >/dev/null 2>&1 || [ ! -d "$WB/.git" ]; then
-  echo "⚠️ workBase clone 失败（网络/SSH 问题），跳过 agent 同步。"
-  rm -rf "$WB"
-  # 直接跳到第六步收尾
-else
-BASE_TS=$(cd "$WB" && git log -1 --format=%ct -- "${AGENT_FILESET[@]}" 2>/dev/null)
-BASE_TS=${BASE_TS:-0}
-
-# 方向判定（按"已提交"时间定，谁的新提交谁赢）：
-#   LOCAL_TS  > BASE_TS       → 本地提交更新 → 推 workBase
-#   BASE_TS   > LOCAL_TS       → workBase 提交更新 → 拉回本仓（即便本地有草稿，也不回写覆盖上游）
-#   LOCAL_TS == BASE_TS 且本地有未提交改动 → 视为本地更新推 workBase（此时 workBase 并未更新，安全）
-#   LOCAL_TS == BASE_TS 且无改动 → 跳过
-if [ "$LOCAL_TS" -gt "$BASE_TS" ]; then
-  MODE=push
-elif [ "$BASE_TS" -gt "$LOCAL_TS" ]; then
-  MODE=pull
-elif [ -n "$LOCAL_DIRTY" ]; then
-  MODE=push
-else
-  MODE=skip
-fi
-
-case "$MODE" in
-  push)
-    (
-      for f in "${AGENT_FILESET[@]}"; do
-        rm -rf "$WB/$f"
-        [ -e "$f" ] && cp -R "$f" "$WB/"
-      done
-      cd "$WB"
-      git add -A
-      git commit -m "sync: 派生仓推送 agent 改进 $(date +%Y-%m-%dT%H-%M)" || echo "agent 无变更"
-      git push "$workbase_remote" main
-    )
-    echo "agent：本仓更新 → 已推到 workBase"
-    ;;
-  pull)
-    (
-      for f in "${AGENT_FILESET[@]}"; do
-        rm -rf "$f"
-        [ -e "$WB/$f" ] && cp -R "$WB/$f" ./
-      done
-      git add -A
-      git commit -m "sync: 接收 workBase 基类更新 $(date +%Y-%m-%dT%H-%M)" || echo "已是最新"
-      git push 2>/dev/null || echo "本仓无远程（临时仓未设 origin），跳过 push"
-    )
-    echo "agent：workBase 更新 → 已拉回本仓"
-    ;;
-  *)
-    echo "agent：两边提交时间相同且无本地改动 → 已同步，跳过"
-    ;;
-esac
-rm -rf "$WB"
-fi  # end of workBase clone 成功分支
-```
-
-> **为什么用提交时间而非文件 mtime**：clone / pull 会重置文件 mtime，跨机不可比；git 提交时间是稳定的墙钟时间，可正确判断"谁改得更晚"。方向严格按"已提交时间"定：workBase 的更新提交永远优先拉回本仓（不会因本地有未提交草稿而被回写覆盖）；只有当双方提交时间相同、且本地确有未提交改动时，才把本地草稿当作更新推给 workBase（此时 workBase 并未更新，安全）。
-> 临时派生仓 `start` 时已移除 origin，拉回时 `git push` 失败属正常——本地已拿到最新 agent 即可。
-
-### 第六步：收尾提示
-
+### 第五步：收尾提示
 ```
 sync 完成：
-- 笔记：<已推到 grounds | 本仓是 grounds，已跳过>
-- agent：<本仓更新→已推 workBase | workBase 更新→已拉回 | 已同步跳过>
+- 本仓：已 pull --rebase + push 到 grounds 远程
+- project/*：<已分别 push | 无独立仓>
 ```
 
 ---
 
 ## Gotchas（真实踩过的坑）
-- **复制必须保留软链**：`cp -R` 在 macOS 默认不跟随符号链接（符合预期）；切勿 `-L` / 解引用，否则 `.claude → .agents` 等链接会变成实体副本，pull 后链接关系丢失。
-- **按仓库名判定 grounds**：目录名 `grounds` 或远端 URL 含 `grounds` 即视为目的地，跳过笔记推送；不再依赖 `.buildconfig` 的 `role` 字段（已移除）。
-- **project_logs 整体推送**：项目代码在 `project/<name>/`（各自 git，父仓库忽略），sync 只推 `project_logs/`（笔记），绝不把代码推回 grounds。
-- **`.buildconfig` 不进 sync**：它是派生仓私有配置，推回 grounds 时排除。
-- **agent 按更新时间定方向，覆盖式而非合并**：谁的最近提交时间新，就以谁为准覆盖对方；多机并发改 agent 时，后 sync 的一方（时间更新）覆盖先 sync 的，需协调时人工确认。
-- **临时 clone 要清理**：push / pull 用 `mktemp -d` 建临时区，结束务必 `rm -rf`，不留中间产物污染仓库。
-- **`git commit` 无变更会失败**：用 `|| echo` 接住，不要让它中断整个 sync。
+- **别 `git add -A`**：即便 `.gitignore` 已忽略 `project/`、`raw/`、`video/` 中间产物，仍保持有范围 add，防止某天 `.gitignore` 规则变动误吞。
+- **pull 用 `--rebase` 而非 merge**：避免产生一堆无意义的 merge commit，历史保持线性。
+- **冲突别静默覆盖**：rebase 冲突必须停下手解，不能自动 `--ours` 强推。
+- **SSH 逃生通道**：直连 github.com 22 端口常被封，`ssh.github.com:443` 可绕过（见「环境预检」）。
+- **commit 前保障仓库级身份**：临时 / 受限环境缺 `user.name/email` 时按历史作者补仓库级配置，否则 commit 失败。
+- **project 仓独立**：`project/<name>/` 各自 git，父仓忽略；sync 绝不把它们推上 grounds。
+- **agent 文件随 git 走**：单一 grounds 下 `.agents` 等是普通跟踪文件，`$sync` 的 pull/push 自然覆盖其同步，无需覆盖式机制。
