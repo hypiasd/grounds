@@ -21,8 +21,8 @@ allowed-tools: Read, Write, Edit, Bash
 
 ## 目标（完成时仓库应处于的状态）
 
-- `video/<视频标题>/` 是工作目录与成品目录合一的单一目录，最终保留（进 git）：`.tex` + `.pdf` + `index.md`。
-- `cover.jpg`、`sources/`、`figures/`、`ocr/` 是**临时中间产物**（不进 git，由 `.gitignore` 排除）——仅在编译期存在，交付 commit 后由 skill 自动删除，不长期占用本地磁盘。
+- `video/<视频标题>/` 是工作目录与成品目录合一的单一目录，最终进 git 的只有 `index.md`（由 `tex_to_md.py` 从 `.tex` 转换而来，供 Quartz 发布）。
+- `.tex`、`.pdf`、`cover.jpg`、`sources/`、`figures/`、`ocr/` 均为**本地产物 / 中间产物**（不进 git，由 `.gitignore` 排除）。`.tex`/`.pdf` 是本地编译与离线阅读用，可保留也可删除；`sources/figures/ocr/cover.jpg` 在交付 commit 后由 skill 自动删除，不长期占用本地磁盘。
 - 已 `git commit` 并 `git push origin main` 推到 grounds 远程，commit message：`youtube-render-pdf: <视频标题>`
 
 ---
@@ -401,15 +401,15 @@ TikZ 速查模式见 `bilibili-render-pdf` SKILL.md。
 
 | 产物 | 位置 | 描述 |
 |------|------|------|
-| `.tex` 文件 | `./<basename>.tex` | 完整 LaTeX 源，`xelatex` 可编译 |
-| `.pdf` 文件 | `./<basename>.pdf` | 编译 PDF（跑两次 `xelatex`） |
-| `index.md` | `./index.md` | `tex_to_md.py` 转换的 markdown，Quartz folder note |
+| `index.md` | `./index.md` | `tex_to_md.py` 转换的 markdown，Quartz folder note（video 目录唯一进 git 的文件） |
 
-**不进 git（临时中间产物，由 `.gitignore` 排除；交付 commit 后由 skill 自动删除，不长期驻留）：**
+**不进 git（本地产物 / 中间产物，由 `.gitignore` 排除）：**
 
 | 产物 | 位置 | 描述 |
 |------|------|------|
-| `cover.jpg` | `./cover.jpg` | 首页视频封面（可选保留，看个人偏好；若想进 git 改 .gitignore） |
+| `.tex` 文件 | `./<basename>.tex` | 完整 LaTeX 源，`xelatex` 可编译（本地编译 / 离线阅读用，可保留或删除） |
+| `.pdf` 文件 | `./<basename>.pdf` | 编译 PDF（跑两次 `xelatex`；本地阅读用，可保留或删除） |
+| `cover.jpg` | `./cover.jpg` | 首页视频封面 |
 | `figures/` | `./figures/` | 所有提取帧和生成可视化 |
 | `sources/` | `./sources/` | 原始下载：视频、音频、字幕 |
 | `ocr/` | `./ocr/frame_ocr.json` | OCR 输出时间线（视觉模式时） |
@@ -445,19 +445,19 @@ python3 "$(git rev-parse --show-toplevel)/.agents/skills/_shared/scripts/tex_to_
 ```bash
 # 显式 add 进 git 的文件（避免误带 sources/figures/ocr/cover.jpg）
 cd "$(git rev-parse --show-toplevel)"
-git add "video/<视频标题>/<basename>.tex" \
-        "video/<视频标题>/<basename>.pdf" \
-        "video/<视频标题>/index.md"
+git add "video/<视频标题>/index.md"
 git commit -m "youtube-render-pdf: <视频标题>"
 # 单一 grounds 模型：当前仓即 grounds 时直接推送到远程
 if [ "$(basename "$PWD")" = "grounds" ] || git remote -v 2>/dev/null | grep -qi grounds; then
   git push
 fi
 
-# 6. 清理临时中间产物（不进 git，成品 .tex/.pdf/index.md 已 commit；删除回收本地磁盘空间）
-#    注意：删除后 .tex 无法直接 xelatex 重编译，需重跑「源获取 + 帧提取」流程才能再编译
+# 6. 清理临时中间产物（不进 git；.tex/.pdf/index.md 中仅 index.md 已 commit）
+#    注意：sources/figures/ocr/cover.jpg 删除后无法直接 xelatex 重编译，需重跑「源获取 + 帧提取」流程
 rm -rf "video/<视频标题>/sources" "video/<视频标题>/figures" "video/<视频标题>/ocr"
 rm -f "video/<视频标题>/cover.jpg"
+#    .tex/.pdf 是否删除看个人偏好：本地阅读/重编译可保留；要彻底清理本地磁盘可一并删除
+# rm -f "video/<视频标题>/<basename>.tex" "video/<视频标题>/<basename>.pdf"
 ```
 
 ---
@@ -486,11 +486,11 @@ YouTube 特定：
 - **转录卡住要 kill，不要等**：用 `timeout` 命令包裹 `transcribe.py`，超预算直接 kill 走视觉模式。
 - **帧选择偏召回高于精度**：多看候选优于错过关键帧。
 - **盲模式别用本地 tesseract 批量评估**：2+ 分钟/帧，用中点提取。
-- **成品必须 commit 进 git**：`.tex`+`.pdf`+`index.md` 进 git；`sources/figures/ocr/cover.jpg` 是临时中间产物（.gitignore 自动排除），**commit 后 skill 自动删除**回收本地空间。换机器后如需重编译/重看源，需重跑「源获取 + 帧提取」流程重新下载。
+- **只有 `index.md` 进 git**：video 目录唯一进 git 的是 `index.md`；`.tex`/`.pdf`/`sources`/`figures`/`ocr`/`cover.jpg` 均不进 git（.gitignore 自动排除）。`sources/figures/ocr/cover.jpg` 在 commit 后由 skill 自动删除回收本地空间；`.tex`/`.pdf` 可保留作本地阅读或删除。换机器后如需重编译/重看源，需重跑「源获取 + 帧提取」流程重新下载。
 - **commit 之后**：必须 `git push origin main` 推到 grounds 远程（否则换机器看不到）。
 
 ## 注意
 
-- 工作目录与成品目录合一：`video/<标题>/`。`.tex`+`.pdf`+`index.md` 进 git；`sources/figures/ocr/cover.jpg` 由 `.gitignore` 排除不进 git，且 commit 后由 skill 自动删除。
-- 成品 `.pdf` 已进 git，即最终交付物。如需重编译 PDF，需先重跑「源获取 + 帧提取」流程重新生成中间文件，再 `xelatex`。
+- 工作目录与成品目录合一：`video/<标题>/`。只有 `index.md` 进 git；`.tex`/`.pdf`/`sources`/`figures`/`ocr`/`cover.jpg` 由 `.gitignore` 排除不进 git，且 commit 后 `sources/figures/ocr/cover.jpg` 由 skill 自动删除。
+- `.tex`/`.pdf` 为本地编译与离线阅读产物，不进 git（可保留或删除）；如需重编译 PDF，需先重跑「源获取 + 帧提取」流程重新生成中间文件，再 `xelatex`。
 - 关联：`AGENTS.md`、`.agents/skills/bilibili-render-pdf/SKILL.md`（B 站版，本 skill 的扩展版，含完整 Troubleshooting 和 Visual API 帧评估）

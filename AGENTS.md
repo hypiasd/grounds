@@ -10,7 +10,7 @@
 ## 铁律
 
 1. **绝不编造**：不确定的内容明确说"我不确定"，不要假装确定。
-2. **改动即 commit + push**：对 `wiki/`、`paper/`、`video/` 的改动，立即 `git commit` 然后 `git push`。`raw/` 下所有内容（`raw/wiki/`、`raw/papers/`）受 `.gitignore` 保护**不进 git**——笔记里的 `raw/` 链接视为本机参考资料，跨机器需重新下载/clone（论文 PDF 可从 arxiv 重下，源码快照可重新 clone）。`video/` 是工作目录与成品目录合一：`.tex`+`.pdf`+`index.md` 进 git，`sources/`、`figures/`、`ocr/`、`cover.jpg` 等中间产物不进 git（由 `.gitignore` 排除）。commit message 格式：`<skill> <topic>: <一句话>`（如 `learn deep-learning: 注意力机制笔记`）。video skill 无 topic 时可省略（如 `bilibili-render-pdf: <视频标题>`）；lint 修复可省略 topic（如 `lint: 修复孤儿页`）。
+2. **改动即 commit + push**：对 `wiki/`、`paper/`、`video/` 的改动，立即 `git commit` 然后 `git push`。`raw/` 下所有内容（`raw/wiki/`、`raw/papers/`）受 `.gitignore` 保护**不进 git**——笔记里的 `raw/` 链接视为本机参考资料，跨机器需重新下载/clone（论文 PDF 可从 arxiv 重下，源码快照可重新 clone）。`video/` 是工作目录与成品目录合一：只有 `index.md` 进 git；`.tex`/`.pdf` 及 `sources/`、`figures/`、`ocr/`、`cover.jpg` 均为本地产物 / 中间产物，不进 git（由 `.gitignore` 排除）。commit message 格式：`<skill> <topic>: <一句话>`（如 `learn deep-learning: 注意力机制笔记`）。video skill 无 topic 时可省略（如 `bilibili-render-pdf: <视频标题>`）；lint 修复可省略 topic（如 `lint: 修复孤儿页`）。
 3. **互链防孤儿**：`wiki/` 内笔记之间、笔记与 `raw/wiki/` 原始资料之间用标准 Markdown 相对路径互链（如 `[Dropout](../deep-learning/dropout.md)`、`[vLLM 源码](../../raw/wiki/vllm/vllm/v1/engine/llm_engine.py)`）。`paper/` 和 `video/` **不参与互链**。
 4. **主题自主生长**：列 `wiki/`（或 `paper/`）即发现所有主题；无合适主题时新建 `<topic>/` 目录，新建主题必须同时创建 `index.md`。
 
@@ -33,9 +33,9 @@ grounds/
 │       └── <论文标题>.md
 ├── video/                 # 视频笔记（video skill 产出；工作目录 = 成品目录）
 │   └── <视频标题>/
-│       ├── <basename>.tex   # 进 git
-│       ├── <basename>.pdf   # 进 git
-│       ├── index.md         # 进 git（Quartz folder note）
+│       ├── index.md         # 进 git（Quartz folder note；video 目录唯一进 git 的文件）
+│       ├── <basename>.tex   # 不进 git（本地产物，可保留或删除）
+│       ├── <basename>.pdf   # 不进 git（本地产物，可保留或删除）
 │       ├── cover.jpg        # 不进 git
 │       ├── sources/         # 不进 git
 │       ├── figures/         # 不进 git
@@ -71,7 +71,7 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 - **内容目录**：`wiki/ paper/ video/ raw/ project/ project_logs/` 全部在 grounds 内（见上方仓库地图）。
 - **agent 文件集**：`.agents/` + `AGENTS.md` + 各 agent 软链，是 grounds 的普通跟踪文件，随普通 `git pull/push` 同步——**不再有覆盖式 `AGENT_FILESET` 机制**。
 - **project 仓**：`project/<name>/` 各是独立 git 仓库，父仓库 `.gitignore` 忽略其内容（见 `.gitignore` 的 `project/*`），可独立推自己的远程。
-- **不进 git 的内容**：`raw/`、`video/` 中间产物（见 `.gitignore`），以及 `project/<name>/` 内部。
+- **不进 git 的内容**：`raw/`、`video/` 的 `.tex`/`.pdf` 及中间产物（见 `.gitignore`），以及 `project/<name>/` 内部。
 
 > 历史背景：本仓早期采用 workBase 基类 + 派生仓的「分层 + 覆盖式同步」模型。因 grounds 全量仅约 63M（无大文件，最大单文件 3.5M PDF），单仓即可承载全部内容，故统一回退为单一 grounds 模型，去掉 workBase 基类、派生仓分层与覆盖式 `AGENT_FILESET` 机制；`.buildconfig` 也已在后续简化中废弃移除（项目模式改为会话级、onboard 判据改为 runbook.md 是否存在）。`README.md`、`.github/` 仍为仓库专属文件。
 

@@ -18,7 +18,9 @@ raw/
 # 项目目录：每个 project/<name>/ 是独立 git 仓库（或指向外部目录的软链），父仓库不跟踪其内部
 project/*
 
-# video 成品目录：只追踪 .tex / .pdf / .md，排除误放的中间产物
+# video 成品目录：只追踪 .md；.tex/.pdf 及其他中间产物全部不进 git
+video/**/*.tex
+video/**/*.pdf
 video/**/sources/
 video/**/figures/
 video/**/ocr/
