@@ -1,39 +1,42 @@
 ---
-name: bilibili-render-pdf
-description: 用户手动或用 `$bilibili-render-pdf <BV链接>` 触发，把一个 Bilibili 视频（讲座/教程/技术演讲）转换成结构化中文 LaTeX 笔记并编译为 PDF。不接受语义触发——即使用户贴了 BV 链接，没有显式调用本 skill 也不得自动启动。工作目录与成品目录合一，都在 video/<标题>/，无复制步骤。
+name: video-render-pdf
+description: 用户手动或用 `$video-render-pdf <URL>` 触发，把一个视频（Bilibili / YouTube 讲座、教程、技术演讲）转换成结构化中文 LaTeX 笔记并编译为 PDF。不接受语义触发——即使用户贴了视频链接，没有显式调用本 skill 也不得自动启动。平台从 URL 自动判别（bilibili.com/b23.tv → B 站；youtube.com/youtu.be → YouTube）。工作目录与成品目录合一，都在 video/<标题>/，无复制步骤。
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash
 ---
 
-# bilibili-render-pdf
+# video-render-pdf
 
-把一个 Bilibili 视频转成完整可编译的 `.tex` 笔记 + 渲染好的 PDF。
+把一个视频转成完整可编译的 `.tex` 笔记 + 渲染好的 PDF。支持 B 站和 YouTube 两个平台，**平台相关差异在文中以 [B 站] / [YouTube] 标注**。
 
-本 skill 是视频转 PDF 的完整版（B 站特化），`youtube-render-pdf` 是其 YouTube 简化版。针对 B 站的字幕稀缺、登录门控高清、分P 视频、平台特定非教学内容做了适配。
+本 skill 是视频转 PDF 的完整版，针对 B 站的字幕稀缺、登录门控高清、分P 视频、平台特定非教学内容，以及 YouTube 的年龄限制、自动字幕等做了适配。
 
 ## 何时用（触发）
 
 **只接受手动触发**：
-- 用户明确说"用 bilibili-render-pdf 处理 X"、"走 bilibili-render-pdf"
-- 用户输入 `$bilibili-render-pdf <BV链接>`
+- 用户明确说"用 video-render-pdf 处理 X"、"走 video-render-pdf"
+- 用户输入 `$video-render-pdf <URL>`
 
-**不得自动触发**：即使用户贴了 BV/b23.tv 链接，没有显式调用本 skill，agent 不得自行启动。可以先问"要用 bilibili-render-pdf 处理吗？"。
+**平台自动判别**：`bilibili.com` / `b23.tv` → B 站；`youtube.com` / `youtu.be` → YouTube。用户也可显式说明平台。
+
+**不得自动触发**：即使用户贴了视频链接，没有显式调用本 skill，agent 不得自行启动。可以先问"要用 video-render-pdf 处理吗？"。
 
 ## 目标（完成时仓库应处于的状态）
 
 - `video/<视频标题>/` 是工作目录与成品目录合一的单一目录，最终进 git 的只有 `index.md`（由 `tex_to_md.py` 从 `.tex` 转换而来，供 Quartz 发布）。
 - `.tex`、`.pdf`、`cover.jpg`、`sources/`、`figures/`、`ocr/` 均为**本地产物 / 中间产物**（不进 git，由 `.gitignore` 排除）。`.tex`/`.pdf` 是本地编译与离线阅读用，可保留也可删除；`sources/figures/ocr/cover.jpg` 在交付 commit 后由 skill 自动删除，不长期占用本地磁盘。
-- 已 `git commit` 并 `git push origin main` 推到 grounds 远程，commit message：`bilibili-render-pdf: <视频标题>`
+- 已 `git commit` 并 `git push origin main` 推到 grounds 远程，commit message：`video-render-pdf: <视频标题>`
 
-## Bilibili vs YouTube: 关键差异
+## 平台关键差异
 
-| 方面 | 处理 |
-|------|------|
-| **字幕稀缺** | **始终**尝试 CC 字幕下载，即使 metadata 显示 `NA`。先 CC → 回退 Whisper → 视觉模式 OCR。B 站 metadata 经常误报 `NA` 但实际可下载 |
-| **登录门控高清** | 1080P+ 需要 cookies；提示用户用 `yt-dlp --cookies-from-browser chrome` |
-| **分P 视频** | 检测分P 并问用户处理哪些 P |
-| **URL 格式** | 支持 `bilibili.com/video/BVxxxxxxx` 和 `b23.tv` 短链 |
-| **弹幕** | 不用弹幕作教学内容源（噪声太大）；只用 CC 字幕或 Whisper 输出 |
+| 方面 | B 站 | YouTube |
+|------|------|---------|
+| **字幕稀缺** | 严重——CC 元数据常误报 `NA`，需**始终尝试 CC 下载** | 较轻——CC 通常可用，优先 `--write-auto-subs` 拿自动字幕 |
+| **登录门控高清** | 1080P+ 需要 cookies（`--cookies-from-browser chrome`） | 年龄限制内容需要 cookies |
+| **分P 视频** | 有，需检测并问用户处理哪些 P | 无分P 概念 |
+| **URL 格式** | `bilibili.com/video/BVxxxxxxx`、`b23.tv` | `youtube.com/watch?v=`、`youtu.be/` |
+| **弹幕** | 不用作教学内容源（噪声大）；只用 CC/Whisper | 无弹幕 |
+| **转录增强** | SiliconFlow ASR API / Visual API 帧评估优先用于此处（字幕稀缺） | 同样可用，但 CC 通常已足够 |
 
 ---
 
@@ -82,13 +85,13 @@ which pdftotext                                                 # 成品 PDF 抽
 
 ```bash
 # 检查 SiliconFlow API key（或等价 OpenAI 兼容端点）
-[ -f ~/.config/bilibili-render-pdf/siliconflow_key ] && echo "SiliconFlow key: FOUND" || echo "SiliconFlow key: MISSING"
+[ -f ~/.config/video-render-pdf/siliconflow_key ] && echo "SiliconFlow key: FOUND" || echo "SiliconFlow key: MISSING"
 python3 -c "from openai import OpenAI; print('openai package: ok')" 2>/dev/null || echo "openai package: MISSING (pip install openai)"
 # 检查本 skill 自带的帧评估脚本
-[ -f .agents/skills/bilibili-render-pdf/scripts/frame_assess.py ] && echo "frame_assess.py: FOUND" || echo "frame_assess.py: MISSING"
+[ -f .agents/skills/video-render-pdf/scripts/frame_assess.py ] && echo "frame_assess.py: FOUND" || echo "frame_assess.py: MISSING"
 ```
 
-key 缺失时，请用户创建 `~/.config/bilibili-render-pdf/siliconflow_key`（一行纯文本 API key）。脚本用 OpenAI 兼容的 SiliconFlow 端点 + `deepseek-ai/DeepSeek-OCR` 做中文 OCR，~1.5s/帧。
+key 缺失时，请用户创建 `~/.config/video-render-pdf/siliconflow_key`（一行纯文本 API key）。脚本用 OpenAI 兼容的 SiliconFlow 端点 + `deepseek-ai/DeepSeek-OCR` 做中文 OCR，~1.5s/帧。
 
 ### 3. 模型缓存检查
 
@@ -183,9 +186,9 @@ yt-dlp 下载/元数据获取失败时，先检查错误信息区分原因：
    yt-dlp --print "%(title)s|%(description)s|%(duration)s|%(thumbnail)s|%(chapters)s|%(subtitles)s" --skip-download "<URL>"
    ```
 
-   **重要——B 站字幕元数据不可靠**：`--print subtitles` 经常返回 `NA` 即使 CC 字幕实际可下载（ai-zh 轨观察到）。**无论元数据结果如何，都要尝试 CC 字幕下载**（下方 Priority 1）。确认字幕缺失的唯一方法是尝试下载并检查 `.srt` 是否生成。
+   **重要——B 站字幕元数据不可靠**：`--print subtitles` 经常返回 `NA` 即使 CC 字幕实际可下载（ai-zh 轨观察到），**无论元数据结果如何都要尝试 CC 下载**（下方 Priority 1）。YouTube 字幕元数据通常可靠，可先查再决定 `--write-auto-subs`。确认字幕缺失的唯一方法是尝试下载并检查 `.srt` 是否生成。
 
-2. 检测分P 视频。列出所有 P 并问用户处理哪些 P。**多 P 时每个 P 独立工作目录** `video/<标题>-part<n>/`（与 youtube-render-pdf 统一命名），各自产出独立 PDF，互不干扰。单 P 时工作目录就是 `video/<标题>/`。
+2. 检测分P 视频（**仅 B 站**）。列出所有 P 并问用户处理哪些 P。**多 P 时每个 P 独立工作目录** `video/<标题>-part<n>/`，各自产出独立 PDF，互不干扰。单 P 时工作目录就是 `video/<标题>/`。
 
 3. **下载后验证实际时长**（本步骤的执行时机在"视频和封面下载"小节之后，不是现在执行）。yt-dlp 元数据时长可能不准（观察到元数据报 59 分钟，实际 104 分钟）。视频下载完成后用 ffprobe 交叉检查：
    ```bash
@@ -232,31 +235,36 @@ video/<视频标题>/
 
 #### Priority 1: CC 字幕（平台内嵌）—— 目标 ≤ 30s
 
-有手动字幕优先于自动生成。优先 `zh-Hans`、`zh-CN`、`zh`、`ai-zh` 轨。保留时间戳，图定位需要时不要过早扁平化。
+有手动字幕优先于自动生成。保留时间戳，图定位需要时不要过早扁平化。
 
-```bash
-yt-dlp --cookies-from-browser chrome --write-subs --sub-langs "zh-Hans,zh-CN,zh,ai-zh" --convert-subs srt \
-  --skip-download -o "sources/subtitles.%(ext)s" "<URL>"
-# 实际生成文件名带语言码（如 subtitles.ai-zh.srt），统一重命名：
-mv sources/subtitles.*.srt sources/subtitles.srt 2>/dev/null
-ls -la sources/subtitles.srt
-```
+- **[B 站]**：优先 `zh-Hans`、`zh-CN`、`zh`、`ai-zh` 轨。B 站 metadata 经常误报 `NA` 即使 CC 实际可下载（ai-zh 轨观察到），**无论元数据结果如何都要尝试 CC 下载**：
+  ```bash
+  yt-dlp --cookies-from-browser chrome --write-subs --sub-langs "zh-Hans,zh-CN,zh,ai-zh" --convert-subs srt \
+    --skip-download -o "sources/subtitles.%(ext)s" "<URL>"
+  mv sources/subtitles.*.srt sources/subtitles.srt 2>/dev/null
+  ls -la sources/subtitles.srt
+  ```
+  `chrome` 失败时试 `safari` / `edge`；都失败时请用户在浏览器登录 B 站再重试。cookies 路径几秒成功并产出准确简体中文字幕——应在 Whisper 回退前始终尝试。无 cookies 回退（B 站几乎必失败，但快）：
+  ```bash
+  yt-dlp --write-subs --sub-langs "zh-Hans,zh-CN,zh,ai-zh" --convert-subs srt \
+    --skip-download -o "sources/subtitles.%(ext)s" "<URL>"
+  mv sources/subtitles.*.srt sources/subtitles.srt 2>/dev/null
+  ```
+  不要用 `zh-Hans,zh-CN,zh,ai-zh` 之外的语言码重试。
 
-`chrome` 失败时试 `safari` 或 `edge`。都失败时请用户先在浏览器登录 B 站再重试。cookies 路径几秒内成功并产出准确简体中文字幕——应在 Whisper 回退前始终尝试。
-
-无 cookies 回退（B 站几乎必失败，但快）：
-```bash
-yt-dlp --write-subs --sub-langs "zh-Hans,zh-CN,zh,ai-zh" --convert-subs srt \
-  --skip-download -o "sources/subtitles.%(ext)s" "<URL>"
-mv sources/subtitles.*.srt sources/subtitles.srt 2>/dev/null
-```
+- **[YouTube]**：优先 `zh-Hans`、`zh-CN`、`zh`、`en` 轨，用 `--write-auto-subs` 同时拿自动字幕；CC 通常可用，可先 `--print subtitles` 检查，若 `NA` 再回退 Whisper：
+  ```bash
+  yt-dlp --cookies-from-browser chrome --write-subs --write-auto-subs --sub-langs "zh-Hans,zh-CN,zh,en" --convert-subs srt \
+    --skip-download -o "sources/subtitles.%(ext)s" "<URL>"
+  mv sources/subtitles.*.srt sources/subtitles.srt 2>/dev/null
+  ls -la sources/subtitles.srt
+  ```
 
 两种都试后仍无 `sources/subtitles.srt`（非空且 >100 字节）才走 Priority 2。放弃 CC 前确认下载确实失败：
 ```bash
 # 用 wc -l 比 ls -la 更有用——能看到行数是否在增长，而不只是"文件是否存在"
 wc -l sources/subtitles.srt 2>/dev/null && [ -s sources/subtitles.srt ] || echo "No non-empty SRT — CC subtitles unavailable"
 ```
-不要用 `zh-Hans,zh-CN,zh,ai-zh` 之外的语言码重试。
 
 **CC 成功后的退出条件**：`sources/subtitles.srt` 存在且非空（>100 字节）。
 
@@ -269,7 +277,7 @@ CC 字幕质量通常优于 Whisper 转录，无需对比验证。
 
 CC 字幕不可用时，优先尝试 SiliconFlow 的 ASR API（`FunAudioLLM/SenseVoiceSmall`），而非直接回退本地 Whisper。API 转录速度快、中文质量好（有标点），但时间戳精度为分块级别（5 分钟），不适合需要精确帧定位的教学视频。
 
-**前置条件**：`~/.config/bilibili-render-pdf/siliconflow_key` 存在且有效（与 Visual API 帧评估共用同一 key）。
+**前置条件**：`~/.config/video-render-pdf/siliconflow_key` 存在且有效（与 Visual API 帧评估共用同一 key）。
 
 **工作流**：
 
@@ -278,7 +286,7 @@ CC 字幕不可用时，优先尝试 SiliconFlow 的 ASR API（`FunAudioLLM/Sens
    ffmpeg -y -i sources/audio.wav -ac 1 -ar 16000 -b:a 32k sources/audio_compressed.mp3
    ```
 
-2. 按自适应时长切段，逐段调用 API，组装 SRT（脚本 `.agents/skills/bilibili-render-pdf/scripts/api_transcribe.py`）。chunk size 自动计算：`min(10, max(3, duration_sec // 20))` 分钟——短视频 3 分钟/chunk 保留精细时间戳，长视频 10 分钟/chunk 减少 API 调用次数。也可手动指定：`python3 api_transcribe.py audio.wav out.srt 600`。
+2. 按自适应时长切段，逐段调用 API，组装 SRT（脚本 `.agents/skills/video-render-pdf/scripts/api_transcribe.py`）。chunk size 自动计算：`min(10, max(3, duration_sec // 20))` 分钟——短视频 3 分钟/chunk 保留精细时间戳，长视频 10 分钟/chunk 减少 API 调用次数。也可手动指定：`python3 api_transcribe.py audio.wav out.srt 600`。
 
 3. **质量对比——API vs 本地 Whisper**：
 
@@ -420,9 +428,9 @@ CC 字幕不可用时，优先尝试 SiliconFlow 的 ASR API（`FunAudioLLM/Sens
 `view_image` 不可用且本地 tesseract 批量评估太慢（CPU >30s/帧）时，用远程 OCR/视觉 API 评估帧质量。把帧选择从盲启发式变成数据驱动。
 
 **前置条件**（见上面环境检查 2b）：
-- `~/.config/bilibili-render-pdf/siliconflow_key` 含有效 SiliconFlow API key
+- `~/.config/video-render-pdf/siliconflow_key` 含有效 SiliconFlow API key
 - `openai` Python 包装好
-- `.agents/skills/bilibili-render-pdf/scripts/frame_assess.py` 自带脚本
+- `.agents/skills/video-render-pdf/scripts/frame_assess.py` 自带脚本
 
 **帧评估模型选择**：
 
@@ -444,11 +452,11 @@ CC 字幕不可用时，优先尝试 SiliconFlow 的 ASR API（`FunAudioLLM/Sens
 2. 批量评估一个片段的所有候选，只保留 top-ranked 帧：
    ```bash
    # 按片段分组，每组选 Top-1（推荐：每个关键片段只留最佳帧）
-   python3 "$(git rev-parse --show-toplevel)/.agents/skills/bilibili-render-pdf/scripts/frame_assess.py" \
+   python3 "$(git rev-parse --show-toplevel)/.agents/skills/video-render-pdf/scripts/frame_assess.py" \
      --batch "figures/candidates/*.jpg" --top 1 --group
 
    # 全局 Top-1（跨所有帧，单一片段时用）
-   python3 "$(git rev-parse --show-toplevel)/.agents/skills/bilibili-render-pdf/scripts/frame_assess.py" \
+   python3 "$(git rev-parse --show-toplevel)/.agents/skills/video-render-pdf/scripts/frame_assess.py" \
      --batch "figures/candidates/seg_1_*.jpg" --top 1
    ```
 
@@ -489,7 +497,7 @@ CC 字幕不可用时，优先尝试 SiliconFlow 的 ASR API（`FunAudioLLM/Sens
    ```bash
    yt-dlp -F "<URL>"  # 列格式
    ```
-   B 站 1080P+ 通常需登录 cookies。720P 在 1920×1080 显示器上做图提取通常足够。
+   **[B 站]** 1080P+ 通常需登录 cookies；**[YouTube]** 年龄限制内容需 cookies。720P 在 1920×1080 显示器上做图提取通常足够。
 
 3. 下载视频用于帧提取：
    ```bash
@@ -539,7 +547,7 @@ CC 字幕不可用时，优先尝试 SiliconFlow 的 ASR API（`FunAudioLLM/Sens
 
 3. 用 `\section{...}` 和 `\subsection{...}` 组织。需要时重建教学流程，不盲目镜像字幕顺序。
 
-4. 从 `.agents/skills/bilibili-render-pdf/assets/notes-template.tex` 开始。填元数据块（含本地封面路径），替换正文内容块。
+4. 从 `.agents/skills/video-render-pdf/assets/notes-template.tex` 开始。填元数据块（含本地封面路径），替换正文内容块。
 
 5. 首页必须含视频原始封面（可用时）。放第一页而非埋在后面。与正文教学图视觉区分。
 
@@ -867,7 +875,7 @@ wc -l index.md && grep -c '^## ' index.md
 # 5. git add + commit（+ push 仅当是 grounds）
 cd "$(git rev-parse --show-toplevel)"
 git add "video/<视频标题>/index.md"
-git commit -m "bilibili-render-pdf: <视频标题>"
+git commit -m "video-render-pdf: <视频标题>"
 # 单一 grounds 模型：当前仓即 grounds 时直接推送到远程
 if [ "$(basename "$PWD")" = "grounds" ] || git remote -v 2>/dev/null | grep -qi grounds; then
   git push
@@ -891,9 +899,9 @@ rm -f "video/<视频标题>/cover.jpg"
 
 ## 资产
 
-- `.agents/skills/bilibili-render-pdf/assets/notes-template.tex`：默认 LaTeX 模板，复制并填充
-- `.agents/skills/bilibili-render-pdf/scripts/frame_assess.py`：Visual API 帧评估脚本
-- `.agents/skills/bilibili-render-pdf/scripts/api_transcribe.py`：SiliconFlow ASR API 转录脚本（CC 字幕缺失时 Priority 1.5 用）
+- `.agents/skills/video-render-pdf/assets/notes-template.tex`：默认 LaTeX 模板，复制并填充
+- `.agents/skills/video-render-pdf/scripts/frame_assess.py`：Visual API 帧评估脚本
+- `.agents/skills/video-render-pdf/scripts/api_transcribe.py`：SiliconFlow ASR API 转录脚本（CC 字幕缺失时 Priority 1.5 用）
 - `.agents/skills/_shared/scripts/transcribe.py`：本地 Whisper 流式转录脚本（Priority 2 用，把上面的内联脚本替换为直接调用此模板，避免每次重写）
 
 ## Gotchas
@@ -906,7 +914,7 @@ rm -f "video/<视频标题>/cover.jpg"
 - **不确定当前机器最优设置时跑 benchmark**：用 ffmpeg 切 60s 音频片段，分别测试 `(device="cpu", compute_type="int8")` 和 `(device="auto", compute_type="float32")`，选更快的那个。但不要用 `device="auto"` 配 `int8`——MPS + int8 必定失败。
 
 
-- **不接受语义触发**：用户贴 BV 链接但没说"用 bilibili-render-pdf"→ 不得自动开跑。先问"要用 bilibili-render-pdf 处理吗？"。
+- **不接受语义触发**：用户贴 BV 链接但没说"用 video-render-pdf"→ 不得自动开跑。先问"要用 video-render-pdf 处理吗？"。
 - **不要改写视频标题**：`\notetitle` 和工作目录名必须原样使用 yt-dlp 返回的标题。不要润色、加空格、换说法、缩写字句。标题是视频的一部分，笔记只是转述者。
 - **B 站字幕元数据不可靠**：`--print subtitles` 返回 `NA` 不代表没字幕，始终尝试 CC 下载。
 - **CPU-only Mac 别用 medium 模型**：20-40 分钟/10 分钟音频。用 `small`/`tiny` 或走视觉模式。
@@ -931,4 +939,4 @@ rm -f "video/<视频标题>/cover.jpg"
 
 - 工作目录与成品目录合一：`video/<标题>/`。只有 `index.md` 进 git；`.tex`/`.pdf`/`sources`/`figures`/`ocr`/`cover.jpg` 由 `.gitignore` 排除不进 git。
 - `.tex`/`.pdf` 为本地编译与离线阅读产物，不进 git（可保留或删除）；中间产物 `sources/figures/ocr/cover.jpg` 在 commit 后由 skill 自动删除——如需重编译 PDF，需先重跑「源获取 + 帧提取」流程重新生成这些文件，再 `xelatex`。
-- 关联：`AGENTS.md`、`.agents/skills/youtube-render-pdf/SKILL.md`（YouTube 版，本 skill 的简化版）
+- 关联：`AGENTS.md`（本 skill 是合并后的 video-render-pdf，统一支持 B 站与 YouTube）

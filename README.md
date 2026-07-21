@@ -2,7 +2,7 @@
 
 个人学习仓库 —— 用对话学知识，用 git 管笔记。
 
-**入口**：[`AGENTS.md`](AGENTS.md) — Claude Code 和 Codex 通用，包含完整约定与十个 skill。
+**入口**：[`AGENTS.md`](AGENTS.md) — Claude Code 和 Codex 通用，包含完整约定与九个 skill。
 
 ## 结构
 
@@ -13,10 +13,10 @@ video/   视频笔记成品（每个视频一个目录）
 raw/     原始资料（只增不删；分 wiki/papers/videos）
 ```
 
-## 十个 Skill
+## 九个 Skill
 
 - 语义触发：`learn` · `lint` · `query`
-- 手动 / `$` 触发：`start` · `project` · `learn-capture` · `project-capture` · `paper-learn` · `bilibili-render-pdf` · `youtube-render-pdf`
+- 手动 / `$` 触发：`start` · `project` · `learn-capture` · `project-capture` · `paper-learn` · `video-render-pdf`
 
 详见 [AGENTS.md](AGENTS.md)。
 

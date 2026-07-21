@@ -1,4 +1,4 @@
-# bilibili-render-pdf Troubleshooting
+# video-render-pdf Troubleshooting
 
 本文件是主 `SKILL.md` 的附录，收录执行过程中可能遇到的常见问题和解决方案。执行失败时查这里，正常流程不需要阅读。
 
@@ -167,7 +167,7 @@ cat part1.tex part2.tex part3.tex > document.tex
 
 **这是预期行为**：DeepSeek-OCR 是纯 OCR 引擎，非 chat 模型。擅长文字提取但不可靠地遵循 JSON 格式指令。
 
-**修复——用自带脚本**：`.agents/skills/bilibili-render-pdf/scripts/frame_assess.py` 处理 API 调用和后处理（token 清理、字符计数、本地 info-score 计算）。不要裸调 API——用脚本。
+**修复——用自带脚本**：`.agents/skills/video-render-pdf/scripts/frame_assess.py` 处理 API 调用和后处理（token 清理、字符计数、本地 info-score 计算）。不要裸调 API——用脚本。
 
 **需要 JSON 格式评估时**：改用 `PaddlePaddle/PaddleOCR-VL-1.5`，有视觉语言能力能遵循结构化输出指令。代价：比 DeepSeek-OCR 慢 3-5×。
 

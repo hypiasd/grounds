@@ -11,7 +11,7 @@ Usage:
     python3 api_transcribe.py sources/audio.wav sources/subtitles.srt 300
     python3 api_transcribe.py sources/audio.wav sources/subtitles.srt 600 --compress
 
-API key: ~/.config/bilibili-render-pdf/siliconflow_key (shared with frame_assess.py).
+API key: ~/.config/video-render-pdf/siliconflow_key (shared with frame_assess.py).
 
 Chunk size guidance:
   - < 30 min → 180s (3 min) chunks — fine timestamps for slides
@@ -36,13 +36,13 @@ MODEL = "FunAudioLLM/SenseVoiceSmall"
 
 def load_api_key():
     for p in [
-        Path.home() / ".config" / "bilibili-render-pdf" / "siliconflow_key",
+        Path.home() / ".config" / "video-render-pdf" / "siliconflow_key",
         Path(".config") / "siliconflow_key",
     ]:
         if p.exists():
             return p.read_text().strip()
     print(
-        "ERROR: siliconflow_key not found. Create ~/.config/bilibili-render-pdf/siliconflow_key",
+        "ERROR: siliconflow_key not found. Create ~/.config/video-render-pdf/siliconflow_key",
         file=sys.stderr,
     )
     sys.exit(1)

@@ -7,7 +7,7 @@ Usage:
     python3 frame_assess.py --batch <pattern> --top 3          # keep top N globally
     python3 frame_assess.py --batch <pattern> --top 1 --group # top 1 per segment
 
-API key: write it into ~/.config/bilibili-render-pdf/siliconflow_key
+API key: write it into ~/.config/video-render-pdf/siliconflow_key
 (one line, plain text).  Falls back to ./.config/siliconflow_key.
 """
 
@@ -19,7 +19,7 @@ MODEL   = "deepseek-ai/DeepSeek-OCR"
 
 def load_api_key():
     for p in [
-        Path.home() / ".config" / "bilibili-render-pdf" / "siliconflow_key",
+        Path.home() / ".config" / "video-render-pdf" / "siliconflow_key",
         Path(".config") / "siliconflow_key",
     ]:
         if p.exists():

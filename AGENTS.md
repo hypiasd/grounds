@@ -10,7 +10,7 @@
 ## 铁律
 
 1. **绝不编造**：不确定的内容明确说"我不确定"，不要假装确定。
-2. **改动即 commit + push**：对 `wiki/`、`paper/`、`video/` 的改动，立即 `git commit` 然后 `git push`。`raw/` 下所有内容（`raw/wiki/`、`raw/papers/`）受 `.gitignore` 保护**不进 git**——笔记里的 `raw/` 链接视为本机参考资料，跨机器需重新下载/clone（论文 PDF 可从 arxiv 重下，源码快照可重新 clone）。`video/` 是工作目录与成品目录合一：只有 `index.md` 进 git；`.tex`/`.pdf` 及 `sources/`、`figures/`、`ocr/`、`cover.jpg` 均为本地产物 / 中间产物，不进 git（由 `.gitignore` 排除）。commit message 格式：`<skill> <topic>: <一句话>`（如 `learn deep-learning: 注意力机制笔记`）。video skill 无 topic 时可省略（如 `bilibili-render-pdf: <视频标题>`）；lint 修复可省略 topic（如 `lint: 修复孤儿页`）。
+2. **改动即 commit + push**：对 `wiki/`、`paper/`、`video/` 的改动，立即 `git commit` 然后 `git push`。`raw/` 下所有内容（`raw/wiki/`、`raw/papers/`）受 `.gitignore` 保护**不进 git**——笔记里的 `raw/` 链接视为本机参考资料，跨机器需重新下载/clone（论文 PDF 可从 arxiv 重下，源码快照可重新 clone）。`video/` 是工作目录与成品目录合一：只有 `index.md` 进 git；`.tex`/`.pdf` 及 `sources/`、`figures/`、`ocr/`、`cover.jpg` 均为本地产物 / 中间产物，不进 git（由 `.gitignore` 排除）。commit message 格式：`<skill> <topic>: <一句话>`（如 `learn deep-learning: 注意力机制笔记`）。video skill 无 topic 时可省略（如 `video-render-pdf: <视频标题>`）；lint 修复可省略 topic（如 `lint: 修复孤儿页`）。
 3. **互链防孤儿**：`wiki/` 内笔记之间、笔记与 `raw/wiki/` 原始资料之间用标准 Markdown 相对路径互链（如 `[Dropout](../deep-learning/dropout.md)`、`[vLLM 源码](../../raw/wiki/vllm/vllm/v1/engine/llm_engine.py)`）。`paper/` 和 `video/` **不参与互链**。
 4. **主题自主生长**：列 `wiki/`（或 `paper/`）即发现所有主题；无合适主题时新建 `<topic>/` 目录，新建主题必须同时创建 `index.md`。
 
@@ -110,11 +110,11 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 
 **原则**：所有软链都指向同一份 `AGENTS.md` / `.agents/skills/`，**不存在副本**——改一处即全局生效，绝不漂移。新增 / 修改 skill 只需动 `.agents/skills/`，五个 agent 同时可见。
 
-> **手动 skill 的自动触发防护**：`disable-model-invocation: true` 是 Claude Code / Codex 的 frontmatter 语义，CodeBuddy / Qoder / Trae 会忽略该字段。因此 7 个手动 skill（start/project/learn-capture/project-capture/paper-learn/bilibili-render-pdf/youtube-render-pdf）的「不得自动触发」约束由 SKILL.md **正文指令**本身保证（每个手动 skill 开头都写明「只接受手动 / `$` 触发」），不依赖特定 agent 的 frontmatter 字段。
+> **手动 skill 的自动触发防护**：`disable-model-invocation: true` 是 Claude Code / Codex 的 frontmatter 语义，CodeBuddy / Qoder / Trae 会忽略该字段。因此 6 个手动 skill（start/project/learn-capture/project-capture/paper-learn/video-render-pdf）的「不得自动触发」约束由 SKILL.md **正文指令**本身保证（每个手动 skill 开头都写明「只接受手动 / `$` 触发」），不依赖特定 agent 的 frontmatter 字段。
 
 ---
 
-## 十个 Skill
+## 九个 Skill
 
 所有 skill 在 `.agents/skills/<name>/SKILL.md`。**必须先 Read 对应的 SKILL.md 文件**再执行——表格只是索引，SKILL.md 里的详细流程、Gotchas、质量示例才是执行标准。
 
@@ -128,28 +128,23 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 | `lint` | 语义触发 | `.agents/skills/lint/SKILL.md` | 问题清单（默认只读） | 只扫 `wiki/`，不扫 `paper/` `video/` |
 | `query` | 语义触发 | `.agents/skills/query/SKILL.md` | 综合作答 | 先扫 summaries 定位，答案必须可溯源到仓库笔记 |
 | `paper-learn` | **手动 / `$` 触发** | `.agents/skills/paper-learn/SKILL.md` | paper/ 论文笔记 | 学习者视角为主、批判性读者为辅；一篇论文一个 md |
-| `bilibili-render-pdf` | **手动 / `$` 触发** | `.agents/skills/bilibili-render-pdf/SKILL.md` | video/ LaTeX+PDF | 字幕三级回退（CC→Whisper→OCR） |
-| `youtube-render-pdf` | **手动 / `$` 触发** | `.agents/skills/youtube-render-pdf/SKILL.md` | video/ LaTeX+PDF | 同 bilibili-render-pdf，省略 B 站专属适配 |
+| `video-render-pdf` | **手动 / `$` 触发** | `.agents/skills/video-render-pdf/SKILL.md` | video/ LaTeX+PDF | 字幕三级回退（CC→Whisper→OCR）；B 站/YouTube 统一，平台差异在 SKILL 内以 [B 站]/[YouTube] 标注 |
 
 ### 调度规则（跨 agent 通用）
 
 1. **前 3 个内容 skill（learn/lint/query）**：识别用户意图，匹配触发词后自动调度（learn-capture 与 project-capture 已改为手动 / `$` 触发，不在此自动调度之列）。SKILL.md frontmatter 里的 `disable-model-invocation: true` 是 Claude Code / Codex 语义（指"禁止模型无用户触发时自动调用"），CodeBuddy / Qoder / Trae 会忽略该字段；这不影响"用户消息触发后自动调度"——所有 agent 都按本调度规则执行。
-2. **结构类 skill（start/project）与产出类 skill（learn-capture/project-capture/paper-learn/bilibili-render-pdf/youtube-render-pdf）**：**只接受手动触发或 `$` 触发**——agent 不得基于用户消息内容自动调用它们。用户必须显式说"用 start 拉取最新"或输入 `$project <name>` 才会触发。这类 skill 直接改动仓库状态与远程，禁止语义自动触发以免误推远程。
+2. **结构类 skill（start/project）与产出类 skill（learn-capture/project-capture/paper-learn/video-render-pdf）**：**只接受手动触发或 `$` 触发**——agent 不得基于用户消息内容自动调用它们。用户必须显式说"用 start 拉取最新"或输入 `$project <name>` 才会触发。这类 skill 直接改动仓库状态与远程，禁止语义自动触发以免误推远程。
 3. **用 Read 工具读取对应的 SKILL.md 文件**。不要跳过——表格只是索引。
 4. 严格按 SKILL.md 中的流程执行，包括校验步骤。
 5. 写 wiki 笔记前必须再读 `.agents/conventions.md`。写 paper 笔记前读 paper-learn SKILL.md 内的模板说明。
 
 ---
 
-## Skill 一览
 
-> 十个技能的完整索引（触发 / 文件 / 产出 / 关键原则）已合并到上方「十个 Skill」总表，避免两处漂移。执行前**必须先 Read 对应 SKILL.md**。
-
----
 
 ## 笔记规范
 
-写 wiki 笔记前必读 `.agents/conventions.md`（细则全在里头：原子性、标题、frontmatter、公式、tags、summary、互链、topic 分配）。paper 笔记模板见 `paper-learn` SKILL.md，video 笔记见 `bilibili-render-pdf` / `youtube-render-pdf` SKILL.md，二者都不套用 `conventions.md`。
+写 wiki 笔记前必读 `.agents/conventions.md`（细则全在里头：原子性、标题、frontmatter、公式、tags、summary、互链、topic 分配）。paper 笔记模板见 `paper-learn` SKILL.md，video 笔记见 `video-render-pdf` SKILL.md，二者都不套用 `conventions.md`。
 
 ---
 
@@ -161,18 +156,18 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 |------|------|------------|----------|
 | `opencli` | 中文面经搜索（小红书/知乎/牛客三大源统一入口） | learn-capture | `which opencli` |
 | `mcporter`（含 Exa MCP） | 通用网页搜索（按需，非强制） | learn / learn-capture / query | `mcporter tools list` |
-| `yt-dlp` | 视频/字幕下载 | bilibili-render-pdf / youtube-render-pdf | `which yt-dlp` |
-| `ffmpeg` / `ffprobe` | 音频提取、帧提取、视频时长校验 | bilibili-render-pdf / youtube-render-pdf | `which ffmpeg && which ffprobe` |
-| `xelatex` | LaTeX → PDF 编译 | bilibili-render-pdf / youtube-render-pdf | `which xelatex` |
-| `faster-whisper` / `whisper` | 语音转字幕（CC 字幕失败时回退；优先 faster-whisper） | bilibili-render-pdf / youtube-render-pdf | `python3 -c "import faster_whisper"` 或 `which whisper` |
-| `tesseract` | OCR 回退（视觉模式） | bilibili-render-pdf / youtube-render-pdf | `which tesseract` |
-| `pdftotext` | PDF 文本提取（成品 PDF 抽查） | paper-learn；bilibili-render-pdf / youtube-render-pdf | `which pdftotext` |
+| `yt-dlp` | 视频/字幕下载 | video-render-pdf | `which yt-dlp` |
+| `ffmpeg` / `ffprobe` | 音频提取、帧提取、视频时长校验 | video-render-pdf | `which ffmpeg && which ffprobe` |
+| `xelatex` | LaTeX → PDF 编译 | video-render-pdf | `which xelatex` |
+| `faster-whisper` / `whisper` | 语音转字幕（CC 字幕失败时回退；优先 faster-whisper） | video-render-pdf | `python3 -c "import faster_whisper"` 或 `which whisper` |
+| `tesseract` | OCR 回退（视觉模式） | video-render-pdf | `which tesseract` |
+| `pdftotext` | PDF 文本提取（成品 PDF 抽查） | paper-learn；video-render-pdf | `which pdftotext` |
 | `pdfinfo` | PDF 元数据 | paper-learn | `which pdfinfo` |
 | `qpdf` / `ocrmypdf` / `pdftoppm` | PDF 解密 / OCR / 转图片（扫描版论文） | paper-learn | `which qpdf && which ocrmypdf && which pdftoppm` |
 | `gh`（GitHub CLI） | 论文-代码对照搜仓库（可选） | paper-learn | `which gh` |
-| `ImageMagick`（`montage` / `magick`） | 帧拼接缩略图（视觉模式） | bilibili-render-pdf / youtube-render-pdf | `which montage \|\| which magick` |
-| `openai` Python 包 | 视觉模型 API 调用（SiliconFlow 兼容） | bilibili-render-pdf | `python3 -c "import openai"` |
-| `torch` | GPU 可用性检测（CUDA / MPS） | bilibili-render-pdf / youtube-render-pdf | `python3 -c "import torch"` |
+| `ImageMagick`（`montage` / `magick`） | 帧拼接缩略图（视觉模式） | video-render-pdf | `which montage \|\| which magick` |
+| `openai` Python 包 | 视觉模型 API 调用（SiliconFlow 兼容） | video-render-pdf | `python3 -c "import openai"` |
+| `torch` | GPU 可用性检测（CUDA / MPS） | video-render-pdf | `python3 -c "import torch"` |
 
 工具缺失时：对应 skill 需在 SKILL.md 的环境检查小节说明替代方案或报告用户——不要静默跳过必需步骤（如 learn-capture 缺 `opencli` 时面经补充无法执行，必须问用户是否跳过）。
 
@@ -186,8 +181,7 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
   - `lint: 修复孤儿页`
   - `learn-capture grounds: 沉淀对话笔记`
   - `paper-learn llm: Attention Is All You Need`
-  - `bilibili-render-pdf: <视频标题>`
-  - `youtube-render-pdf: <视频标题>`
+  - `video-render-pdf: <视频标题>`
 
 ---
 
