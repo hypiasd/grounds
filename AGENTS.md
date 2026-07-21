@@ -110,7 +110,7 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 
 **原则**：所有软链都指向同一份 `AGENTS.md` / `.agents/skills/`，**不存在副本**——改一处即全局生效，绝不漂移。新增 / 修改 skill 只需动 `.agents/skills/`，五个 agent 同时可见。
 
-> **手动 skill 的自动触发防护**：`disable-model-invocation: true` 是 Claude Code / Codex 的 frontmatter 语义，CodeBuddy / Qoder / Trae 会忽略该字段。因此 5 个手动 skill（learn-capture/project-capture/paper-learn/bilibili-render-pdf/youtube-render-pdf）的「不得自动触发」约束由 SKILL.md **正文指令**本身保证（每个手动 skill 开头都写明「只接受手动 / `$` 触发」），不依赖特定 agent 的 frontmatter 字段。
+> **手动 skill 的自动触发防护**：`disable-model-invocation: true` 是 Claude Code / Codex 的 frontmatter 语义，CodeBuddy / Qoder / Trae 会忽略该字段。因此 7 个手动 skill（start/project/learn-capture/project-capture/paper-learn/bilibili-render-pdf/youtube-render-pdf）的「不得自动触发」约束由 SKILL.md **正文指令**本身保证（每个手动 skill 开头都写明「只接受手动 / `$` 触发」），不依赖特定 agent 的 frontmatter 字段。
 
 ---
 
@@ -133,7 +133,7 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 
 ### 调度规则（跨 agent 通用）
 
-1. **前 3 个内容 skill（learn/lint/query）**——learn-capture 与 project-capture 已改为手动 / `$` 触发，不在此自动调度之列。：识别用户意图，匹配触发词后自动调度。SKILL.md frontmatter 里的 `disable-model-invocation: true` 是 Claude Code / Codex 语义（指"禁止模型无用户触发时自动调用"），CodeBuddy / Qoder / Trae 会忽略该字段；这不影响"用户消息触发后自动调度"——所有 agent 都按本调度规则执行。
+1. **前 3 个内容 skill（learn/lint/query）**：识别用户意图，匹配触发词后自动调度（learn-capture 与 project-capture 已改为手动 / `$` 触发，不在此自动调度之列）。SKILL.md frontmatter 里的 `disable-model-invocation: true` 是 Claude Code / Codex 语义（指"禁止模型无用户触发时自动调用"），CodeBuddy / Qoder / Trae 会忽略该字段；这不影响"用户消息触发后自动调度"——所有 agent 都按本调度规则执行。
 2. **结构类 skill（start/project）与产出类 skill（learn-capture/project-capture/paper-learn/bilibili-render-pdf/youtube-render-pdf）**：**只接受手动触发或 `$` 触发**——agent 不得基于用户消息内容自动调用它们。用户必须显式说"用 start 拉取最新"或输入 `$project <name>` 才会触发。这类 skill 直接改动仓库状态与远程，禁止语义自动触发以免误推远程。
 3. **用 Read 工具读取对应的 SKILL.md 文件**。不要跳过——表格只是索引。
 4. 严格按 SKILL.md 中的流程执行，包括校验步骤。

@@ -1,13 +1,13 @@
 ---
 name: project-capture
-description: 用户用 $project-capture 显式触发，把当前对话中关于「当前项目」的收获（决策/实验/踩坑/改动），按 project 的统一结构（decisions/、experiments/、pitfalls.md、changes.md）蒸馏沉淀进 project_logs/<current_project>/，作为 M0–M5 实时白盒工作流的收尾补漏。只接受手动 / `$` 触发。
+description: 用户用 $project-capture 显式触发，把当前对话中关于「当前项目」的收获（决策/实验/踩坑/改动），统一内联进 project_logs/<current_project>/runbook.md 的对应时间线节点，作为 project M0–M6 实时白盒工作流的收尾补漏。只接受手动 / `$` 触发。
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash
 ---
 
 # project-capture
 
-把**当前项目**相关的对话收获，沉淀进 `project_logs/<current_project>/`。它是 project 技能**实时白盒工作流（M0–M5）的收尾补漏**——项目推进中 agent 已边做边写了决策卡 / 实验卡 / 踩坑卡；本技能在对话结束或阶段节点，由你手动触发，把**当时没空细化、或漏记的零散收获**再蒸馏补进**同一套结构**，而不是另搞一套。
+把**当前项目**相关的对话收获，沉淀进 `project_logs/<current_project>/runbook.md`。它是 project 技能**实时白盒工作流（M0–M6）的收尾补漏**——项目推进中 agent 已边做边把决策 / 实验 / 踩坑内联进 runbook 时间线节点；本技能在对话结束或阶段节点，由你手动触发，把**当时没空细化、或漏记的零散收获**再蒸馏补进**同一份 runbook 的对应节点**，而不是另搞一套。
 
 ## 触发与约束
 
@@ -16,28 +16,28 @@ allowed-tools: Read, Write, Edit, Bash
 
 ## 目标（完成时）
 
-- 当前对话中属于「当前项目」的收获，已按类型切分并补进 project 的统一结构；
-- 每个洞察落在正确位置（见下方「类型与落点」），不新建游离文件、不与 project 实时写的卡片格式冲突；
-- `decisions.md` / `experiments/index.md` 索引已补对应链接；
+- 当前对话中属于「当前项目」的收获，已按类型切分并内联进 `runbook.md` 的对应时间线节点；
+- 每个洞察落在正确节点子块（见下方「类型与落点」），不新建游离文件、不与 project 实时写的节点块格式冲突；
+- `index.md`（项目入口卡）的目标 / 技术栈 / 现状仍准确并指向 `runbook.md`；
 - 已 `git commit`（提交后 `git push origin main` 推到 grounds 远程）。
 
 ## 与 project 的关系（关键）
 
-project 的 M0–M5 实时白盒工作流**已在协作中自动写**：
-- M1 决策卡 → `decisions/decision-<topic>.md`
-- M2 实验卡 → `experiments/exp-<slug>.md`
-- M3 踩坑 → append `pitfalls.md`
-- M5 能力账本 → `learning-journal.md`
+project 的 M0–M6 实时白盒工作流**已在协作中自动写**，全部内联进 `runbook.md` 的时间线节点：
+- M1 决策 → runbook 对应节点的「决策」块
+- M2 实验 / 验证 → runbook 验证节点的「结果」块
+- M3 踩坑 → runbook 节点的「问题 / 解决」块
+- M5 能力账本 → runbook 末尾「能力账本 / 下一步」小节
 
-本技能**不重复造结构**，只把收尾时新发现的收获，用**完全相同的卡片格式**补到上述位置。即：实时写和收尾写，**落点一致、格式一致**。
+本技能**不重复造结构、不另开文件**，只把收尾时新发现的收获，用**完全相同的节点块格式**补进 `runbook.md` 的对应节点。即：实时写和收尾写，**落点一致、格式一致**。
 
 ## 与 learn-capture 的边界
 
 - `learn-capture`：通用知识，沉淀进 `wiki/`，跨项目复用。
-- `project-capture`：**当前项目专属**的收获，沉淀进 `project_logs/` 的统一结构。
+- `project-capture`：**当前项目专属**的收获，沉淀进 `project_logs/<current_project>/runbook.md` 的时间线节点。
 - 一条洞察若既属于当前项目、又具备通用价值 → 用 `learn-capture` 进 `wiki/`；只在项目语境下才有意义的内容留 `project_logs/`。
 
-## 类型与落点（对齐 project 统一结构）
+## 类型与落点（对齐 project 单 runbook 结构）
 
 回顾对话后，按以下类型把收获切成洞察，**每类落到固定位置**：
 
@@ -114,14 +114,14 @@ fi
 
 - **必须处于项目模式**：本会话未通过 `$project <name>` 进入就拒绝执行，提示先 `$project <name>`。
 - **绝不写进 `project/`**：项目目录是独立 git 仓库，笔记放 `project_logs/` 才随父仓库 `git push` 流转。
-- **落点必须对齐 project 统一结构**：决策进 `decisions/decision-*.md`（不是内联 `decisions.md`）、实验进 `experiments/exp-*.md`（不是根 `exp-*.md`）、踩坑进 `pitfalls.md`（不是 `note-*.md`）、改动进 `changes.md`。否则会与 project 实时写的卡片格式分裂。
-- **格式同构**：decision / exp 卡片格式与 project M1 / M2 一致；不要发明新模板。
+- **落点必须是 runbook 时间线节点**：决策 / 实施 / 踩坑 / 验证一律内联进 `runbook.md` 对应节点的子块（见「类型与落点」），**不新建 `decisions/` `experiments/` `pitfalls.md` `changes.md` 等独立文件**（老项目若已是多文件结构可沿用，见「老项目兼容」）。否则会与 project 实时写的节点块分裂。
+- **格式同构**：节点内「决策 / 结果 / 问题·解决」块格式与 project M1 / M2 / M3 一致；不要发明新模板。
 - **有代码必贴**：关键代码要落在卡片里，并注明语言。
 - **不补面经**：project-capture 不做小红书 / 知乎 / 牛客搜索（那是 learn-capture 的事）。
-- **project_logs 不进 lint / query**：该项目笔记不参与 wiki 互链与 orphan 检查，按项目自身地图（index.md + 各索引）检索即可。
+- **project_logs 不进 lint / query**：该项目笔记不参与 wiki 互链与 orphan 检查，按项目自身地图（index.md 入口卡 + runbook.md 时间线）检索即可。
 
 ## 关联
 
 - `AGENTS.md`（仓库地图、提交规范）
-- `.agents/skills/project/SKILL.md`（进入项目、M0–M5 白盒工作流、统一结构定义）
+- `.agents/skills/project/SKILL.md`（进入项目、M0–M6 白盒工作流、单 runbook 结构定义）
 - `.agents/skills/learn-capture/SKILL.md`（通用知识走这里）
