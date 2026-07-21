@@ -37,11 +37,6 @@ video/**/_chunk_*.mp3
 video/**/part*.tex
 .playwright-cli/
 
-# 前端工程（web/）
-web/node_modules/
-web/dist/
-web/.astro/
-
 # Quartz 前端（quartz/）
 quartz/node_modules/
 quartz/public/

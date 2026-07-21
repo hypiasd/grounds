@@ -26,13 +26,14 @@ allowed-tools: Read, Write, Edit, Bash
 
 ## agent 文件集（固定清单，步骤② agent 同步用）
 
-```
-AGENT_FILESET=".agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae"
+```bash
+# 用 bash 数组声明——"${AGENT_FILESET[@]}" 在 bash 与 zsh 下都能正确拆成多个参数。
+AGENT_FILESET=(.agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae)
 ```
 
 复制 / 覆盖这些文件时务必**保留软链**（`cp -R` / `rsync -a`，不要解引用）。`.claude` 是软链到 `.agents`，`.codebuddy/.qoder/.trae` 内含软链到 `.agents/skills`——解引用会让链接失效。
 
-> ⚠️ **zsh 兼容性**：zsh 不会按空格自动分词。bash 块里**凡涉及文件集的循环或 git 命令（`for` / `git log` / `git status`），一律内联字面列表** `.agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae`，不要写 `$AGENT_FILESET`（zsh 下不会被拆成多个参数，导致匹配失败）。
+> ⚠️ **shell 兼容性**：zsh 不会按空格自动分词裸变量（`$AGENT_FILESET` 在 zsh 下是单个字符串，不会被拆成多个参数）。一律用 bash 数组 + `"${AGENT_FILESET[@]}"` 展开（bash / zsh 行为一致），不要写裸 `$AGENT_FILESET`。
 
 ---
 
@@ -117,13 +118,15 @@ fi
 克隆 workBase，比较本仓与 workBase 上 agent 文件集的**最近提交时间**，决定推 / 拉 / 跳过：
 
 ```bash
-# 注意：zsh 不按空格分词，$VAR 不能展开成多个参数。
-# 下面 git log / git status 一律内联字面列表，不依靠变量展开。
+# 用 bash 数组保存 agent 文件集；"${AGENT_FILESET[@]}" 在 bash 和 zsh 下
+# 都能正确展开为多个参数（裸 $VAR 在 zsh 下不按空格分词，会导致单参数匹配失败）。
 # 提交时间只取自"已提交"的 agent 文件集；未提交改动不再抬高 LOCAL_TS，
 # 否则会盖过 workBase 上"更新的已提交版本"，导致上游改进被静默丢失。
-LOCAL_TS=$(git log -1 --format=%ct -- .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae 2>/dev/null)
+AGENT_FILESET=(.agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae)
+
+LOCAL_TS=$(git log -1 --format=%ct -- "${AGENT_FILESET[@]}" 2>/dev/null)
 LOCAL_TS=${LOCAL_TS:-0}
-LOCAL_DIRTY=$(git status --porcelain -- .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae 2>/dev/null)
+LOCAL_DIRTY=$(git status --porcelain -- "${AGENT_FILESET[@]}" 2>/dev/null)
 
 WB=$(mktemp -d)
 if ! git clone "$workbase_remote" "$WB" >/dev/null 2>&1 || [ ! -d "$WB/.git" ]; then
@@ -131,7 +134,7 @@ if ! git clone "$workbase_remote" "$WB" >/dev/null 2>&1 || [ ! -d "$WB/.git" ]; 
   rm -rf "$WB"
   # 直接跳到第六步收尾
 else
-BASE_TS=$(cd "$WB" && git log -1 --format=%ct -- .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae 2>/dev/null)
+BASE_TS=$(cd "$WB" && git log -1 --format=%ct -- "${AGENT_FILESET[@]}" 2>/dev/null)
 BASE_TS=${BASE_TS:-0}
 
 # 方向判定（按"已提交"时间定，谁的新提交谁赢）：
@@ -152,7 +155,7 @@ fi
 case "$MODE" in
   push)
     (
-      for f in .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae; do
+      for f in "${AGENT_FILESET[@]}"; do
         rm -rf "$WB/$f"
         [ -e "$f" ] && cp -R "$f" "$WB/"
       done
@@ -165,7 +168,7 @@ case "$MODE" in
     ;;
   pull)
     (
-      for f in .agents AGENTS.md CLAUDE.md CODEBUDDY.md .claude .codebuddy .qoder .trae; do
+      for f in "${AGENT_FILESET[@]}"; do
         rm -rf "$f"
         [ -e "$WB/$f" ] && cp -R "$WB/$f" ./
       done

@@ -895,6 +895,7 @@ rm -f "video/<视频标题>/cover.jpg"
 - `.agents/skills/bilibili-render-pdf/assets/notes-template.tex`：默认 LaTeX 模板，复制并填充
 - `.agents/skills/bilibili-render-pdf/scripts/frame_assess.py`：Visual API 帧评估脚本
 - `.agents/skills/bilibili-render-pdf/scripts/api_transcribe.py`：SiliconFlow ASR API 转录脚本（CC 字幕缺失时 Priority 1.5 用）
+- `.agents/skills/_shared/scripts/transcribe.py`：本地 Whisper 流式转录脚本（Priority 2 用，把上面的内联脚本替换为直接调用此模板，避免每次重写）
 
 ## Gotchas
 

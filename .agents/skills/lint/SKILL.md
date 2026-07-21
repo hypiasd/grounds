@@ -26,6 +26,7 @@ allowed-tools: Read, Write, Edit, Bash
      - 每个 `wiki/<topic>/index.md` 的"包含笔记"列表，必须与该目录下实际 `.md` 文件（除 `index.md` 自身）**逐一对应且数量相等**；漏列某篇或多了已删的篇 → 报"索引不一致"。
      - 根 `wiki/index.md` 里每个 topic 的「（N 篇）」**必须等于** 对应 `wiki/<topic>/` 下实际笔记数；不等 → 报"根 index 篇数漂移（列 N，实际 M）"。
      - 同理覆盖 `paper/`：每个 `paper/<topic>/index.md` 的"包含论文"列表须与该目录实际 `.md` 文件一致；根 `paper/index.md` 须链接全部 `paper/*/` 主题（缺链 → 报"根 paper/index.md 缺 topic 链接"）。
+    - **`video/` 根 index 最低限度检查**（历史上 `video/index.md` 长期空壳、15 个视频在根目录不可见，故补这一道兜底）：根 `video/index.md` 必须链接 `video/` 下**每一个**视频目录（即 `video/<标题>/index.md`）；缺链 → 报"根 video/index.md 缺视频链接：<目录名>"。不深扫视频内部内容（视频笔记不参与互链体系）。
    - **模板合规**（笔记 + `index.md` 都要查）：
      - 笔记：frontmatter 是否含 `title/topic/tags/summary/created/updated`；标题是否是简洁的概念名（而非"XX 笔记"或过长的句子）；链接是否说明了关系。
      - `index.md`：同样必须有 frontmatter（`title/topic/tags/summary/created/updated`），缺失会导致 Quartz folder note 渲染异常。

@@ -2,7 +2,7 @@
 
 个人学习仓库 —— 用对话学知识，用 git 管笔记。
 
-**入口**：[`AGENTS.md`](AGENTS.md) — Claude Code 和 Codex 通用，包含完整约定与七个 skill。
+**入口**：[`AGENTS.md`](AGENTS.md) — Claude Code 和 Codex 通用，包含完整约定与十一个 skill。
 
 ## 结构
 

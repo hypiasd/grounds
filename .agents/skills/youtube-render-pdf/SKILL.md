@@ -478,6 +478,7 @@ YouTube 特定：
 ## 资产
 
 - `.agents/skills/youtube-render-pdf/assets/notes-template.tex`：默认 LaTeX 模板，复制并填充
+- `.agents/skills/_shared/scripts/transcribe.py`：本地 Whisper 流式转录脚本（Priority 2 用；用 `timeout` 包裹调用，超预算直接 kill 走视觉模式）
 
 ## Gotchas
 
