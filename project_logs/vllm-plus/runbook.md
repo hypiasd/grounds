@@ -204,6 +204,31 @@ publish: true
 
 ---
 
+## 节点 12：α 根因定位 + 修复 — Triton 分组调度漏钳位（2026-07-22）
+
+- **状态**：✅ 完成（正确性 bug 修复并重验；α 性能仍失败，结论封口）
+- **问题 / 解决**：
+  - **现象**：节点 11 实测 decode 形状 cos 仅 0.35~0.62，初判为 split-K 路径数值损坏。
+  - **根因**：非 split-K 专属——两个 kernel（`_int8_gemm_kernel` / `_int8_gemm_splitk_kernel`）的 **grouped pid swizzle 漏钳位**：`pid_m = first_pid_m + (pid % GROUP_M)` 未做 `min(num_pid_m - first_pid_m, GROUP_M)` 钳位。当 `num_pid_m < GROUP_M`（`M < BLOCK_M*GROUP_M = 128`，即整个 decode 区间）时 `pid_m/pid_n` 错算，部分输出 tile 被重复算、部分永远不算；输出 `torch.empty` 未初始化 → 未算区域是垃圾。佐证：强制单核跑小 M cos 掉到 0.0065（比 split-K 更糟）；M≥128（num_pid_m≥8=GROUP_M）天然不触发 → 「单核正确」是假象，bug 一直潜伏。
+  - **解法**：两 kernel 分组调度改为 Triton tutorial 标准钳位写法：`group_size_m = tl.minimum(num_pid_m - first_pid_m, GROUP_M); pid_m = first_pid_m + ((pid % num_pid_in_group) % group_size_m); pid_n = (pid % num_pid_in_group) // group_size_m`。
+  - **防复发**：手写 Triton grouped swizzle 必须钳位 `group_size_m`；正确性验收必须覆盖**最小 M（1/16/64）**，不能只看大 M。
+  - **学到了什么**：decode 形状 bug 易被「大 M 正确」掩盖；grouped swizzle 是性能优化，但漏钳位会变成静默错误 tile——正确性优先于 swizzle 收益。
+- **重验结果（修复后 `bench_int8_gemm.py`，cos 全 1.0）**：
+
+  | M | cos | int8 µs | bf16 µs | speedup |
+  |---|---|---|---|---|
+  | 1 | 1.00000 | 140.76 | 61.48 | 0.44x |
+  | 16 | 1.00000 | 142.07 | 30.01 | 0.21x |
+  | 64 | 1.00000 | 140.83 | 38.00 | 0.27x |
+  | 256 | 1.00000 | 192.07 | 110.78 | 0.58x |
+  | 512 | 1.00000 | 288.24 | 208.06 | 0.72x |
+
+- **结论**：正确性修复后 int8 仍全段慢于 cuBLAS bf16（decode M=64 慢 3.7×、prefill 慢 1.4~1.7×），**α 假设在「实现正确」前提下仍被证伪**——与 exp12 一致：Ada 上手写 Triton 内核税 > 2× 字节红利，**W8 手写不可赢，维持节点 9「须 INT4(Marlin)」结论**。
+- **带宽**：仍 ~146~212 GB/s（~15~20% 峰值 ~1008）。split-K 虽补 CTA 数，但 torch 端 `ws.sum(dim=0)*scale` 引入额外 `(split_k,M,N)` fp32 读写 + 多次 kernel launch，小 M 时这部分开销占主导，反成新瓶颈。
+- **关联**：节点 9（α 设计）、节点 11（初测）、`nanovllm/layers/quant_linear.py`。
+
+---
+
 ## 交付产物清单
 
 | 产物 | 位置（项目相对） | 来源 | 状态 |
@@ -215,7 +240,7 @@ publish: true
 | 调度器 Watermark | `nanovllm/engine/block_manager.py` `can_allocate` + `config.watermark` | 实验10 | ✅ 默认开 |
 | INT8 KV Cache 量化 | `nanovllm/layers/attention.py` `fused_int8_decode` + `config.kv_cache_dtype` | 实验11 | ✅ +4~13% |
 | INT8 权重量化 (W8A8) | `nanovllm/layers/quant_linear.py` | 实验12 | ✅ 正确但偏慢（参考） |
-| INT8 权重量化 (W8A16) 重写 α | `nanovllm/layers/{quant_linear,linear}.py` `config.py` `engine/model_runner.py` `bench_int8_gemm.py` | α 实验 | 🔧 已实现，待 4090D 验证 |
+| INT8 权重量化 (W8A16) 重写 α | `nanovllm/layers/{quant_linear,linear}.py` `config.py` `engine/model_runner.py` `bench_int8_gemm.py` | α 实验 | ✅ 已修复 swizzle 正确性 bug 并重验（cos=1.0）；仍全段慢于 cuBLAS bf16 → 参考实现，证伪 |
 | 实验原始记录 | `experiment_results.md` | 全 12 项 | ✅（机器本机，不进 grounds） |
 | 实验方案 | `experiments_plan.md` | — | ✅ |
 | 面经 | `interview_questions.md` / `interview_answers.md` | — | ✅ |
@@ -226,7 +251,7 @@ publish: true
 ## 能力账本 / 下一步
 
 - **当前阶段**：阶段 3（熟练）——已能独立设计实验、定位根因、对「为什么某优化无效」给出结构性解释（如实验11/12 的「decode 瓶颈=权重访存」甄别）。
-- **已掌握**：投机解码原理与 verify 瓶颈；CUDA graph 捕获/replay 收敛 Python 开销；KV 量化数值对齐；调度 watermark 本职（防抖动 vs 防 OOM）；`flash_attn` 跨 batch/seqlen_q 数值敏感性。
+- **已掌握**：投机解码原理与 verify 瓶颈；CUDA graph 捕获/replay 收敛 Python 开销；KV 量化数值对齐；调度 watermark 本职（防抖动 vs 防 OOM）；`flash_attn` 跨 batch/seqlen_q 数值敏感性；手写 Triton GEMM 的 grouped swizzle 必须钳位 `group_size_m`（小 M 数值回归必要性）；split-K 补 CTA 的代价（torch 端归约开销）。
 - **还不会 / 待补**：
   - FP8 权重量化（需 Hopper/Blackwell 卡，超出本机范围）。
   - CUTLASS 级 INT8 GEMM（手写 Triton 内核带宽效率不足）。
