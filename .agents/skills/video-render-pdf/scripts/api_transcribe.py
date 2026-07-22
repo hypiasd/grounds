@@ -11,7 +11,11 @@ Usage:
     python3 api_transcribe.py sources/audio.wav sources/subtitles.srt 300
     python3 api_transcribe.py sources/audio.wav sources/subtitles.srt 600 --compress
 
-API key: ~/.config/video-render-pdf/siliconflow_key (shared with frame_assess.py).
+API key resolution (in order):
+    1. SILICONFLOW_API_KEY environment variable
+    2. <git repo root>/.config/video-render-pdf/siliconflow_key
+    3. ~/.config/video-render-pdf/siliconflow_key
+    4. ./.config/siliconflow_key (legacy)
 
 Chunk size guidance:
   - < 30 min → 180s (3 min) chunks — fine timestamps for slides
@@ -30,22 +34,15 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 
+# Allow running the script from any working directory.
+_SKILL_ROOT = Path(__file__).resolve().parent.parent
+if str(_SKILL_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SKILL_ROOT))
+
+from config import load_siliconflow_key
+
 API_URL = "https://api.siliconflow.cn/v1/audio/transcriptions"
 MODEL = "FunAudioLLM/SenseVoiceSmall"
-
-
-def load_api_key():
-    for p in [
-        Path.home() / ".config" / "video-render-pdf" / "siliconflow_key",
-        Path(".config") / "siliconflow_key",
-    ]:
-        if p.exists():
-            return p.read_text().strip()
-    print(
-        "ERROR: siliconflow_key not found. Create ~/.config/video-render-pdf/siliconflow_key",
-        file=sys.stderr,
-    )
-    sys.exit(1)
 
 
 def get_duration(audio_path: str) -> float:
@@ -173,7 +170,7 @@ def main():
     )
     args = parser.parse_args()
 
-    api_key = load_api_key()
+    api_key = load_siliconflow_key()
 
     # Determine chunk size
     if args.chunk_sec:

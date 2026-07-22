@@ -95,14 +95,28 @@ which pdftotext                                                 # 成品 PDF 抽
 当 `view_image` 不可用时，本地 tesseract OCR 在 CPU 上批量评估太慢，远程视觉/OCR API 是可靠回退。
 
 ```bash
-# 检查 SiliconFlow API key（或等价 OpenAI 兼容端点）
-[ -f ~/.config/video-render-pdf/siliconflow_key ] && echo "SiliconFlow key: FOUND" || echo "SiliconFlow key: MISSING"
+# 检查 SiliconFlow API key（推荐放在 grounds 仓库根目录，被 .gitignore 排除）
+KEY_FILE="$(git rev-parse --show-toplevel 2>/dev/null)/.config/video-render-pdf/siliconflow_key"
+[ -f "$KEY_FILE" ] && echo "SiliconFlow key (repo-local): FOUND" || echo "SiliconFlow key (repo-local): MISSING"
+[ -f ~/.config/video-render-pdf/siliconflow_key ] && echo "SiliconFlow key (home): FOUND" || echo "SiliconFlow key (home): MISSING"
+[ -n "$SILICONFLOW_API_KEY" ] && echo "SiliconFlow key (env): FOUND" || echo "SiliconFlow key (env): MISSING"
 env -u PYTHONHOME -u PYTHONPATH uv run python -c "from openai import OpenAI; print('openai package: ok')" || echo "openai package: MISSING (run uv sync)"
 # 检查本 skill 自带的帧评估脚本
 [ -f .agents/skills/video-render-pdf/scripts/frame_assess.py ] && echo "frame_assess.py: FOUND" || echo "frame_assess.py: MISSING"
 ```
 
-key 缺失时，请用户创建 `~/.config/video-render-pdf/siliconflow_key`（一行纯文本 API key）。脚本用 OpenAI 兼容的 SiliconFlow 端点 + `deepseek-ai/DeepSeek-OCR` 做中文 OCR，~1.5s/帧。
+**key 读取优先级**：
+1. 环境变量 `SILICONFLOW_API_KEY`
+2. `<grounds 仓库根目录>/.config/video-render-pdf/siliconflow_key`（推荐，与仓库绑定）
+3. `~/.config/video-render-pdf/siliconflow_key`（旧位置，向后兼容）
+
+创建方式（在 grounds 仓库根目录）：
+```bash
+echo "sk-xxxxxxxx" > .config/video-render-pdf/siliconflow_key
+chmod 600 .config/video-render-pdf/siliconflow_key
+```
+
+脚本用 OpenAI 兼容的 SiliconFlow 端点 + `deepseek-ai/DeepSeek-OCR` 做中文 OCR，~1.5s/帧。
 
 ### 3. 模型缓存检查
 
@@ -288,7 +302,7 @@ CC 字幕质量通常优于 Whisper 转录，无需对比验证。
 
 CC 字幕不可用时，优先尝试 SiliconFlow 的 ASR API（`FunAudioLLM/SenseVoiceSmall`），而非直接回退本地 Whisper。API 转录速度快、中文质量好（有标点），但时间戳精度为分块级别（5 分钟），不适合需要精确帧定位的教学视频。
 
-**前置条件**：`~/.config/video-render-pdf/siliconflow_key` 存在且有效（与 Visual API 帧评估共用同一 key）。
+**前置条件**：SiliconFlow key 已配置（与 Visual API 帧评估共用同一 key）。推荐放在 grounds 仓库根目录 `.config/video-render-pdf/siliconflow_key`，也支持 `~/.config/video-render-pdf/siliconflow_key` 或环境变量 `SILICONFLOW_API_KEY`。
 
 **工作流**：
 

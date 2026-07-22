@@ -7,25 +7,25 @@ Usage:
     python3 frame_assess.py --batch <pattern> --top 3          # keep top N globally
     python3 frame_assess.py --batch <pattern> --top 1 --group # top 1 per segment
 
-API key: write it into ~/.config/video-render-pdf/siliconflow_key
-(one line, plain text).  Falls back to ./.config/siliconflow_key.
+API key resolution (in order):
+    1. SILICONFLOW_API_KEY environment variable
+    2. <git repo root>/.config/video-render-pdf/siliconflow_key
+    3. ~/.config/video-render-pdf/siliconflow_key
+    4. ./.config/siliconflow_key (legacy)
 """
 
 import argparse, base64, json, os, re, sys, glob as glob_mod
 from pathlib import Path
 
+# Allow running the script from any working directory.
+_SKILL_ROOT = Path(__file__).resolve().parent.parent
+if str(_SKILL_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SKILL_ROOT))
+
+from config import load_siliconflow_key
+
 BASE_URL = "https://api.siliconflow.cn/v1"
 MODEL   = "deepseek-ai/DeepSeek-OCR"
-
-def load_api_key():
-    for p in [
-        Path.home() / ".config" / "video-render-pdf" / "siliconflow_key",
-        Path(".config") / "siliconflow_key",
-    ]:
-        if p.exists():
-            return p.read_text().strip()
-    print("ERROR: siliconflow_key not found.", file=sys.stderr)
-    sys.exit(1)
 
 def image_to_data_uri(path: str) -> str:
     ext = Path(path).suffix.lower().lstrip(".")
@@ -121,7 +121,7 @@ def main():
     args = parser.parse_args()
 
     from openai import OpenAI
-    api_key = load_api_key()
+    api_key = load_siliconflow_key()
     client = OpenAI(api_key=api_key, base_url=BASE_URL)
 
     if args.batch:
