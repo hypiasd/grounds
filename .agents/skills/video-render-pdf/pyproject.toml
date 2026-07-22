@@ -1,0 +1,30 @@
+[project]
+name = "video-render-pdf"
+version = "0.1.0"
+description = "Dependencies for the video-render-pdf skill (Bilibili/YouTube to PDF notes)."
+requires-python = ">=3.10,<3.13"
+readme = "SKILL.md"
+dependencies = [
+    "yt-dlp>=2025.0",
+    "faster-whisper>=1.0",
+    "openai>=1.0",
+    "torch>=2.0",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+# openai-whisper CLI is kept optional because its pinned numba/llvmlite
+# versions often fail to build on newer Python. faster-whisper is preferred.
+whisper = [
+    "openai-whisper>=20230314",
+]
+dev = [
+    "pytest",
+]
+
+[tool.uv]
+# Download Python automatically if the required version is not available.
+python-downloads = "automatic"
+
+# NOTE: uv run creates a `.venv` in this directory by default.
+# It is excluded from git via the grounds root `.gitignore`.
