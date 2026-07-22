@@ -245,6 +245,29 @@ publish: true
 
 ---
 
+## 节点 14：α 端到端实测 — int8 W8A16 仍慢于 bf16（2026-07-22，4090D 真实模型）
+
+- **状态**：✅ 完成（端到端裁判落地；战略结论最终封口）
+- **实施**：
+  - 修 2 个 α 提交自带 bug：`model_runner.py` 缺 `import os`（WQUANT 读取 NameError）；`linear.py` `nn.Parameter(int8)` 默认 `requires_grad=True` 报错（int8 不能 require grad）→ 改 `requires_grad=False`。
+  - kernel 优化落地：禁用 split-K（`_pick_split_k` 恒 `return 1`）+ 单核 autotune 改 BK=64 为主。微基准 M=64 从 141→83µs（未到手动扫描的 58µs，autotune 未选中最优 config）。
+  - 端到端（NUM_SEQS=128，离线本地 Qwen3-4B）：`python bench.py`（bf16）vs `WQUANT=int8 python bench.py`。
+- **结果**：
+
+  | 配置 | 吞吐 | 备注 |
+  |---|---|---|
+  | bf16 baseline | **2187.30 tok/s** | preemptions=29，wm_blocks=3/337 |
+  | int8 W8A16 | **1389.03 tok/s** | **0.63×（慢 37%）**；preemptions=0，wm_blocks=3/399（权重省显存 → KV 块更多） |
+
+- **结论**：**端到端 int8 仍慢于 bf16（0.63×）**，与微基准、exp12 三方一致。机理：
+  - int8 kernel 仅 ~340 GB/s（M=64 微基准），cuBLAS bf16 ~1484 GB/s（L2 有效）→ 效率差 4.4×；字节省 2× 抵不过效率差 → 净慢 ~2×。
+  - 大 batch（M~128）decode 偏 compute/launch-bound，权重字节红利被摊薄，int8 的反量化 compute + 慢 kernel 直接体现为净慢。
+  - **要赢需 int8 kernel ≥ ~750 GB/s**（≈ cuBLAS 一半效率，因字节减半），当前 340 GB/s 差 2.2×。
+- **对手写 Triton 路线的诚实评估**：W8A16（2× 字节）已被微基准 + 端到端 + exp12 **三重证伪为「性能不可行」**。若目标是**学 kernel 工程**，追平 cuBLAS（340→750 GB/s：cp.async / 软件流水 / 向量化加载）是极佳练习；若目标是**实际推理提速**，答案是 INT4(Marlin) 生产内核或 FP8（Hopper/Blackwell）。
+- **关联**：节点 12 / 13（正确性 + 慢速分解）、节点 9 / 11、节点 7 / exp12。
+
+---
+
 ## 交付产物清单
 
 | 产物 | 位置（项目相对） | 来源 | 状态 |
@@ -256,7 +279,7 @@ publish: true
 | 调度器 Watermark | `nanovllm/engine/block_manager.py` `can_allocate` + `config.watermark` | 实验10 | ✅ 默认开 |
 | INT8 KV Cache 量化 | `nanovllm/layers/attention.py` `fused_int8_decode` + `config.kv_cache_dtype` | 实验11 | ✅ +4~13% |
 | INT8 权重量化 (W8A8) | `nanovllm/layers/quant_linear.py` | 实验12 | ✅ 正确但偏慢（参考） |
-| INT8 权重量化 (W8A16) 重写 α | `nanovllm/layers/{quant_linear,linear}.py` `config.py` `engine/model_runner.py` `bench_int8_gemm.py` | α 实验 | ✅ 已修复 swizzle 正确性 bug 并重验（cos=1.0）；仍全段慢于 cuBLAS bf16 → 参考实现，证伪 |
+| INT8 权重量化 (W8A16) 重写 α | `nanovllm/layers/{quant_linear,linear}.py` `config.py` `engine/model_runner.py` `bench_int8_gemm.py` | α 实验 | ✅ 修 3 bug（swizzle 漏钳位 / 缺 import os / int8 requires_grad）+ 禁 split-K；微基准 cos=1.0 但仍慢；端到端 1389 vs 2187 tok/s（0.63×）证伪 → 参考实现 |
 | 实验原始记录 | `experiment_results.md` | 全 12 项 | ✅（机器本机，不进 grounds） |
 | 实验方案 | `experiments_plan.md` | — | ✅ |
 | 面经 | `interview_questions.md` / `interview_answers.md` | — | ✅ |
