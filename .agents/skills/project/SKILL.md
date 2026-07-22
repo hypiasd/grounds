@@ -259,13 +259,11 @@ updated: <YYYY-MM-DD>
 - 实施 → 补「实施」块（实际命令 / 关键结果 / 产物路径）
 - 坑 → 补「问题 / 解决」块（现象 / 根因 / 解法 / 防复发 / 学到了什么）
 - 验证 → 补「结果」块（触发方式 / 结果 / 备注）
-- **概念 / 认知**（用户追问"为什么 / 怎么理解"时）→ **先判是否通用**：通用原理/方法论（脱离本项目也有用）→ 建/追加 `wiki/<topic>/<note>.md`，runbook 对应节点只留**一行链接 + 项目视角注解**（不要像 vllm-plus M0 那样把 8 条通用 GEMM 概念全塞进 runbook）；仅项目专属认知才留 runbook「概念」块（统一命名 `**概念 <主题>（YYYY-MM-DD）**`）。
+- 概念 / 认知（用户追问"为什么 / 怎么理解"时）→ 补「概念」块（统一命名 `**概念 <主题>（YYYY-MM-DD）**`，内附类比 / 形式化 / 图示）
 
-> **路由反射（避免错配）**：project 模式下默认往 runbook 写，但概念洞察多为通用知识。写之前先问"这条脱离本项目还有没有用？"——有用就进 `wiki/`，runbook 只留指针。这是 project-capture「默认 wiki」原则在实时写阶段的同款纪律。
+> **全记进 runbook，不做路由判断**：M6 是"实时日志"，每轮发生的事（含概念）原样记进 runbook，**不做"该不该进 wiki"的判断**——路由交给收尾的 `project-capture`（它通读 runbook 后把通用知识萃取去 wiki）。这样实时写快而全，不被"要不要路由"打断。
 
-回写后**更新 `runbook.md` frontmatter 的 `updated` 日期**到当天（此步易漏，列为本轮完成必要项）。
-
-> **固定落点闭环（里程碑 / 阶段收尾时做）**：除时间线节点外，另核 runbook 末尾固定落点是否同步——「交付产物清单」（新产物/参考实现是否登记）、「能力账本」（已掌握/待补是否更新，通用能力用 wiki 链接代指）、`index.md` 现状/技术栈是否仍准确。这一步也是 project-capture 的本职，但 M6 实时写时顺手对齐可避免末尾漏登。
+回写后**更新 `runbook.md` frontmatter 的 `updated` 日期**到当天。
 
 **漏写兜底**：若一轮结束时发现自己干了活却没写，先补 runbook 再收尾——不让「干完」掩盖「没记」。
 
@@ -277,9 +275,9 @@ updated: <YYYY-MM-DD>
 
 ## 与 project-capture / learn-capture 的边界
 
-- `project-capture`（`$` 手动触发）：对话结束后做**收尾路由 + 闭环核对**——通用知识路由去 `wiki/`、项目专属留 `project_logs/` 时间线节点，并核一遍末尾固定落点。它是本工作流的**补充**——本工作流强调「实时卡片」，project-capture 适合收尾时把零散对话再蒸馏、路由一遍。
+- `project-capture`（`$` 手动触发）：对话结束后**通读 runbook、把通用知识萃取去 `wiki/`**（runbook 原位留指针）+ 核一遍末尾固定落点。它是本工作流的**萃取后处理**——project 实时把每轮内容全记进 runbook，capture 再从中把可复用知识抽到 wiki，**不重复记录**。
 - `learn-capture`（`$` 手动触发）：**通用知识**进 `wiki/`，跨项目复用；只在项目语境下才有意义的内容留 `project_logs/`。
-- 关系：本 skill 的 M1–M3 是「边做边写」，project-capture 是「做完补漏」，learn-capture 是「升华到通用」。三者不冲突。
+- 关系：本 skill 的 M0–M6 是「边做边记（全进 runbook）」，project-capture 是「收尾从 runbook 萃取通用知识去 wiki」，learn-capture 是「对话直接升华通用」。三者不冲突——capture 的 wiki 知识源是 runbook，learn-capture 的知识源是对话。
 
 ## 设计原则（为什么没有子命令）
 
