@@ -17,9 +17,10 @@ publish: true
 - Python ≥3.10，PyTorch 2.9 + CUDA 13，Triton ≥3，flash-attn 2.8，transformers ≥4.51
 - 模型：Qwen3-4B（target, bf16）+ Qwen3-0.6B（draft, bf16）
 - GPU：NVIDIA RTX 4090 D，24GB；固定 KV 池语义
+- NumPy（路径 A·M0 基础，GPU-free；macOS 上亦可跑分块 GEMM 参考实现）
 
 ## 现状（一行）
-12 项实验已跑完并记录在代码仓 `experiment_results.md`；量化路线在本卡上吞吐收益封顶于 INT8 KV 的 +4~13%，真正的 2× 杠杆是投机解码（已 2×+）；下阶段可选 FP8/W8A8（需 Hopper/Blackwell）或转向 kernel 融合 / 更优调度。
+12 项实验已跑完并记录在代码仓 `experiment_results.md`；量化路线在本卡上吞吐收益封顶于 INT8 KV 的 +4~13%，真正的 2× 杠杆是投机解码（已 2×+）；下阶段可选 FP8/W8A8（需 Hopper/Blackwell）或转向 kernel 融合 / 更优调度。**路径 A（从 0 打 kernel 地基）已开 M0**：在 Mac 上跑通 `gemm_foundations.py`（naive+tiled 分块 GEMM 对拍 PASS），完整建立 decode GEMM 分块心智模型（可加性→复用→HBM 流量→两级抽屉），下一步等上 GPU 机做 M1+ Triton bf16 matmul。
 
 ## 外部仓库
 - 远程：`git@github.com:hypiasd/vllm-plus.git`（独立 git，父仓库 `.gitignore` 忽略其内容，不进 grounds）
