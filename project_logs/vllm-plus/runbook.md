@@ -161,6 +161,7 @@ publish: true
   - 若 INT4 掉点不可接受，退回方案 B。
 - **执行进展（2026-07-22）— α 手写 INT8 Triton GEMM 已落地**：用户选择先用手写 Triton 翻案（目标击败 cuBLAS bf16 40µs），不立刻上 Marlin。已落地：
   - `nanovllm/layers/quant_linear.py`：W8A16 INT8 Triton GEMM。**关键修正 exp12 两个 bug**——① scale 仅在累加后乘一次（exp12 是 scale²）；② `W.T` 用指针 strides 转置加载（`w_ptrs = w[n*wn + k*wk]`），无中间转置张量、无内外 stride 错配；③ 权重仅以 int8 读一次，反量化融进 MMA pipeline 不落 HBM。
+  - **二次迭代（split-K + num_stages）**：「是否优化到极致」追问下发现初版仍非极致——缺 **split-K** 与 `num_stages` 调优。**根因洞察**：decode 时 M 极小（1~512），朴素 GEMM 只产生 ~86 个 CTA（M 维 1 block × N 维 86 block），128 SM 填不满、每 SM <3 warp，**藏不住 HBM 延迟 → 延迟受限而非带宽受限**，这几乎正是 exp12 卡在 48~52µs（~540GB/s，峰值 40%）的原因。修复：拆**双路径**——大 M（prefill）单核（scale 内核乘、存 bf16）；小 M（decode）**split-K 内核**（沿 K 切 8/4/2 段造更多 CTA，fp32 workspace 存部分和，torch `sum(0)*scale` 归约、scale 只乘一次）。autotune 补 `num_stages=3~4`。K 划分已 CPU 模拟验证「不重不漏」。
   - `linear.py`：`LinearBase` 加 `quantize()` + 各 `forward` 按 `use_int8` 派发；`int8_gemm_nd` 支持任意前导维。
   - `config.py` 加 `weight_quant`（`none`/`int8`）；`model_runner.py` 读 `WQUANT` 并在 `load_model` 后量化所有 `LinearBase`（lm_head/embed 非 `LinearBase` 保持 bf16）。
   - 新增 `bench_int8_gemm.py` 独立微基准（比对 cuBLAS bf16 40µs + 数值对齐）。
