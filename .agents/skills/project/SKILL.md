@@ -34,21 +34,34 @@ AI 时代代码大多是 agent 写的。如果你只给 prompt、看测试结果
 - 首次进入且 `project_logs/<name>/runbook.md` 尚不存在 → 已 onboard，并在 `project_logs/<name>/` 下建好 **M0 全局掌控视图**全套骨架（见下方）。由「runbook.md 是否已存在」自动判据，只做一次、不覆盖已写笔记。
 - 项目推进中，每个非平凡决策都有 **Decision Card** 留痕（写入 runbook 对应节点的「决策」块）；每次实验有 **Experiment Card**（写入「结果」块）；踩坑 / 顿悟实时进 runbook 对应节点的「问题 / 解决」块。
 
-## 参数判别
+## 参数判别（含**存在性闸门**，最高优先级）
 
-`project` 只认一个参数（名称 / 本地路径 / git URL），按优先级自动判别：
+> ⚠️ **致命闸门**：运行任何 `git clone` / `ln -s` / `git init` **之前**，必须先查 `project/<name>` 是否已存在（软链也算！）。若已存在，**永远只「切换」，绝不重新初始化**。
+> **为什么是致命的**：若 `project/<name>` 已是指向真实仓库的软链，误跑 `git init project/<name>` 会**顺着软链跑进目标目录、改写其 `.git`**，污染甚至破坏你的真实仓库——不可逆。这个闸门是防止该事故的**唯一硬保障**，任何情况下不得跳过（与第二步的防御性闸门形成双保险）。
+
+`project` 只认一个参数（名称 / 本地路径 / git URL）。**先查存在性，再判别 clone/link/new**：
 
 ```bash
 ARG="$1"
-case "$ARG" in
-  git@* | http://* | https://* ) MODE=clone ;;
-  * ) [ -d "$ARG" ] && MODE=link || MODE=new ;;
-esac
+NAME=$(basename "${ARG%.git}")
+# ── 闸门：先查 project/$NAME 是否已存在（文件 / 目录 / 软链任一）──
+if [ -e "project/$NAME" ] || [ -L "project/$NAME" ]; then
+  MODE=switch
+  echo "项目 project/$NAME 已存在（可能是指向真实仓库的软链），直接切换，不执行任何初始化。"
+else
+  case "$ARG" in
+    git@* | http://* | https://* ) MODE=clone ;;
+    * ) [ -d "$ARG" ] && MODE=link || MODE=new ;;
+  esac
+fi
 ```
 
-- `MODE=clone`：clone 到 `project/<name>/`。
-- `MODE=link`：`ARG` 是本地已有目录 → 在 `project/` 下建**软链** `<name> → $ARG`（保留原路径，不移动；详见 Gotchas）。
-- `MODE=new`：纯名字 → `git init` 空项目（独立 git，父仓库忽略其内容）。
+- `MODE=switch`：`project/<name>` 已存在 → **只读切换**当前项目（见第三步），**禁止** `git init` / `clone` / `ln`。
+- `MODE=clone`：仅当不存在时，clone 到 `project/<name>/`。
+- `MODE=link`：仅当不存在时，`ARG` 是本地已有目录 → 在 `project/` 下建**软链** `<name> → $ARG`（保留原路径，不移动；详见 Gotchas）。
+- `MODE=new`：仅当不存在且 `$ARG` 是纯名字 → `git init` 空项目（独立 git，父仓库忽略其内容）。
+
+> 注意：`[ -d "$ARG" ]` 只测原始参数相对 cwd。一个**裸名字**（如 `vllm-plus`）即使对应 `project/vllm-plus` 已存在软链，这里也会判 `new`——所以闸门的存在性检查才是兜底，绝不可省。
 
 ## 流程
 
@@ -63,18 +76,22 @@ case "$NAME" in
 esac
 ```
 
-### 第二步：按 MODE 收纳
+### 第二步：按 MODE 收纳（保留防御性存在性闸门）
+
+> ⚠️ **二次保险**：无论参数判别算出什么 MODE，本步仍先确认 `project/$NAME` 不存在才执行初始化。若已存在，只切换、不初始化——这是防止软链被 `git init` 污染的兜底闸，与第一步的存在性闸门双保险。
 
 ```bash
 mkdir -p project
+# 防御性闸门：已存在则只读切换，绝不 clone/link/new
 if [ -e "project/$NAME" ] || [ -L "project/$NAME" ]; then
-  echo "项目 project/$NAME 已存在，直接切换。"
+  echo "项目 project/$NAME 已存在，直接切换（不执行 clone/link/new）。"
 else
   case "$MODE" in
-    clone) git clone "$ARG" "project/$NAME" ;;
-    link)  ln -s "$(cd "$ARG" && pwd)" "project/$NAME" ;;
-    new)   git init "project/$NAME" >/dev/null 2>&1
-           echo "new: 已 git init project/$NAME（独立仓库，父仓库忽略其内容）" ;;
+    switch) : ;;  # 不应到达：switch 已被存在性闸门拦截
+    clone)  git clone "$ARG" "project/$NAME" ;;
+    link)   ln -s "$(cd "$ARG" && pwd)" "project/$NAME" ;;
+    new)    git init "project/$NAME" >/dev/null 2>&1
+            echo "new: 已 git init project/$NAME（独立仓库，父仓库忽略其内容）" ;;
   esac
 fi
 mkdir -p "project_logs/$NAME"
@@ -262,6 +279,7 @@ updated: <YYYY-MM-DD>
 
 ## Gotchas（真实踩过的坑）
 
+- **存在性闸门优先于一切初始化（致命）**：任何 `git init` / `ln` / `clone` 前，必须先 `ls -la project/$NAME` 确认**不存在**。若 `project/$NAME` 已是软链，误跑 `git init` 会顺着软链改写真实仓库的 `.git`，不可逆。已存在 → 永远只「切换」，不重新初始化（参数判别 + 第二步双重闸门已强制）。
 - **收纳默认软链，不要默认移动**：`mv` 会破坏用户原项目路径；除非用户显式要「迁移」，否则用软链（见第一步–第二步）。
 - **onboard 只做一次**：由 `project_logs/<name>/runbook.md` 是否已存在保证；禁止每次进入重做全盘扫描（会覆盖已写笔记）。
 - **笔记只进 `project_logs/<name>/`**：代码 / 构建产物放 `project/<name>/`（独立 git，父仓库忽略）；笔记推上 grounds 远程只含 `project_logs/`，绝不把代码推上 grounds。
