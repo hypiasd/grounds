@@ -169,6 +169,15 @@ publish: true
 
 ---
 
+## 节点 10：远程同步 α 实现到本地（2026-07-22）
+
+- **状态**：✅ 完成（同步，非新决策）
+- **实施**：`git pull --rebase origin main`（fast-forward `b963fc8..7cdea69`），本地工作树此前干净，无冲突。
+- **结果**：远程提交 `7cdea69 alpha: W8A16 INT8 Triton GEMM with split-K` 已落到本地，含 `bench_int8_gemm.py`（新增）、`nanovllm/layers/quant_linear.py`（新增）、`config.py` / `model_runner.py` / `linear.py`（改）。即节点 9 的 α 手写 INT8 Triton GEMM 现已在本地工作树。
+- **下一步（待拍板）**：在 4090D 上跑验证（命令见节点 9 末尾），据实测决定「W8 手写可赢」还是「仍须 INT4(Marlin)」。
+
+---
+
 ## 交付产物清单
 
 | 产物 | 位置（项目相对） | 来源 | 状态 |
