@@ -159,6 +159,12 @@ publish: true
   - 方案 A（推荐）：**Marlin INT4**（autoawq/auto-gptq 量化 → `LinearBase` 接 Marlin GEMM，lm_head/embed 保 bf16）→ 端到端验数值对齐 + 吞吐实测。
   - 方案 B：CUTLASS INT8（仍是 2× 字节，优于手写，但上限低于 INT4）。
   - 若 INT4 掉点不可接受，退回方案 B。
+- **执行进展（2026-07-22）— α 手写 INT8 Triton GEMM 已落地**：用户选择先用手写 Triton 翻案（目标击败 cuBLAS bf16 40µs），不立刻上 Marlin。已落地：
+  - `nanovllm/layers/quant_linear.py`：W8A16 INT8 Triton GEMM。**关键修正 exp12 两个 bug**——① scale 仅在累加后乘一次（exp12 是 scale²）；② `W.T` 用指针 strides 转置加载（`w_ptrs = w[n*wn + k*wk]`），无中间转置张量、无内外 stride 错配；③ 权重仅以 int8 读一次，反量化融进 MMA pipeline 不落 HBM。
+  - `linear.py`：`LinearBase` 加 `quantize()` + 各 `forward` 按 `use_int8` 派发；`int8_gemm_nd` 支持任意前导维。
+  - `config.py` 加 `weight_quant`（`none`/`int8`）；`model_runner.py` 读 `WQUANT` 并在 `load_model` 后量化所有 `LinearBase`（lm_head/embed 非 `LinearBase` 保持 bf16）。
+  - 新增 `bench_int8_gemm.py` 独立微基准（比对 cuBLAS bf16 40µs + 数值对齐）。
+  - **待 4090D 验证**：`python bench_int8_gemm.py`（看 M=1/16/64/256/512 是否 < 40µs、cos≈1）与 `WQUANT=int8 python bench.py`（端到端 > 812 tok/s）。结果将决定节点 9 结论：若 α 胜 → 修正「W8 不够」为「W8 手写可赢」、Marlin 优先级下调；若 α 仍 ~48µs → 强化「W8 封顶、必须 INT4」。
 
 ---
 
@@ -173,6 +179,7 @@ publish: true
 | 调度器 Watermark | `nanovllm/engine/block_manager.py` `can_allocate` + `config.watermark` | 实验10 | ✅ 默认开 |
 | INT8 KV Cache 量化 | `nanovllm/layers/attention.py` `fused_int8_decode` + `config.kv_cache_dtype` | 实验11 | ✅ +4~13% |
 | INT8 权重量化 (W8A8) | `nanovllm/layers/quant_linear.py` | 实验12 | ✅ 正确但偏慢（参考） |
+| INT8 权重量化 (W8A16) 重写 α | `nanovllm/layers/{quant_linear,linear}.py` `config.py` `engine/model_runner.py` `bench_int8_gemm.py` | α 实验 | 🔧 已实现，待 4090D 验证 |
 | 实验原始记录 | `experiment_results.md` | 全 12 项 | ✅（机器本机，不进 grounds） |
 | 实验方案 | `experiments_plan.md` | — | ✅ |
 | 面经 | `interview_questions.md` / `interview_answers.md` | — | ✅ |
