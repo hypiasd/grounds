@@ -14,7 +14,7 @@ updated: 2026-07-18
 ## 主题
 
 - [C++](cpp/) — 语法特性、惯用法和容易踩坑的细节（21 篇）
-- [CUDA / GPU](cuda/) — GPU 执行模型、浮点格式、kernel 编程工具链（5 篇）
+- [CUDA / GPU](cuda/) — GPU 执行模型、浮点格式、kernel 编程工具链（6 篇）
 - [vLLM](vllm/) — LLM 推理引擎源码学习，V1 架构与调度器（2 篇）
 - [LLAISYS](llaisys/) — 从零构建 LLM 推理引擎：框架设计、Tensor、算子、模型推理（4 篇）
 - [算法](algorithms/) — 题解与思维方法（1 篇）

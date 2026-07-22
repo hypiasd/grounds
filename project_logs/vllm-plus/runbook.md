@@ -144,6 +144,24 @@ publish: true
 
 ---
 
+## 节点 9：方向再评估 — INT4 权重量化（Marlin）作为剩余最高天花板杠杆（2026-07-22）
+
+- **状态**：🔍 评估中（基于节点 7 exp12 失败的再思考，待拍板）
+- **动机**：节点 7 结论写的是「W8A8 失败，真 2× 需 FP8 或 CUTLASS 级 INT8 GEMM」。但重新审视发现：**INT4（Marlin, W4A16）是比 W8A8 更优的权重量化路径**——它省 4× 字节（vs W8 的 2×）+ 用生产级内核，字节红利足以覆盖内核税。完整推导见 wiki：[权重量化内核效率](../../wiki/cuda/weight-quantization-kernel-efficiency.md)。
+- **关键论证（修正节点 7 的归因）**：
+  - 节点 7 实测：W8A16（int8 权重 + **寄存器反量化**，一次访存）48~52µs，W8A8（真·INT8 张量核）55.6µs，均慢于 cuBLAS bf16 40.4µs。
+  - **修正**：exp12 失败根因**不是**「读两次」（已寄存器反量化），而是**手写 Triton 内核税 > 2× 字节红利**。「只读一次」不足以提速（项目实测证伪）。
+  - 推论：W8 省 2× 不够覆盖内核税；**INT4 省 4× + Marlin 生产级内核**（逼近峰值 HBM 带宽）才可能净赚 ~2.5~3×。
+  - Marlin = **W4A16（weight-only）**，非 W4A4：仅压权重、激活保 fp16，绕开纯整数路径的 fp16 scale 难题。
+- **与现有优化正交可叠加**：INT4 权重 target + 现有 spec（2.15x，verify forward 也更快）+ INT8 KV（+13% 容量）三者组合上限最高。
+- **两个边界**：① 只救 decode，不救 prefill（prefill 算力受限、权重每位置只读一次已摊薄）；② INT4 有质量风险（Qwen3-4B 上 AWQ/GPTQ 通常掉点小，须验 perplexity / 首 token 对齐）。
+- **决策 / 下一步（待拍板）**：
+  - 方案 A（推荐）：**Marlin INT4**（autoawq/auto-gptq 量化 → `LinearBase` 接 Marlin GEMM，lm_head/embed 保 bf16）→ 端到端验数值对齐 + 吞吐实测。
+  - 方案 B：CUTLASS INT8（仍是 2× 字节，优于手写，但上限低于 INT4）。
+  - 若 INT4 掉点不可接受，退回方案 B。
+
+---
+
 ## 交付产物清单
 
 | 产物 | 位置（项目相对） | 来源 | 状态 |
