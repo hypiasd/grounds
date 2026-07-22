@@ -296,3 +296,21 @@ publish: true
   - CUTLASS 级 INT8 GEMM（手写 Triton 内核带宽效率不足）。
   - GPU kernel 级 profiling（当前靠 monkey-patch + `cuda.synchronize` 粗粒度计时）。
 - **下一步该练**：把 12 项实验转化为「可讲清楚取舍」的简历叙事与面试话术（强项在「能说清每个优化为什么有效/无效」，而非只会报数字）。
+
+---
+
+## 跨机续做指引（resume）
+
+- **状态**：✅ 一切已推远程，换机零丢失（用户原先在租的 4090D 服务器，本轮选定路径 A 后需换机）。
+- **两仓远程**：
+  - 代码 `git@github.com:hypiasd/vllm-plus.git`（commit `e28d7e6`：swizzle 钳位 / 禁 split-K / import os / requires_grad 修复）。
+  - 笔记 `git@github.com:hypiasd/grounds.git`（`project_logs/vllm-plus/`，本文件）。
+- **新机恢复**：
+  1. `git clone git@github.com:hypiasd/grounds.git && cd grounds && git clone git@github.com:hypiasd/vllm-plus.git <dir>`
+  2. `$project <dir>/vllm-plus`（重建软链 + 进入项目模式）。
+  3. `cd <dir>/vllm-plus && pip install -e .`（`.venv` 不进 git，需按机器重建）。
+  4. 模型 `~/huggingface/Qwen3-4B` **不进 git（~8GB）**，新机需重下或拷贝。
+- **当前线程**：路径 **A（从 0 打 kernel 地基）已选定但尚未开始**（仅定方向，无在途学习）。下一轮从「为什么 GEMM 是带宽游戏 / 我们的 kernel 卡在 340 GB/s」类比讲起 → 写第一个 Triton kernel（先跑对）→ 再爬到优化这个 int8 kernel。目标：手写 int8 kernel 从 340 → ~750 GB/s（≈ cuBLAS 一半效率，字节减半才真能赢）。
+- **机器相关性**：340/750 GB/s 等数字是 4090D 专属；新机 GPU 不同则 autotune/数值会变，但**学习序列 A 与机器无关**。
+- **关联**：节点 12 / 13 / 14。
+
