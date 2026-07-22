@@ -108,7 +108,7 @@ AGENTS.md 铁律 3：**`paper/` 不参与互链**，且 wiki 只与 wiki / `raw/
 
 - `wc -l` 确认 paper 笔记与新建 wiki 笔记均非空（wiki 笔记建议 ≥ 50 行，frontmatter-only 视为异常）。
 - 确认 frontmatter 完整（wiki 笔记含 title/topic/tags/summary/created/updated）。
-- **自检链接**：对 paper 笔记里新增的 wiki 指针执行 `test -f <相对路径基准>/wiki/<topic>/<note>.md && echo OK`（lint 不扫 paper，必须自检）；对新建 wiki 笔记内的互链同样 `test -f` 校验。
+- **自检链接**：对 paper 笔记里新增的 wiki 指针执行 `test -f <相对路径基准>/wiki/<topic>/<note>.md && echo OK`（lint 不扫 paper，必须自检）；对新建 wiki 笔记内的互链（含可能指向 `raw/wiki/` 的链接）同样 `test -f` 校验。
 - 确认 `wiki/<topic>/index.md`（及必要时根 `wiki/index.md`）已含新笔记条目，篇数与实际文件数一致。
 - `git status` 确认改动符合预期。
 

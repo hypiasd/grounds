@@ -103,7 +103,18 @@ project 的 M0–M6 实时刻在跑，全部内联进 `runbook.md`：
 
 > **萃取不是删除**：runbook 留指针、wiki 存正文，二者互链。日后回看项目日志仍能顺着指针跳到通用知识，且不把可复用内容锁死在项目里。
 
-### 三步：提交
+- **更新 wiki 索引**：
+  - 目标 `wiki/<topic>/index.md` 的"包含笔记"列表新增本笔记条目；若该 `<topic>/` 为新 topic，还需在根 `wiki/index.md` 追加一行指向 `wiki/<topic>/`（让新主题在根 index 可见），没有"## 主题"小节则新建之。
+
+### 三步：校验（必做，因 lint 不扫 project_logs）
+
+- `wc -l` 确认 runbook 与新建 wiki 笔记均非空（wiki 笔记建议 ≥ 50 行，frontmatter-only 视为异常）。
+- 确认 frontmatter 完整（wiki 笔记含 title/topic/tags/summary/created/updated）。
+- **自检链接**：对 runbook 里新增的 wiki 指针执行 `test -f <相对路径基准>/wiki/<topic>/<note>.md && echo OK`（lint 不扫 project_logs，必须自检）；对新建 wiki 笔记内的互链（含可能指向 `project_logs/<name>/runbook.md` 的链接）同样 `test -f` 校验。
+- 确认 `wiki/<topic>/index.md`（及必要时根 `wiki/index.md`）已含新笔记条目，篇数与实际文件数一致。
+- `git status` 确认改动符合预期。
+
+### 四步：提交
 
 ```bash
 # 身份兜底（仓库级，缺失才补；不动 --global，与 AGENTS.md「NEVER update git config」不冲突）
@@ -116,7 +127,7 @@ git commit -m "project-capture grounds: <current_project> 从 runbook 萃取 <N>
 git push origin main
 ```
 
-### 四步：发布闭环提示
+### 五步：发布闭环提示
 
 笔记落在 `project_logs/<current_project>/` 与 `wiki/`，提交后 `git push origin main` 推到 grounds 远程，但要真正"上站"还需两个条件：
 
