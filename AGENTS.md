@@ -137,6 +137,7 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 | Skill | 触发 | 文件 | 产出 | 关键原则 |
 |-------|------|------|------|-----------|
 | `paper-learn` | **手动 / `$` 触发** | `.agents/skills/paper-learn/SKILL.md` | paper/ 论文笔记 | 学习者视角为主、批判性读者为辅；一篇论文一个 md |
+| `paper-capture` | **手动 / `$` 触发** | `.agents/skills/paper-capture/SKILL.md` | wiki/ 通用知识（从 paper 笔记萃取） | paper-learn 收尾提纯：把论文笔记里可复用的通用知识抽到 wiki，paper 留指针 |
 
 ### 4. video（视频）— 作用于 `video/`
 | Skill | 触发 | 文件 | 产出 | 关键原则 |
@@ -151,7 +152,7 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
 
 ### 触发与调度
 - **语义触发（自动调度）**：仅 learning 场景的 `learn` / `lint` / `query`。识别用户意图、匹配触发词后自动调度。
-- **手动 / `$` 触发（禁止语义自动调用）**：meta 的 `start`、learning 的 `learn-capture`、paper 的 `paper-learn`、video 的 `video-render-pdf`、project 的 `project` / `project-capture`。这类 skill 直接改动仓库状态与远程，用户必须显式说"用 X 处理"或输入 `$X <参数>` 才触发，以免误推远程。
+- **手动 / `$` 触发（禁止语义自动调用）**：meta 的 `start`、learning 的 `learn-capture`、paper 的 `paper-learn` / `paper-capture`、video 的 `video-render-pdf`、project 的 `project` / `project-capture`。这类 skill 直接改动仓库状态与远程，用户必须显式说"用 X 处理"或输入 `$X <参数>` 才触发，以免误推远程。
 - **执行前必读 SKILL.md**：不要跳过——表格只是索引。严格按 SKILL.md 流程（含校验步骤）执行。
 - **写笔记前读规范**：wiki 前读 `.agents/conventions.md`；paper 前读 `paper-learn` SKILL.md 模板；video 前读 `video-render-pdf` SKILL.md 模板。三者都不套用 `conventions.md`。
 
@@ -198,6 +199,7 @@ git clone git@github.com:hypiasd/grounds.git <dir> && cd <dir>
   - `lint: 修复孤儿页`
   - `learn-capture grounds: 沉淀对话笔记`
   - `paper-learn llm: Attention Is All You Need`
+  - `paper-capture llm: 从 Attention Is All You Need 萃取通用知识到 wiki`
   - `video-render-pdf: <视频标题>`
 
 ---
