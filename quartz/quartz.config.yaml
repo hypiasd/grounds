@@ -8,7 +8,7 @@ configuration:
   analytics:
     provider: null
   locale: zh-CN
-  baseUrl: https://hypiasd.github.io/grounds
+  baseUrl: hypiasd.github.io/grounds
   ignorePatterns:
     - private
     - templates
