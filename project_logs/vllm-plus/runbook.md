@@ -379,6 +379,14 @@ publish: true
   - **块大小是强杠杆**：BLOCK 16→64，TFLOPS 0.97→3.90（4×）。大块 = 片上更多复用 + 更高 SM 占用率（occupancy）；但受 shared mem 64KB 硬上限约束，不能无限大（BLOCK=128 爆了）。
   - **cuBLAS 在带宽受限形状上优势最大**（196 vs 61 GB/s，3.2×）：它用了我们 M1 没有的双缓冲/异步拷贝把 HBM 压到 61% 利用率；在算力受限形状上差距缩小（我们 BLOCK=64 已接近 torch 同形状）。
   - 下一步 M3 方向：双缓冲（算当前 K 窗时异步搬下一块，重叠 compute/HBM）+ autotune BLOCK + 提升算术强度，目标把 HBM/算力利用率往 cuBLAS 靠拢。
+- **概念 / 认知（指标定义：FLOPs / Bytes / AI / GB/s / TFLOPS，2026-07-23 教学）**：
+  - **FLOPs（计算量）** = `2·M·N·K`：C[i,j]=Σ_k A[i,k]·B[k,j]，每输出元素做 K 次乘加（mul+add 计 2 FLOP），共 M·N 个输出 → 2MNK。
+  - **Bytes（访存量）** = `(M·K + K·N + M·N)·4`：A(MK)+B(KN)+C(MN) 个元素，fp32 每元素 4 字节；好分块下每个元素只读/写一次。
+  - **AI = FLOPs / Bytes**（单位 FLOP/Byte）：每从 HBM 搬 1 字节进芯片能做几次运算。高 AI(prefill)→算力受限；低 AI(decode)→带宽受限。
+  - **sec（时间）** = `ms/1000`，由 `torch.cuda.Event` 包住 rep 次取均值；kernel 异步发射须 `synchronize` 才量到真耗时。
+  - **GB/s（实际带宽）** = `Bytes / sec / 1e9`：每秒从 HBM 实际搬多少字节，越接近 320 越好。
+  - **TFLOPS（实际算力）** = `FLOPs / sec / 1e12`：每秒真正做多少浮点运算，越接近 8.1 越好。
+  - **单位链**：GB/s × (FLOP/Byte) = (1e9 Byte/s)×(FLOP/Byte) = 1e9 FLOP/s = GFLOP/s → 带宽×AI = 性能上限（roofline 斜线）。
 - **关联**：节点 15（路径 A 规划）、节点 16（T4 环境）、节点 17（M1 跑通 + roofline 概念 + 寻址）。
 
 ---
