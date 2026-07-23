@@ -16,11 +16,11 @@ publish: true
 ## 技术栈
 - Python ≥3.10，PyTorch 2.9 + CUDA 13，Triton ≥3，flash-attn 2.8，transformers ≥4.51
 - 模型：Qwen3-4B（target, bf16）+ Qwen3-0.6B（draft, bf16）
-- GPU：NVIDIA RTX 4090 D，24GB；固定 KV 池语义
+- GPU：本机实测 **2× Tesla T4（Turing, cc 7.5, 14GB, 40 SM）**；⚠️ 非原假设的 RTX 4090D（Ada）。T4 有 INT8 张量核、**无 BF16 张量核**（bf16 走非张量核路径，反而慢）。跑 GPU 任务前须 `export LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/cuda-12.8/lib64:$LD_LIBRARY_PATH`（否则 torch 找不到 libcuda）。
 - NumPy（路径 A·M0 基础，GPU-free；macOS 上亦可跑分块 GEMM 参考实现）
 
 ## 现状（一行）
-12 项实验已跑完并记录在代码仓 `experiment_results.md`；量化路线在本卡上吞吐收益封顶于 INT8 KV 的 +4~13%，真正的 2× 杠杆是投机解码（已 2×+）；下阶段可选 FP8/W8A8（需 Hopper/Blackwell）或转向 kernel 融合 / 更优调度。**路径 A（从 0 打 kernel 地基）已开 M0**：在 Mac 上跑通 `gemm_foundations.py`（naive+tiled 分块 GEMM 对拍 PASS），完整建立 decode GEMM 分块心智模型（可加性→复用→HBM 流量→两级抽屉），下一步等上 GPU 机做 M1+ Triton bf16 matmul。
+12 项实验已跑完并记录在代码仓 `experiment_results.md`；量化路线在本卡上吞吐收益封顶于 INT8 KV 的 +4~13%，真正的 2× 杠杆是投机解码（已 2×+）；下阶段可选 FP8/W8A8（需 Hopper/Blackwell）或转向 kernel 融合 / 更优调度。**路径 A（从 0 打 kernel 地基）已开 M0**：在 Mac 上跑通 `gemm_foundations.py`（naive+tiled 分块 GEMM 对拍 PASS），完整建立 decode GEMM 分块心智模型（可加性→复用→HBM 流量→两级抽屉）。**2026-07-23 复查 GPU：本机实为 2× Tesla T4（非假设的 4090D）**——路径 A 的 M1+ 现在**就能在本机做**，但 T4 无 BF16 张量核，M1 首个 Triton matmul 应改用 **fp16**（才有张量核加速）；节点 9「int8 慢于 bf16 → 须 INT4」归因在 T4 上可能翻案（见 runbook 节点 16）。
 
 ## 外部仓库
 - 远程：`git@github.com:hypiasd/vllm-plus.git`（独立 git，父仓库 `.gitignore` 忽略其内容，不进 grounds）

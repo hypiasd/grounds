@@ -2,7 +2,7 @@
 title: vllm-plus 运行手册（时间线 / 决策 / 踩坑 / 能力账本）
 tags: [project, vllm-plus]
 created: 2026-07-22
-updated: 2026-07-22
+updated: 2026-07-23
 publish: true
 ---
 
@@ -299,6 +299,26 @@ publish: true
 
 ---
 
+## 节点 16：本机 GPU 环境复查 — 实际是 2× Tesla T4，不是 4090D（2026-07-23）
+
+> 用户要求复查 GPU 环境，结果推翻了 runbook 一直隐含的「本机=RTX 4090D（Ada）」前提。
+
+- **状态**：🔍 发现（影响节点 9/14 结论与路径 A 全部基准，待拍板）
+- **问题 / 解决**（torch 看不到 GPU）：
+  - **现象**：首次查 `torch.cuda.is_available()=False`、`device_count=0`、`nvidia-smi` 不在 PATH；但 `/dev/nvidia0` `/dev/nvidia1` `nvidiactl` `nvidia-uvm` 都在，`/proc/driver/nvidia` 已加载（内核驱动 580.159.04）。
+  - **根因**：`ldconfig -p` 只认了 `/usr/local/cuda` 的 `libcudart`，**没把 `/usr/local/nvidia/lib64`（含 `libcuda.so.580.159.04`）加进库搜索路径** → torch 加载不到 `libcuda.so.1`。`nvidia-smi` 实际在 `/opt/bin/` 但报「找不到 `libnvidia-ml.so`」，同样因库路径缺失。
+  - **解法（验证有效）**：运行前设 `LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/cuda-12.8/lib64:$LD_LIBRARY_PATH`，torch 即 `cuda_available=True`、识别到 2 张卡。`nvidia-smi` 同理需把 `/usr/local/nvidia/lib64` 加进 `LD_LIBRARY_PATH`（或直接 `/opt/bin/nvidia-smi` 配合库路径）。
+  - **防复发**：本机每开新 shell 跑 GPU 任务都需先 `export LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/cuda-12.8/lib64:$LD_LIBRARY_PATH`（建议写进项目 `.venv` activate 或 `~/.bashrc`）。
+- **概念 / 认知（核心假设修正）**：**本机 GPU 不是 RTX 4090D，而是 2× Tesla T4（Turing, cc=7.5, 14GB, 40 SM）**。
+  - **关键架构差异**：T4（Turing）**有 INT8 张量核，但没有 BF16 张量核**；4090D（Ada）两者都有。
+  - **陷阱**：`torch.cuda.is_bf16_supported()` 在 T4 上返回 `True`——这仅表示 bf16 *数据类型* 可存储/转换，**不表示有 bf16 张量核**。在 T4 上 bf16 matmul 走的是非张量核的 CUDA core 路径 → **反而慢**。
+  - **对节点 9 / 14 结论的冲击**：节点 9/14 的核心论据是「手写 int8 慢于 **bf16** 3.7× → 须 INT4(Marlin)」。该论据建立在 4090D（bf16 有张量核加速）之上。**在 T4 上 bf16 本身走非张量核、更慢，而 int8 有张量核加速** → 「int8 慢于 bf16」很可能**翻案**，节点 9「须 INT4」的优先级在 T4 上需重新审视（int8 手写反而可能赢）。
+  - **附加缺口**：`flash_attn` 未安装 → `bench.py`（依赖 `flash_attn_with_kvcache`）端到端跑不了，须先 `pip install flash-attn`（T4 上 flash-attn 2.x 可编译，但需匹配 torch 2.10/cu128）。
+- **需拍板点**：① 路径 A 的 M1+ 是否直接在 T4 上做？（注意：bf16 在 T4 无张量核，M1 首个 Triton matmul 应改用 **fp16** 才有张量核加速，int8 同理；这与节点 15「M1 bf16 matmul」原计划不同）；② 节点 9 的 INT4(Marlin) 立项是否还要做，或在 T4 上先验证「int8 手写能否赢 bf16」；③ `flash_attn` 安装成本是否值得（仅为端到端 bench，路径 A 微基准不需要）。
+- **关联**：节点 9（α 设计）/ 11 / 12 / 13 / 14（int8 vs bf16 证伪）、节点 15（路径 A 规划）、wiki 权重量化内核效率、跨机续做指引（机器假设需改）。
+
+---
+
 ## 交付产物清单
 
 | 产物 | 位置（项目相对） | 来源 | 状态 |
@@ -345,6 +365,7 @@ publish: true
   4. 模型 `~/huggingface/Qwen3-4B` **不进 git（~8GB）**，新机需重下或拷贝。
 - **当前线程**：路径 **A（从 0 打 kernel 地基）已规划**（见节点 15）：先懂带宽游戏 → M1 第一个 Triton GEMM（先跑对）→ M2 定位 340 GB/s 瓶颈 → M3 带宽优化爬坡(340→750) → M4 int8 终验。学习序列与机器无关；上 GPU 机后按节点 15 里程碑逐站执行，每站用实验卡记录。
 - **机器相关性**：340/750 GB/s 等数字是 4090D 专属；新机 GPU 不同则 autotune/数值会变，但**学习序列 A 与机器无关**。
+- **2026-07-23 修正**：本 grounds 工作机**本身就有 GPU（2× Tesla T4, cc 7.5）**，无需另租 4090D。但 T4 ≠ 4090D——T4 有 INT8 张量核、**无 BF16 张量核**（见节点 16），因此路径 A 的 M1 首个 Triton matmul 应改用 **fp16**（才有张量核加速）而非原计划 bf16；节点 9「int8 慢于 bf16 → 须 INT4」的归因在 T4 上可能翻案。跑 GPU 任务前必须 `export LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/cuda-12.8/lib64:$LD_LIBRARY_PATH`。
 - **关联**：节点 12 / 13 / 14。
 
 ## 萃取记录（capture 历史）
