@@ -350,6 +350,11 @@ publish: true
   - **off（坐标，不含地址）**：`tl.arange` 造的向量，表示「本块里第几个元素」。`offs_m`=行号、`offs_n`=列号、`offs_k`=K 窗内偏移，纯粹是「几号」。
   - **ptr（地址，一整块）**：`base + offs_m[:,None]*stride_am + offs_k[None,:]*stride_ak` 用「坐标×步长」广播出 `(BLOCK_M,BLOCK_K)` 指针矩阵，`tl.load` 一把搬整块；循环里 `ptr += BLOCK_K*stride` 让窗口沿 K 滑动。
   - **mask（护盾）**：形状非 BLOCK 整数倍时 `mask=坐标<剩余` 挡越界，配 `other=0.0` 让越界 load 填 0 不污染累加；store 同理护 M/N 边缘。
+- **概念 / 认知（寻址手算示例 M=64,K=96,N=64,B=32，pid=0，2026-07-23）**：
+  - A 连续：stride_am=K=96, stride_ak=1；pid=0→offs_m=[0..31]。`a_ptrs=a_base+offs_m[:,None]*96+offs_k[None,:]`。左上 3×3：a[0,0]=+0, a[0,1]=+1, a[1,0]=+96（行跳 96=跳一行）, a[1,1]=+97。首窗读 A 行[0..31]×列[0..31]；循环 `a_ptrs+=32` 滑到列[32..63]→[64..95]（共 cdiv(96,32)=3 窗）。
+  - B：stride_bk=N=64, stride_bn=1；`b_ptrs=b_base+offs_k[:,None]*64+offs_n[None,:]`。左上 b[0,0]=+0, b[1,0]=+64（行跳 64=跳一行 K）。首窗读 B 行(K)[0..31]×列[0..31]；循环 `b_ptrs+=32*64=2048` 滑 K 窗。
+  - 3 窗 `tl.dot` 累加 → acc 写 `c_ptrs=c_base+offs_m[:,None]*64+offs_n[None,:]` = C 左上块[0..31,0..31]。
+  - pid=2(pid_m=1)：offs_m=[32..63]，仅 base 行号 +32 → a_ptrs 首行=a_base+32*96=3072，其余同构。
 - **关联**：节点 15（路径 A 规划）、节点 16（T4 环境）、wiki 分块 GEMM 的原理与切法、wiki HBM 流量与数据复用、节点 9（量化只救 decode）。
 
 ---
