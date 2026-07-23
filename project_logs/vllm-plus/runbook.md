@@ -340,6 +340,12 @@ publish: true
   - **Roofline**：性能上限 = min(算力上限, 带宽上限 × AI)。T4 HBM ~300 GB/s、fp32 算力 ~8 TFLOPS → 拐点 AI≈26 FLOP/Byte；AI 低于此永远碰不到算力天花板，瓶颈在 HBM。
   - **M1 为何还慢**：仅「分块 + tl.dot 累加」，无双缓冲/异步拷贝（算当前 K 块与搬下一块无法重叠，SM 空等 HBM）、无 autotune → 实际 GB/s 远低于 ~300。M2 量化它，看离天花板多远；M3 用双缓冲/更大复用/减半字节提升 AI。
   - **直觉类比**：GEMM=工人(SM)用砖(A,B)砌墙(C)。带宽是「卡车运砖的路宽」，算力是「工人手速」。砖堆远+每次只搬几块(低 AI)→工人老等车→瓶颈在路(带宽)；砖在手边+一次搬一大摞(高 AI)→工人砌不过来→瓶颈在手速(算力)。量化=把砖做小一半，一趟多运一倍。
+- **概念 / 认知（如何读 Triton matmul kernel，2026-07-23 教学）**：
+  - **两层结构**：host(Python, `matmul`) 只做「分配 C + 算 grid + 传 stride」；kernel 只写「**一个输出块**怎么算」，Triton 把它复制到整个 `(num_pid_m×num_pid_n)` 网格并行（你不用管线程/warps/shared mem，Triton 兜底）。
+  - **2D 网格扁平成 1D program_id**：`pid_m = pid // num_pid_n`、`pid_n = pid % num_pid_n`（行主序展开）；`offs_m/offs_n` = 该块在 C 中的行/列坐标。
+  - **指针迭代而非重索引**：`a_ptrs = a_ptr + offs_m[:,None]*stride_am + offs_k[None,:]*stride_ak` 一次性算出整块地址；循环里 `a_ptrs += BLOCK_K*stride_ak` 推进到下一块 K（不重算索引）。`stride` = 相邻元素距离：连续张量下 `stride_am=K, stride_ak=1, stride_bk=N, stride_bn=1`。
+  - **K 循环 = tiled_gemm 的内积分块累加**：`acc = tl.dot(a_tile, b_tile, acc)`，漏传 acc 即只算最后一块（M1 首跑 FAIL 根因）。
+  - **mask 处理边缘**：load 用 `offs_k < k_rem`（K 非整数倍）、store 用 `offs_m<M & offs_n<N`（M/N 非整数倍），`other=0.0` 让越界 load 不污染累加。
 - **关联**：节点 15（路径 A 规划）、节点 16（T4 环境）、wiki 分块 GEMM 的原理与切法、wiki HBM 流量与数据复用、节点 9（量化只救 decode）。
 
 ---
