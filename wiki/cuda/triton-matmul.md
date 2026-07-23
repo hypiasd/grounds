@@ -71,5 +71,5 @@ for k in range(tl.cdiv(K, BK)):
 ## 关联
 
 - [分块 GEMM 的原理与切法](../gemm/tiled-gemm.md) — Triton kernel body 与 tiled_gemm 同构（块网格 × K 循环累加）
-- [Roofline 模型与算术强度](../../gpu/roofline.md) — 同一个 kernel 在不同形状下快慢由 AI 决定
+- [Roofline 模型与算术强度](../gpu/roofline.md) — 同一个 kernel 在不同形状下快慢由 AI 决定
 - 项目实践：vllm-plus 路径 A·M1（`project_logs/vllm-plus/runbook.md` 节点 17）

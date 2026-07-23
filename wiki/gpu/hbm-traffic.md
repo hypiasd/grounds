@@ -62,4 +62,4 @@ GPU 上 GEMM 多是**带宽游戏**：时间 ≈ HBM 流量 / 带宽。分块通
 ## 关联
 
 - [分块 GEMM 的原理与切法](../gemm/tiled-gemm.md) — 分块合法性（两个可加性）与切法
-- 项目实践：vllm-plus 路径 A·M0（[runbook](../project_logs/vllm-plus/runbook.md)）→ M3 目标即把实际流量往 `M·K+K·N` 上限压
+- 项目实践：vllm-plus 路径 A·M0（[runbook](../../project_logs/vllm-plus/runbook.md)）→ M3 目标即把实际流量往 `M·K+K·N` 上限压

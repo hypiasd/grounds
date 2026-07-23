@@ -7,11 +7,11 @@ created: 2026-07-22
 updated: 2026-07-23
 ---
 
-# gpu
+## 这个主题是什么 / 学习目标
 
-GPU 架构与 kernel 优化主题笔记。
+GPU 架构与 kernel 优化主题笔记——聚焦 HBM 流量、数据复用、Roofline 性能模型与延迟隐藏，是理解 GEMM/CUDA kernel 为什么快（或慢）的硬件视角。
 
-## 笔记
+## 包含笔记
 
 - [HBM 流量与数据复用](hbm-traffic.md) — 复用=取1次用多次；HBM 流量=从显存搬的字节数（时间≈流量/带宽）；两级抽屉模型；流量 2·M·N·K→理想 M·K+K·N。
 - [Roofline 模型与算术强度](roofline.md) — AI=FLOPs/Bytes 决定 GEMM 是带宽游戏还是算力游戏；Roofline 性能上限=min(算力上限, 带宽上限×AI)，拐点是两者相等处；GB/s/TFLOPS 指标定义与如何读 roofline 图
@@ -19,4 +19,8 @@ GPU 架构与 kernel 优化主题笔记。
 
 ## 关联
 
-- [gemm：分块 GEMM 的原理与切法](../gemm/tiled-gemm.md)
+- [gemm：分块 GEMM 的原理与切法](../gemm/tiled-gemm.md) — GEMM 分块如何提升复用、压低 HBM 流量，与本文 Roofline/流量分析直接对应
+
+## 未解问题
+
+- （暂无）
