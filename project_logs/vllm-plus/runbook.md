@@ -425,6 +425,32 @@ publish: true
 
 ---
 
+## 节点 21：路径 A·M4 — fp16 张量核终验（T4, 2026-07-23）
+
+- **状态**：✅ 完成（终验结论：**T4 fp16 张量核硬件正常，但本机 Triton 3.6 + sm_75 不会为 fp16 `tl.dot` 生成 `mma.sync`**，故手写 Triton fp16 未吃到 TC；张量核红利由 torch/cuBLAS 实测确认存在）
+- **背景**：节点 15/19 规划 M4「上 T4 张量核（fp16）终验」。T4(Turing cc7.5)有 fp16 张量核、无 bf16/fp32 张量核。预期 fp16 `tl.dot` 编译为 `mma.sync`，算力天花板从 fp32 CUDA core 8.1 TFLOPS → fp16 张量核 ~65 TFLOPS（约 8×）。
+- **方法**：新建 `project/vllm-plus/gemm_triton_m4_fp16.py`：M3 kernel 改 fp16 输入 + fp32 累加（`tl.dot(fp16,fp16,fp32_acc)`）+ autotune；测 ours fp16 vs torch fp16(cuBLAS HGEMM/TC 天花板) vs M3 fp32 基线，各形状算 cos。
+- **结果**（T4 fp16；ours=手写 Triton fp16，torch=cuBLAS HGEMM/TC）：
+
+  | shape (M,N,K) | AI≈ | ours TFLOPS | TC% | torch TFLOPS | torch TC% | cos |
+  |---|---|---|---|---|---|---|
+  | (1,4096,4096) | 1.0 | 0.03 | 0% | 0.01 | 0% | 1.0000 |
+  | (64,4096,4096) | 61 | 1.72 | 3% | 14.74 | 23% | 1.0000 |
+  | (256,4096,4096) | 216 | 1.25 | 2% | 36.79 | 57% | 1.0000 |
+  | (1024,4096,4096) | 585 | 1.22 | 2% | 29.44 | 45% | 1.0000 |
+  | (4096,4096,4096) | 1024 | 1.21 | 2% | 21.44 | 33% | 1.0000 |
+
+  - ours 全形状卡在 ~1.2 TFLOPS（甚至低于我们自己的 fp32 M3），cos=1.0（正确但慢）；torch fp16 在算力受限形状冲到 21~37 TFLOPS（达 fp16 张量核峰值 65 TFLOPS 的 33~57%）。→ **T4 张量核红利真实存在（~8× 于 fp32 天花板），但 Triton 没把它交给我们**。
+- **根因（关键，经 PTX/ttgir 实锤）**：dump `comp.asm['ptx']` 与 `['ttgir']` 确认 ours fp16 kernel **PTX 中无 `mma` 指令**。逐变量排除：
+  - 全局 `tl.load` 本身是 f16（`!tt.ptr<f16>` 正确）——不是加载上转的锅；
+  - 进入 `tl.dot` 后，Triton 把操作数在共享内存 staging 时**提升为 f32**（`tensor<64x32xf32, #ttg.dot_op<...>>`）且布局是 `#blocked`（**非 MMA 编码**），`inputPrecision=tf32`；
+  - 试过 mask / num_stages∈{1,2,3} / `input_precision='ieee'` / `out_dtype=tl.float16` 全部无效；`out_dtype=fp16` 时操作数虽为 f16 但仍 `#blocked2` 布局 + 误设 `tf32` 精度，且 cos 崩到 0.13（错误结果）。
+  - **结论**：Triton 3.6 在 sm_75 上的 `tl.dot` fp16→MMA lowering 未生效（操作数提升 f32 或布局错配），退回 CUDA core。属**工具链/版本层限制**，非 kernel 写法问题。
+- **概念 / 认知（本项目最重要的误区纠正）**：**「`tl.dot(fp16)` 自动吃到张量核」是个常见错觉**。张量核红利要由编译器正确 lowering 成 `mma.sync` 才兑现；本组合(Triton 3.6 + Turing sm_75)没做到。要真正吃到 TC，路径是 cuBLAS/CUTLASS，或换能正确为 sm_75 生成 fp16 `mma` 的 Triton 版本。这也呼应节点 9「手写 int8 慢于 bf16 → 须 INT4(Marlin)」——**手写内核的峰值效率高度依赖底层 lowering，不是数据类型一换就自动加速**。
+- **关联**：节点 16（T4 有 fp16 TC / 无 bf16·fp32 TC）、节点 19（M3 fp32 基线 ~8 TFLOPS → 对照 M4 手写 fp16 仍 ~1.2 TFLOPS，证明非 TC）、节点 9（手写内核峰值依赖 lowering）、wiki 延迟隐藏与占用率（TC 是另一维加速，与本路径 stages/warps 正交）、wiki Roofline（fp16 张量核把算力天花板从 8.1 抬到 65 TFLOPS → compute-bound 形状拐点右移）。
+
+---
+
 ## 交付产物清单
 
 | 产物 | 位置（项目相对） | 来源 | 状态 |
@@ -446,6 +472,7 @@ publish: true
 | M1 benchmark（计时 + GB/s/TFLOPS/AI + roofline + block 扫描） | `project/vllm-plus/gemm_triton_m2.py` | 路径 A·M2 | ✅ 量出 M1 距 T4 天花板：HBM 利用率≤19%、算力≤24%；BLOCK 16→64 提速 4×；BLOCK=128 爆 shared mem(64KB) |
 | M3 fp32 autotune benchmark（autotune BLOCK/num_warps/num_stages + 计时 + GB/s/TFLOPS/AI + 对照 cuBLAS） | `project/vllm-plus/gemm_triton_m3.py` | 路径 A·M3 | ✅ 带宽受限形状 HBM 利用率 ≤19%→~42%（2.2~3.7×）；修 B 的 K-stride 推进 bug |
 | M3 ablation（单变量：固定 BLOCK_M64/BN128/BK32/num_warps8，扫 num_stages∈{2,3,4,5}，隔离 stages 对带宽的因果） | `project/vllm-plus/gemm_triton_m3_ablation.py` | 路径 A·M3 收口 | ✅ 实测证 num_stages 仅在 AI<AI*(带宽受限) 生效（M=1: s2→s4 53.9→100.8 GB/s +87%），算力受限形状 stages 失灵；cos 全 1.0 |
+| M4 fp16 张量核终验（fp16 输入 + fp32 累加，autotune；ours Triton fp16 vs torch/cuBLAS HGEMM 天花板） | `project/vllm-plus/gemm_triton_m4_fp16.py` | 路径 A·M4 | ✅ **终验结论：Triton 3.6 + sm_75 不为 fp16 tl.dot 生成 mma.sync（PTX 实锤无 mma），ours 卡 ~1.2 TFLOPS；torch fp16(cuBLAS TC) 达 21~37 TFLOPS 证张量核硬件正常** |
 
 > ⚠️ **漂移**：`gemm_triton_m1.py` / `gemm_triton_m2.py` / `gemm_foundations.py` 在 runbook 记为已建，但**未进 vllm-plus 远程、本机工作树缺**；M3 为自包含重建（含 kernel）。如需 m1/m2 脚本应从此工作树补建并推 vllm-plus 远程。
 
@@ -459,7 +486,7 @@ publish: true
   - FP8 权重量化（需 Hopper/Blackwell 卡，超出本机范围）。
   - CUTLASS 级 INT8 GEMM（手写 Triton 内核带宽效率不足）。
   - GPU kernel 级 profiling（当前靠 monkey-patch + `cuda.synchronize` 粗粒度计时）。
-  - **路径 A 后段（T4 上推进中）**：M1 首个 Triton fp32 matmul 已跑通（cos=1.0，见节点 17）→ **M2 已完成**（节点 18：T4 上 HBM 利用率≤19%、算力≤24%、BLOCK 16→64 提速 4×）→ **M3 已完成**（节点 19：fp32 autotune 把带宽受限形状 HBM 利用率从 ≤19% 爬到 ~42%，修一处 B 的 K-stride 推进 bug）→ 下一步 **M4：上 T4 张量核（fp16 或 int8）终验**（T4 有 fp16/int8 张量核、fp32 无）。
+  - **路径 A 后段（T4 上推进中）**：M1 首个 Triton fp32 matmul 已跑通（cos=1.0，见节点 17）→ **M2 已完成**（节点 18：T4 上 HBM 利用率≤19%、算力≤24%、BLOCK 16→64 提速 4×）→ **M3 已完成**（节点 19：fp32 autotune 把带宽受限形状 HBM 利用率从 ≤19% 爬到 ~42%，修一处 B 的 K-stride 推进 bug）→ **M4 已完成**（节点 21：fp16 张量核终验——Triton 3.6+sm_75 不为 fp16 tl.dot 生成 mma.sync，手写 fp16 卡 ~1.2 TFLOPS；torch/cuBLAS HGEMM 实测 21~37 TFLOPS 证张量核硬件正常）→ 下一步可考虑 **M5：int8 张量核终验**（T4 有 int8 张量核，且绕开 fp16 mma lowering 限制，有望由 Triton/CUTLASS 真正吃到 TC），或换 Triton 版本复测 fp16 mma。
 - **下一步该练**：把 12 项实验转化为「可讲清楚取舍」的简历叙事与面试话术（强项在「能说清每个优化为什么有效/无效」，而非只会报数字）。
 
 ---
