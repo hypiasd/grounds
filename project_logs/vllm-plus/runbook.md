@@ -346,6 +346,10 @@ publish: true
   - **指针迭代而非重索引**：`a_ptrs = a_ptr + offs_m[:,None]*stride_am + offs_k[None,:]*stride_ak` 一次性算出整块地址；循环里 `a_ptrs += BLOCK_K*stride_ak` 推进到下一块 K（不重算索引）。`stride` = 相邻元素距离：连续张量下 `stride_am=K, stride_ak=1, stride_bk=N, stride_bn=1`。
   - **K 循环 = tiled_gemm 的内积分块累加**：`acc = tl.dot(a_tile, b_tile, acc)`，漏传 acc 即只算最后一块（M1 首跑 FAIL 根因）。
   - **mask 处理边缘**：load 用 `offs_k < k_rem`（K 非整数倍）、store 用 `offs_m<M & offs_n<N`（M/N 非整数倍），`other=0.0` 让越界 load 不污染累加。
+- **概念 / 认知（off / ptr / mask 三件套，2026-07-23 教学图解）**：
+  - **off（坐标，不含地址）**：`tl.arange` 造的向量，表示「本块里第几个元素」。`offs_m`=行号、`offs_n`=列号、`offs_k`=K 窗内偏移，纯粹是「几号」。
+  - **ptr（地址，一整块）**：`base + offs_m[:,None]*stride_am + offs_k[None,:]*stride_ak` 用「坐标×步长」广播出 `(BLOCK_M,BLOCK_K)` 指针矩阵，`tl.load` 一把搬整块；循环里 `ptr += BLOCK_K*stride` 让窗口沿 K 滑动。
+  - **mask（护盾）**：形状非 BLOCK 整数倍时 `mask=坐标<剩余` 挡越界，配 `other=0.0` 让越界 load 填 0 不污染累加；store 同理护 M/N 边缘。
 - **关联**：节点 15（路径 A 规划）、节点 16（T4 环境）、wiki 分块 GEMM 的原理与切法、wiki HBM 流量与数据复用、节点 9（量化只救 decode）。
 
 ---
