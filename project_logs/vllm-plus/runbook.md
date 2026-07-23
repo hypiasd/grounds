@@ -359,6 +359,30 @@ publish: true
 
 ---
 
+## 节点 18：路径 A·M2 — benchmark，量实际 GB/s / TFLOPS，标到 roofline（T4, 2026-07-23）
+
+- **状态**：✅ 完成（M1 离 T4 天花板还差很远 → 量化出 M3 优化空间）
+- **实施**：新建 `project/vllm-plus/gemm_triton_m2.py`——复用 M1 kernel，加计时：warmup 10 次丢弃启动开销 → `torch.cuda.synchronize()` 包住 `start/end.record()`（kernel 异步发射，不等完会量到 0）→ 循环 20 次取均值。指标 `GB/s = 字节数/秒`、`TFLOPS = 2MNK/秒`、`AI = FLOPs/字节`；并与 `torch.matmul`(cuBLAS) 同形状对比；再对 (1024,1024,1024) 做 BLOCK∈{16,32,64,128} 扫描。
+- **结果**（T4：HBM~320 GB/s，fp32~8.1 TFLOPS，roofline 拐点 AI≈25.3）：
+  - 形状表（ours vs torch/cuBLAS）：
+    | shape (M,N,K) | AI | ours GB/s | ours TFL | torch GB/s | torch TFL | bound |
+    |---|---|---|---|---|---|---|
+    | (1,4096,4096) | 0.50 | 61.2 | 0.031 | 196.3 | 0.098 | BW |
+    | (64,4096,4096) | 31.0 | 35.4 | 1.097 | 87.9 | 2.729 | COMPUTE |
+    | (2048,2048,2048) | 341 | 5.7 | 1.944 | 12.1 | 4.132 | COMPUTE |
+  - HBM 利用率（ours/320）：(1)19% / (64)11% / (2048)1.8%；torch 同形状 61%/27%/3.8%。
+  - 算力利用率（ours/8.1）：(1)0.4% / (64)13.5% / (2048)24%；torch 1.2%/33.7%/51%。
+  - BLOCK 扫描 @(1024,1024,1024)：BLOCK=16→5.7 GB/s(0.97 TFL, 1.8%)；BLOCK=32→13.3(2.27, 4.1%)；BLOCK=64→22.8(3.90, 7.1%)；**BLOCK=128 → OutOfResources**（T4 shared mem 上限 64KB，128×128 fp32 两 Tile=128KB 放不下）。
+- **概念 / 认知（roofline 实测解读）**：
+  - **roofline 分类成立**：AI=0.5 的 decode 形状落在带宽受限区（bound=BW），AI≈31/341 的落在算力受限区（bound=COMPUTE）——与节点 17 的 roofline 模型一致。
+  - **M1 在两个轴都远低于天花板**：带宽轴最高仅 19%（decode），算力轴最高仅 24%（prefill）。即「既没喂饱 HBM、也没喂饱 SM」→ M3 优化空间巨大（这正是 M2 要量出的「差多少」）。
+  - **块大小是强杠杆**：BLOCK 16→64，TFLOPS 0.97→3.90（4×）。大块 = 片上更多复用 + 更高 SM 占用率（occupancy）；但受 shared mem 64KB 硬上限约束，不能无限大（BLOCK=128 爆了）。
+  - **cuBLAS 在带宽受限形状上优势最大**（196 vs 61 GB/s，3.2×）：它用了我们 M1 没有的双缓冲/异步拷贝把 HBM 压到 61% 利用率；在算力受限形状上差距缩小（我们 BLOCK=64 已接近 torch 同形状）。
+  - 下一步 M3 方向：双缓冲（算当前 K 窗时异步搬下一块，重叠 compute/HBM）+ autotune BLOCK + 提升算术强度，目标把 HBM/算力利用率往 cuBLAS 靠拢。
+- **关联**：节点 15（路径 A 规划）、节点 16（T4 环境）、节点 17（M1 跑通 + roofline 概念 + 寻址）。
+
+---
+
 ## 交付产物清单
 
 | 产物 | 位置（项目相对） | 来源 | 状态 |
@@ -377,6 +401,7 @@ publish: true
 | bench 驱动（含 continuous / DTYPE / WQUANT / USE_LOOKAHEAD 开关） | `bench.py` | 全实验 | ✅ |
 | 分块 GEMM 参考实现（GPU-free）：naive + tiled + 对拍 + 块网格 + Triton 映射 | `project/vllm-plus/gemm_foundations.py` | 路径 A·M0 | ✅ Mac CPU 跑通（对拍 err 9.5e-5）；GPU 机可作 M1→Triton 翻译基线 |
 | 第一个 Triton matmul（fp32, 分块 + tl.dot 累加，先跑通） | `project/vllm-plus/gemm_triton_m1.py` | 路径 A·M1 | ✅ T4 上 3 组形状 cos=1.0 对拍 PASS（固定 BLOCK=32，未优化） |
+| M1 benchmark（计时 + GB/s/TFLOPS/AI + roofline + block 扫描） | `project/vllm-plus/gemm_triton_m2.py` | 路径 A·M2 | ✅ 量出 M1 距 T4 天花板：HBM 利用率≤19%、算力≤24%；BLOCK 16→64 提速 4×；BLOCK=128 爆 shared mem(64KB) |
 
 ---
 
