@@ -102,6 +102,12 @@ AGENTS.md 铁律 3：**`paper/` 不参与互链**，且 wiki 只与 wiki / `raw/
 
 对每个 `[论文专属-留 paper]` 段：**不动**（或仅微调表述，不萃取）。
 
+- **记录萃取动作（留痕，不可省略）**：在 paper 笔记末尾「萃取记录（capture 历史）」小节追加一条（无此小节则新建于文件末尾）；每条格式：
+  ```markdown
+  - <YYYY-MM-DD>：将「<段落摘要>」从本论文笔记萃取至 wiki/<topic>/<note>.md（原位留指针，正文迁出）。
+  ```
+  让"本段通用知识因 paper-capture 而提纯至 wiki"可追溯，论文笔记不丢失该动作痕迹。
+
 > **萃取不是删除**：paper 留指针、wiki 存正文，paper→wiki 单向互链。日后回看论文笔记仍能顺着指针跳到通用知识，且不把可复用内容锁死在论文里。
 
 ### 三步：校验（必做，因 lint 不扫 paper）
@@ -110,6 +116,7 @@ AGENTS.md 铁律 3：**`paper/` 不参与互链**，且 wiki 只与 wiki / `raw/
 - 确认 frontmatter 完整（wiki 笔记含 title/topic/tags/summary/created/updated）。
 - **自检链接**：对 paper 笔记里新增的 wiki 指针执行 `test -f <相对路径基准>/wiki/<topic>/<note>.md && echo OK`（lint 不扫 paper，必须自检）；对新建 wiki 笔记内的互链（含可能指向 `raw/wiki/` 的链接）同样 `test -f` 校验。
 - 确认 `wiki/<topic>/index.md`（及必要时根 `wiki/index.md`）已含新笔记条目，篇数与实际文件数一致。
+- 确认 paper 笔记末尾「萃取记录（capture 历史）」已追加本次萃取条目（留痕不可省）。
 - `git status` 确认改动符合预期。
 
 ### 四步：提交

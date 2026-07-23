@@ -101,6 +101,12 @@ project 的 M0–M6 实时刻在跑，全部内联进 `runbook.md`：
 
 萃取后**更新 `runbook.md` frontmatter 的 `updated` 日期**到当天。
 
+- **记录萃取动作（留痕，不可省略）**：在 runbook 末尾「萃取记录（capture 历史）」小节追加一条（无此小节则新建于文件末尾）；每条格式：
+  ```markdown
+  - <YYYY-MM-DD>：将「<源块类型 / 摘要，如 M0 概念：decode GEMM 分块心智模型>」从 runbook 萃取至 wiki/<topic>/<note>.md（原位留指针，正文迁出）。
+  ```
+  runbook 是时间线流水账，萃取把长文迁出后，若无此记录，"这段曾存在、因 capture 而提纯"的痕迹会消失——此小节让动作可追溯，不似从未发生。
+
 > **萃取不是删除**：runbook 留指针、wiki 存正文，二者互链。日后回看项目日志仍能顺着指针跳到通用知识，且不把可复用内容锁死在项目里。
 
 - **更新 wiki 索引**：
@@ -112,6 +118,7 @@ project 的 M0–M6 实时刻在跑，全部内联进 `runbook.md`：
 - 确认 frontmatter 完整（wiki 笔记含 title/topic/tags/summary/created/updated）。
 - **自检链接**：对 runbook 里新增的 wiki 指针执行 `test -f <相对路径基准>/wiki/<topic>/<note>.md && echo OK`（lint 不扫 project_logs，必须自检）；对新建 wiki 笔记内的互链（含可能指向 `project_logs/<name>/runbook.md` 的链接）同样 `test -f` 校验。
 - 确认 `wiki/<topic>/index.md`（及必要时根 `wiki/index.md`）已含新笔记条目，篇数与实际文件数一致。
+- 确认 runbook 末尾「萃取记录（capture 历史）」已追加本次萃取条目（留痕不可省）。
 - `git status` 确认改动符合预期。
 
 ### 四步：提交
