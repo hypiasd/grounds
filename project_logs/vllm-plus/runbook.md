@@ -401,6 +401,30 @@ publish: true
 
 ---
 
+## 节点 20：路径 A·M3 ablation — num_stages 对带宽的实测影响（T4, fp32, 2026-07-23）
+
+- **状态**：✅ 完成（固定 BLOCK_M=64/BN=128/BK=32、num_warps=8，扫 num_stages∈{2,3,4,5}，收口「stages 预取深度真能顶满带宽」）
+- **背景**：节点 19 用 autotune 间接证明 num_stages 是延迟隐藏主杠杆（2.2~3.7× 提升），但 autotune 同时动了 BLOCK/num_warps，变量没隔离。本节点按用户「跑」指令做**单变量 ablation**：只动 num_stages，其余冻结，直接验证「stages 越深 → 在途 HBM 请求越多 → 带宽越顶满」。
+- **方法**：新建 `project/vllm-plus/gemm_triton_m3_ablation.py`——去掉 `@triton.autotune`，开一个 `@triton.jit` kernel，launch 时显式传 `num_warps=8, num_stages=s`；测带宽受限形状（小 M）+ 算力受限形状（大 M），各算 cos 校验正确性。
+- **结果**（T4 fp32，固定 BM64/BN128/BK32/w8，仅变 num_stages）：
+
+  | shape (M,N,K) | AI≈ | s=2 GB/s | s=3 | s=4 | s=5 | cos |
+  |---|---|---|---|---|---|---|
+  | (1,4096,4096) | 2.0 | 53.9 | 54.0 | **100.8** | 100.8 | 1.0000 |
+  | (64,4096,4096) | 124 | 106.9 | 107.0 | 108.3 | **111.2** | 1.0000 |
+  | (256,4096,4096) | 455 | 31.7 | 31.4 | 31.9 | 31.8 | 1.0000 |
+  | (1024,4096,4096) | 1365 | 11.5 | 11.5 | 11.5 | 11.5 | 1.0000 |
+
+- **解读**：
+  1. **stages 只在带宽受限区有效**：M=1（AI=2）s2→s4 从 53.9 跳到 100.8 GB/s（+87%），s5 平台；M=64（AI=124 近拐点）渐进 106.9→111.2。证明「更深预取 → 更多在途 load → HBM 更满」成立。
+  2. **算力受限区 stages 完全无效**：M=256（AI=455）、M=1024（AI=1365）GB/s 在所有 stages 下恒定（~31 / ~11）。roofline 直接证据——形状已越过 T4 拐点 AI*≈25，被 8.1 TFLOPS 算力天花板锁死，藏延迟救不了带宽（此时 GB/s 低是 compute-bound 的标志，不是 kernel 差）。
+  3. **M=1 即便 s5 也只到 32% HBM**：32 blocks / 40 SM ≈ 0.8 block/SM → 多数 SM 空闲、喂不饱 HBM，这是「grid 太小」惩罚（节点 19 已记），非 stages 之过；autotune 版 M=1 达 42% 是因它另选了更优 BLOCK/BN。
+- **重要更正（诚实记录，推翻我先前口头预测）**：我在 Q1 里手算「单 stage SMEM=(BM·BK+BK·BN)·4=24KB，s3+ 超 T4 64KB/SM → 该配置不可用/occupancy 掉 0」。**实测全部 s2~s5 都编译跑通且 cos=1.0**——说明该 naive 上界严重高估了 Triton 实际流水缓冲占用（dot 很可能从寄存器而非全程常驻 SMEM、或 Triton 用了更紧凑布局）。**教训：SMEM 预算必须实测，不能只靠公式臆测**；T4 64KB 墙在这组配置下并未触发（虽节点 18 曾因 BLOCK=128 真实撞过 `OutOfResources`，那次是另一回事——块太大而非 stages 多）。
+- **概念 / 认知**：本节点把节点 19 的「num_stages=延迟隐藏旋钮」从相关关系升级为**单变量因果**——且仅在 AI<AI* 的带宽受限形状上成立；越过拐点，旋钮失灵。这正是 roofline 划分优化对象的操作化证明。
+- **关联**：节点 19（M3 autotune 间接证据 → 本节点单变量收口）、节点 16（T4 环境）、节点 18（BLOCK=128 真实撞 64KB SMEM 墙，对照本节点「stages 未撞墙」）、wiki 延迟隐藏与占用率、wiki Roofline 模型与算术强度（AI 拐点 = stages 旋钮生效边界）。
+
+---
+
 ## 交付产物清单
 
 | 产物 | 位置（项目相对） | 来源 | 状态 |
@@ -421,6 +445,7 @@ publish: true
 | 第一个 Triton matmul（fp32, 分块 + tl.dot 累加，先跑通） | `project/vllm-plus/gemm_triton_m1.py` | 路径 A·M1 | ✅ T4 上 3 组形状 cos=1.0 对拍 PASS（固定 BLOCK=32，未优化） |
 | M1 benchmark（计时 + GB/s/TFLOPS/AI + roofline + block 扫描） | `project/vllm-plus/gemm_triton_m2.py` | 路径 A·M2 | ✅ 量出 M1 距 T4 天花板：HBM 利用率≤19%、算力≤24%；BLOCK 16→64 提速 4×；BLOCK=128 爆 shared mem(64KB) |
 | M3 fp32 autotune benchmark（autotune BLOCK/num_warps/num_stages + 计时 + GB/s/TFLOPS/AI + 对照 cuBLAS） | `project/vllm-plus/gemm_triton_m3.py` | 路径 A·M3 | ✅ 带宽受限形状 HBM 利用率 ≤19%→~42%（2.2~3.7×）；修 B 的 K-stride 推进 bug |
+| M3 ablation（单变量：固定 BLOCK_M64/BN128/BK32/num_warps8，扫 num_stages∈{2,3,4,5}，隔离 stages 对带宽的因果） | `project/vllm-plus/gemm_triton_m3_ablation.py` | 路径 A·M3 收口 | ✅ 实测证 num_stages 仅在 AI<AI*(带宽受限) 生效（M=1: s2→s4 53.9→100.8 GB/s +87%），算力受限形状 stages 失灵；cos 全 1.0 |
 
 > ⚠️ **漂移**：`gemm_triton_m1.py` / `gemm_triton_m2.py` / `gemm_foundations.py` 在 runbook 记为已建，但**未进 vllm-plus 远程、本机工作树缺**；M3 为自包含重建（含 kernel）。如需 m1/m2 脚本应从此工作树补建并推 vllm-plus 远程。
 
