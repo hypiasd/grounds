@@ -319,6 +319,25 @@ publish: true
 
 ---
 
+## 节点 17：路径 A·M1 — 第一个 Triton matmul 跑通（fp32, T4, 2026-07-23）
+
+- **状态**：✅ 完成（T4 上 `cos=1.0` 对拍 PASS）
+- **决策**：用户明确「先不管张量核，只要 Triton 能跑起来」→ 选 **fp32** 最简路径（不追求 fp16/int8 张量核），目标是把 tiled_gemm 心智模型平移到 Triton 并跑对。
+- **实施**：新建 `project/vllm-plus/gemm_triton_m1.py`——标准分块 matmul kernel：C[M,N] 切成 `(BLOCK_M,BLOCK_N)` 块网格（每 program 一输出块），沿 K 维分 `BLOCK_K` 小块循环 `tl.dot` 累加。`run` 前须 `export LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/cuda-12.8/lib64:$LD_LIBRARY_PATH`（否则 torch 找不到 libcuda）。
+- **结果**（对拍 torch fp32，3 组形状）：
+  - (128,128,128)：cos=1.000000，max_abs_err=2.67e-05 ✅
+  - (200,256,160) 非整数倍边缘：cos=1.000000，max_abs_err=2.67e-05 ✅
+  - (64,4096,4096) 小 M 宽 K：cos=1.000000，max_abs_err=8.24e-04 ✅
+  - 结论：M1 跑通，正确性达标；下一步 M2 定位带宽瓶颈（当前固定 BLOCK=32、无 autotune，未优化）。
+- **问题 / 解决**（首跑 FAIL，cos≈0.5）：
+  - **现象**：首版 `acc = tl.dot(a, b)`，三组 cos 仅 0.09~0.50、err 数十~数百，全部 FAIL。
+  - **根因**：`tl.dot(a, b)` 的**第三参才是累加器**；不传时每轮迭代**覆盖** `acc` 而非累加 → 等价于只算了最后一个 K 分块，前面全丢。这正是 tiled_gemm「内积分块必须累加」在 Triton 上的对应陷阱。
+  - **解法**：改为 `acc = tl.dot(a, b, acc)`（把上一轮累加值传回去）。
+  - **学到了什么**：Triton 的 `tl.dot` 不是「原地累加」，是「返回 product，可选 acc 加回」；循环累加的写法与手写 tiled_gemm 的 `acc += A_tile @ B_tile` 一一对应，漏传 acc 是最易犯的错。
+- **关联**：节点 15（路径 A 规划）、节点 16（T4 环境）、wiki 分块 GEMM 的原理与切法。
+
+---
+
 ## 交付产物清单
 
 | 产物 | 位置（项目相对） | 来源 | 状态 |
@@ -336,6 +355,7 @@ publish: true
 | 面经 | `interview_questions.md` / `interview_answers.md` | — | ✅ |
 | bench 驱动（含 continuous / DTYPE / WQUANT / USE_LOOKAHEAD 开关） | `bench.py` | 全实验 | ✅ |
 | 分块 GEMM 参考实现（GPU-free）：naive + tiled + 对拍 + 块网格 + Triton 映射 | `project/vllm-plus/gemm_foundations.py` | 路径 A·M0 | ✅ Mac CPU 跑通（对拍 err 9.5e-5）；GPU 机可作 M1→Triton 翻译基线 |
+| 第一个 Triton matmul（fp32, 分块 + tl.dot 累加，先跑通） | `project/vllm-plus/gemm_triton_m1.py` | 路径 A·M1 | ✅ T4 上 3 组形状 cos=1.0 对拍 PASS（固定 BLOCK=32，未优化） |
 
 ---
 
@@ -347,7 +367,7 @@ publish: true
   - FP8 权重量化（需 Hopper/Blackwell 卡，超出本机范围）。
   - CUTLASS 级 INT8 GEMM（手写 Triton 内核带宽效率不足）。
   - GPU kernel 级 profiling（当前靠 monkey-patch + `cuda.synchronize` 粗粒度计时）。
-  - **路径 A 后段（需 GPU 机，macOS 无 GPU，当前只完成 M0 GPU-free 基础）**：M1 翻译 Triton bf16 matmul（先 cos=1.0）→ M2 定位 340 GB/s 瓶颈 → M3 带宽爬坡 340→750 → M4 int8 终验。
+  - **路径 A 后段（T4 上推进中）**：M1 首个 Triton fp32 matmul 已跑通（cos=1.0，见节点 17）→ 下一步 **M2 定位带宽瓶颈**（固定 BLOCK=32、无 autotune，测实际 GB/s 对照 T4 HBM ~300 GB/s）→ M3 带宽爬坡（autotune / 双缓冲 / 提升算术强度）→ M4 int8 终验。注：T4 无 BF16 张量核，M1 用 fp32 起步即可，fp16 张量核优化留待 M3。
 - **下一步该练**：把 12 项实验转化为「可讲清楚取舍」的简历叙事与面试话术（强项在「能说清每个优化为什么有效/无效」，而非只会报数字）。
 
 ---

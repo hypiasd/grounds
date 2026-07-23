@@ -20,7 +20,7 @@ publish: true
 - NumPy（路径 A·M0 基础，GPU-free；macOS 上亦可跑分块 GEMM 参考实现）
 
 ## 现状（一行）
-12 项实验已跑完并记录在代码仓 `experiment_results.md`（均在 RTX 4090D 上）；量化路线在 4090D 上吞吐收益封顶于 INT8 KV 的 +4~13%，真正的 2× 杠杆是投机解码（已 2×+）；下阶段可选 FP8/W8A8（需 Hopper/Blackwell）或转向 kernel 融合 / 更优调度。**路径 A（从 0 打 kernel 地基）已开 M0**：在 Mac 上跑通 `gemm_foundations.py`（naive+tiled 分块 GEMM 对拍 PASS），完整建立 decode GEMM 分块心智模型（可加性→复用→HBM 流量→两级抽屉）。**2026-07-23 复查 GPU：当前 kernel 学习机是 2× Tesla T4（新租）**——路径 A 的 M1+ 现在**就能在 T4 上做**，但 T4 无 BF16 张量核，M1 首个 Triton matmul 应改用 **fp16**（才有张量核加速）；节点 9「int8 慢于 bf16 → 须 INT4」是 4090D 结论、不受影响（见 runbook 节点 16）。
+12 项实验已跑完并记录在代码仓 `experiment_results.md`（均在 RTX 4090D 上）；量化路线在 4090D 上吞吐收益封顶于 INT8 KV 的 +4~13%，真正的 2× 杠杆是投机解码（已 2×+）；下阶段可选 FP8/W8A8（需 Hopper/Blackwell）或转向 kernel 融合 / 更优调度。**路径 A（从 0 打 kernel 地基）已开 M0**：在 Mac 上跑通 `gemm_foundations.py`（naive+tiled 分块 GEMM 对拍 PASS），完整建立 decode GEMM 分块心智模型（可加性→复用→HBM 流量→两级抽屉）。**2026-07-23 复查 GPU：当前 kernel 学习机是 2× Tesla T4（新租）**——路径 A 的 M1+ 现在**就能在 T4 上做**，但 T4 无 BF16 张量核，M1 首个 Triton matmul 应改用 **fp16**（才有张量核加速）；节点 9「int8 慢于 bf16 → 须 INT4」是 4090D 结论、不受影响（见 runbook 节点 16）。**同日下午 M1 已跑通**：首个 Triton fp32 matmul 在 T4 上 3 组形状 cos=1.0 对拍 PASS（详见 runbook 节点 17），下一步 M2 定位带宽瓶颈。
 
 ## 外部仓库
 - 远程：`git@github.com:hypiasd/vllm-plus.git`（独立 git，父仓库 `.gitignore` 忽略其内容，不进 grounds）
