@@ -4,7 +4,7 @@ topic: gpu
 tags: [gpu, hbm, memory-bandwidth, reuse, cache]
 summary: GPU 架构与kernel 优化相关笔记索引——HBM 流量、数据复用、内存层级。
 created: 2026-07-22
-updated: 2026-07-22
+updated: 2026-07-23
 ---
 
 # gpu

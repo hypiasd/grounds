@@ -2,7 +2,7 @@
 title: vllm-plus 项目入口
 tags: [project, vllm-plus]
 created: 2026-07-22
-updated: 2026-07-22
+updated: 2026-07-23
 publish: true
 ---
 
