@@ -334,27 +334,9 @@ publish: true
   - **根因**：`tl.dot(a, b)` 的**第三参才是累加器**；不传时每轮迭代**覆盖** `acc` 而非累加 → 等价于只算了最后一个 K 分块，前面全丢。这正是 tiled_gemm「内积分块必须累加」在 Triton 上的对应陷阱。
   - **解法**：改为 `acc = tl.dot(a, b, acc)`（把上一轮累加值传回去）。
   - **学到了什么**：Triton 的 `tl.dot` 不是「原地累加」，是「返回 product，可选 acc 加回」；循环累加的写法与手写 tiled_gemm 的 `acc += A_tile @ B_tile` 一一对应，漏传 acc 是最易犯的错。
-- **概念 / 认知（带宽游戏 · 算术强度 · Roofline，2026-07-23 教学）**：
-  - **两套账**：GEMM 工作量有「计算量」2·M·N·K FLOPs 与「访存量」(M·K+N·K+M·N)·bytes（fp32=4B）。只看 FLOPs 会误判快慢。
-  - **算术强度 AI = FLOPs / Bytes**：每搬 1 字节能做几次运算。decode（小 M、大 K=N）C 极小、A/B 巨大 → 搬多算少 → AI 低 → **带宽受限**；prefill（大 M）→ AI 高 → **算力受限**。这正是节点 9/15「量化只救 decode 不救 prefill」的机理根。
-  - **Roofline**：性能上限 = min(算力上限, 带宽上限 × AI)。T4 HBM ~300 GB/s、fp32 算力 ~8 TFLOPS → 拐点 AI≈26 FLOP/Byte；AI 低于此永远碰不到算力天花板，瓶颈在 HBM。
-  - **M1 为何还慢**：仅「分块 + tl.dot 累加」，无双缓冲/异步拷贝（算当前 K 块与搬下一块无法重叠，SM 空等 HBM）、无 autotune → 实际 GB/s 远低于 ~300。M2 量化它，看离天花板多远；M3 用双缓冲/更大复用/减半字节提升 AI。
-  - **直觉类比**：GEMM=工人(SM)用砖(A,B)砌墙(C)。带宽是「卡车运砖的路宽」，算力是「工人手速」。砖堆远+每次只搬几块(低 AI)→工人老等车→瓶颈在路(带宽)；砖在手边+一次搬一大摞(高 AI)→工人砌不过来→瓶颈在手速(算力)。量化=把砖做小一半，一趟多运一倍。
-- **概念 / 认知（如何读 Triton matmul kernel，2026-07-23 教学）**：
-  - **两层结构**：host(Python, `matmul`) 只做「分配 C + 算 grid + 传 stride」；kernel 只写「**一个输出块**怎么算」，Triton 把它复制到整个 `(num_pid_m×num_pid_n)` 网格并行（你不用管线程/warps/shared mem，Triton 兜底）。
-  - **2D 网格扁平成 1D program_id**：`pid_m = pid // num_pid_n`、`pid_n = pid % num_pid_n`（行主序展开）；`offs_m/offs_n` = 该块在 C 中的行/列坐标。
-  - **指针迭代而非重索引**：`a_ptrs = a_ptr + offs_m[:,None]*stride_am + offs_k[None,:]*stride_ak` 一次性算出整块地址；循环里 `a_ptrs += BLOCK_K*stride_ak` 推进到下一块 K（不重算索引）。`stride` = 相邻元素距离：连续张量下 `stride_am=K, stride_ak=1, stride_bk=N, stride_bn=1`。
-  - **K 循环 = tiled_gemm 的内积分块累加**：`acc = tl.dot(a_tile, b_tile, acc)`，漏传 acc 即只算最后一块（M1 首跑 FAIL 根因）。
-  - **mask 处理边缘**：load 用 `offs_k < k_rem`（K 非整数倍）、store 用 `offs_m<M & offs_n<N`（M/N 非整数倍），`other=0.0` 让越界 load 不污染累加。
-- **概念 / 认知（off / ptr / mask 三件套，2026-07-23 教学图解）**：
-  - **off（坐标，不含地址）**：`tl.arange` 造的向量，表示「本块里第几个元素」。`offs_m`=行号、`offs_n`=列号、`offs_k`=K 窗内偏移，纯粹是「几号」。
-  - **ptr（地址，一整块）**：`base + offs_m[:,None]*stride_am + offs_k[None,:]*stride_ak` 用「坐标×步长」广播出 `(BLOCK_M,BLOCK_K)` 指针矩阵，`tl.load` 一把搬整块；循环里 `ptr += BLOCK_K*stride` 让窗口沿 K 滑动。
-  - **mask（护盾）**：形状非 BLOCK 整数倍时 `mask=坐标<剩余` 挡越界，配 `other=0.0` 让越界 load 填 0 不污染累加；store 同理护 M/N 边缘。
-- **概念 / 认知（寻址手算示例 M=64,K=96,N=64,B=32，pid=0，2026-07-23）**：
-  - A 连续：stride_am=K=96, stride_ak=1；pid=0→offs_m=[0..31]。`a_ptrs=a_base+offs_m[:,None]*96+offs_k[None,:]`。左上 3×3：a[0,0]=+0, a[0,1]=+1, a[1,0]=+96（行跳 96=跳一行）, a[1,1]=+97。首窗读 A 行[0..31]×列[0..31]；循环 `a_ptrs+=32` 滑到列[32..63]→[64..95]（共 cdiv(96,32)=3 窗）。
-  - B：stride_bk=N=64, stride_bn=1；`b_ptrs=b_base+offs_k[:,None]*64+offs_n[None,:]`。左上 b[0,0]=+0, b[1,0]=+64（行跳 64=跳一行 K）。首窗读 B 行(K)[0..31]×列[0..31]；循环 `b_ptrs+=32*64=2048` 滑 K 窗。
-  - 3 窗 `tl.dot` 累加 → acc 写 `c_ptrs=c_base+offs_m[:,None]*64+offs_n[None,:]` = C 左上块[0..31,0..31]。
-  - pid=2(pid_m=1)：offs_m=[32..63]，仅 base 行号 +32 → a_ptrs 首行=a_base+32*96=3072，其余同构。
+- **概念 / 认知（已萃取到 wiki，2026-07-23）**：本节点 M1 的通用教学概念已迁出通用笔记，runbook 只留项目视角指向与要点：
+  - **Roofline / 带宽游戏 / 算术强度 AI（通用）** → [Roofline 模型与算术强度](../../wiki/gpu/roofline.md)。项目视角：T4 算力 ~8.1 TFLOPS、HBM ~320 GB/s → 拐点 AI*≈25 FLOP/Byte；这正是 M1「既没喂饱 HBM 也没喂饱 SM」判据的来源，也是节点 9「量化只救 decode 不救 prefill」的机理根。
+  - **如何读 Triton matmul / off·ptr·mask / 寻址手算（通用）** → [Triton matmul 拆解](../../wiki/cuda/triton-matmul.md)。项目视角：M1 首跑 `acc = tl.dot(a, b)` 不传累加器 → cos≈0.5，改 `tl.dot(a, b, acc)` 后才 cos=1.0，是该笔记「tl.dot 第三参才是累加器」误区的最佳实证；寻址手算示例（M=64,K=96,N=64,B=32,pid=0）也完整收录其中。
 - **关联**：节点 15（路径 A 规划）、节点 16（T4 环境）、wiki 分块 GEMM 的原理与切法、wiki HBM 流量与数据复用、节点 9（量化只救 decode）。
 
 ---
@@ -373,20 +355,7 @@ publish: true
   - HBM 利用率（ours/320）：(1)19% / (64)11% / (2048)1.8%；torch 同形状 61%/27%/3.8%。
   - 算力利用率（ours/8.1）：(1)0.4% / (64)13.5% / (2048)24%；torch 1.2%/33.7%/51%。
   - BLOCK 扫描 @(1024,1024,1024)：BLOCK=16→5.7 GB/s(0.97 TFL, 1.8%)；BLOCK=32→13.3(2.27, 4.1%)；BLOCK=64→22.8(3.90, 7.1%)；**BLOCK=128 → OutOfResources**（T4 shared mem 上限 64KB，128×128 fp32 两 Tile=128KB 放不下）。
-- **概念 / 认知（roofline 实测解读）**：
-  - **roofline 分类成立**：AI=0.5 的 decode 形状落在带宽受限区（bound=BW），AI≈31/341 的落在算力受限区（bound=COMPUTE）——与节点 17 的 roofline 模型一致。
-  - **M1 在两个轴都远低于天花板**：带宽轴最高仅 19%（decode），算力轴最高仅 24%（prefill）。即「既没喂饱 HBM、也没喂饱 SM」→ M3 优化空间巨大（这正是 M2 要量出的「差多少」）。
-  - **块大小是强杠杆**：BLOCK 16→64，TFLOPS 0.97→3.90（4×）。大块 = 片上更多复用 + 更高 SM 占用率（occupancy）；但受 shared mem 64KB 硬上限约束，不能无限大（BLOCK=128 爆了）。
-  - **cuBLAS 在带宽受限形状上优势最大**（196 vs 61 GB/s，3.2×）：它用了我们 M1 没有的双缓冲/异步拷贝把 HBM 压到 61% 利用率；在算力受限形状上差距缩小（我们 BLOCK=64 已接近 torch 同形状）。
-  - 下一步 M3 方向：双缓冲（算当前 K 窗时异步搬下一块，重叠 compute/HBM）+ autotune BLOCK + 提升算术强度，目标把 HBM/算力利用率往 cuBLAS 靠拢。
-- **概念 / 认知（指标定义：FLOPs / Bytes / AI / GB/s / TFLOPS，2026-07-23 教学）**：
-  - **FLOPs（计算量）** = `2·M·N·K`：C[i,j]=Σ_k A[i,k]·B[k,j]，每输出元素做 K 次乘加（mul+add 计 2 FLOP），共 M·N 个输出 → 2MNK。
-  - **Bytes（访存量）** = `(M·K + K·N + M·N)·4`：A(MK)+B(KN)+C(MN) 个元素，fp32 每元素 4 字节；好分块下每个元素只读/写一次。
-  - **AI = FLOPs / Bytes**（单位 FLOP/Byte）：每从 HBM 搬 1 字节进芯片能做几次运算。高 AI(prefill)→算力受限；低 AI(decode)→带宽受限。
-  - **sec（时间）** = `ms/1000`，由 `torch.cuda.Event` 包住 rep 次取均值；kernel 异步发射须 `synchronize` 才量到真耗时。
-  - **GB/s（实际带宽）** = `Bytes / sec / 1e9`：每秒从 HBM 实际搬多少字节，越接近 320 越好。
-  - **TFLOPS（实际算力）** = `FLOPs / sec / 1e12`：每秒真正做多少浮点运算，越接近 8.1 越好。
-  - **单位链**：GB/s × (FLOP/Byte) = (1e9 Byte/s)×(FLOP/Byte) = 1e9 FLOP/s = GFLOP/s → 带宽×AI = 性能上限（roofline 斜线）。
+- **概念 / 认知（已萃取到 wiki，2026-07-23）**：本节点 M2 的 roofline 解读与指标定义已并入通用笔记 [Roofline 模型与算术强度](../../wiki/gpu/roofline.md)（上方「结果」表与利用率行的 T4 实测数字原样保留，不丢）。项目视角：M1 在带宽轴≤19%、算力轴≤24%，两端都远低于屋顶 → M3 优化空间巨大；BLOCK 16→64 把 TFLOPS 从 0.97 拉到 3.90（4×），但 BLOCK=128 因 T4 shared mem 64KB 上限爆 `OutOfResources` → 块大小是强杠杆但受片上容量硬约束。
 - **关联**：节点 15（路径 A 规划）、节点 16（T4 环境）、节点 17（M1 跑通 + roofline 概念 + 寻址）。
 
 ---
@@ -445,4 +414,5 @@ publish: true
 ## 萃取记录（capture 历史）
 
 - 2026-07-22：将「路径 A·M0：decode GEMM 分块心智模型」从 runbook（节点 15 能力账本「已掌握」）萃取至 wiki/gemm/tiled-gemm.md（分块 GEMM 的原理与切法）与 wiki/gpu/hbm-traffic.md（HBM 流量与数据复用）（原位留指针，正文迁出）。
+- 2026-07-23：将「路径 A·M1/M2 通用教学概念」从 runbook（节点 17/18 概念块）萃取至 wiki/cuda/triton-matmul.md（Triton matmul 拆解：两层结构 / 1D program_id / off·ptr·mask / 寻址手算 / tl.dot 累加器误区）与 wiki/gpu/roofline.md（Roofline 模型 / AI / GB-s / TFLOPS / 指标定义）。节点 17/18 原位改为 2+1 行指针（各带 T4/M1/M2 项目视角注解），T4 实测数字（结果表、利用率、BLOCK 扫描）保留不丢。
 
