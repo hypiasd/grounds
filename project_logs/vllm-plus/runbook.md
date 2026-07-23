@@ -347,3 +347,7 @@ publish: true
 - **机器相关性**：340/750 GB/s 等数字是 4090D 专属；新机 GPU 不同则 autotune/数值会变，但**学习序列 A 与机器无关**。
 - **关联**：节点 12 / 13 / 14。
 
+## 萃取记录（capture 历史）
+
+- 2026-07-22：将「路径 A·M0：decode GEMM 分块心智模型」从 runbook（节点 15 能力账本「已掌握」）萃取至 wiki/gemm/tiled-gemm.md（分块 GEMM 的原理与切法）与 wiki/gpu/hbm-traffic.md（HBM 流量与数据复用）（原位留指针，正文迁出）。
+
