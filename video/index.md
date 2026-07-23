@@ -28,3 +28,5 @@ updated: 2026-07-21
 - [翁家翌：OpenAI，GPT，强化学习，Infra，后训练，天授，tuixue，开源，CMU，清华｜WhynotTV Podcast #4](翁家翌：OpenAI，GPT，强化学习，Infra，后训练，天授，tuixue，开源，CMU，清华｜WhynotTV%20Podcast%20#4/)
 - [胡渊鸣：Meshy AI，太极，MIT，清华姚班，图形学，物理仿真模拟，开源，商业化，勇气 ，智慧 ｜ WhynotTV Podcast #2](胡渊鸣：Meshy%20AI，太极，MIT，清华姚班，图形学，物理仿真模拟，开源，商业化，勇气%20，智慧%20｜WhynotTV%20Podcast%20#2/)
 - [陈天奇：机器学习系统，长期主义，初心，XGBoost，MXNet，TVM，MLC LLM，OctoML｜WhynotTV Podcast #3](陈天奇：机器学习系统，长期主义，初心，XGBoost，MXNet，TVM，MLC%20LLM，OctoML｜WhynotTV%20Podcast%20#3/)
+- [Stanford CS336 Language Modeling from Scratch - Spring 2026 - Lecture 5- GPUs, TPUs](Stanford CS336 Language Modeling from Scratch - Spring 2026 - Lecture 5- GPUs, TPUs/)
+- [Stanford CS336 Language Modeling from Scratch - Spring 2026 - Lecture 6- Kernels, Triton, XLA](Stanford CS336 Language Modeling from Scratch - Spring 2026 - Lecture 6- Kernels, Triton, XLA/)
