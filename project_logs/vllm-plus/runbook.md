@@ -419,8 +419,8 @@ publish: true
   1. **stages 只在带宽受限区有效**：M=1（AI=2）s2→s4 从 53.9 跳到 100.8 GB/s（+87%），s5 平台；M=64（AI=124 近拐点）渐进 106.9→111.2。证明「更深预取 → 更多在途 load → HBM 更满」成立。
   2. **算力受限区 stages 完全无效**：M=256（AI=455）、M=1024（AI=1365）GB/s 在所有 stages 下恒定（~31 / ~11）。roofline 直接证据——形状已越过 T4 拐点 AI*≈25，被 8.1 TFLOPS 算力天花板锁死，藏延迟救不了带宽（此时 GB/s 低是 compute-bound 的标志，不是 kernel 差）。
   3. **M=1 即便 s5 也只到 32% HBM**：32 blocks / 40 SM ≈ 0.8 block/SM → 多数 SM 空闲、喂不饱 HBM，这是「grid 太小」惩罚（节点 19 已记），非 stages 之过；autotune 版 M=1 达 42% 是因它另选了更优 BLOCK/BN。
-- **重要更正（诚实记录，推翻我先前口头预测）**：我在 Q1 里手算「单 stage SMEM=(BM·BK+BK·BN)·4=24KB，s3+ 超 T4 64KB/SM → 该配置不可用/occupancy 掉 0」。**实测全部 s2~s5 都编译跑通且 cos=1.0**——说明该 naive 上界严重高估了 Triton 实际流水缓冲占用（dot 很可能从寄存器而非全程常驻 SMEM、或 Triton 用了更紧凑布局）。**教训：SMEM 预算必须实测，不能只靠公式臆测**；T4 64KB 墙在这组配置下并未触发（虽节点 18 曾因 BLOCK=128 真实撞过 `OutOfResources`，那次是另一回事——块太大而非 stages 多）。
-- **概念 / 认知**：本节点把节点 19 的「num_stages=延迟隐藏旋钮」从相关关系升级为**单变量因果**——且仅在 AI<AI* 的带宽受限形状上成立；越过拐点，旋钮失灵。这正是 roofline 划分优化对象的操作化证明。
+- **重要更正（诚实记录，推翻我先前的 SMEM 公式预测）** → 详见 [延迟隐藏与占用率](../../wiki/gpu/latency-hiding.md)（「SMEM 预算勿靠公式臆测」：naive 上界严重高估 Triton 实际流水缓冲，应实测）。T4 项目视角：s2~s5 全编译跑通且 cos=1.0，64KB 墙未触发；对照节点 18 的 `OutOfResources` 是 BLOCK=128 块太大、非 stages 多。
+- **概念 / 认知（单变量因果）** → 详见 [延迟隐藏与占用率](../../wiki/gpu/latency-hiding.md)（延迟隐藏旋钮生效边界 = roofline 拐点）。T4 项目视角：固定其余变量扫 num_stages，M=1(AI=2) s2→s4 从 53.9→100.8 GB/s(+87%)，M≥256(AI≥455) 各 stages 恒定——因果只在带宽受限区成立。
 - **关联**：节点 19（M3 autotune 间接证据 → 本节点单变量收口）、节点 16（T4 环境）、节点 18（BLOCK=128 真实撞 64KB SMEM 墙，对照本节点「stages 未撞墙」）、wiki 延迟隐藏与占用率、wiki Roofline 模型与算术强度（AI 拐点 = stages 旋钮生效边界）。
 
 ---
@@ -446,7 +446,7 @@ publish: true
   - 进入 `tl.dot` 后，Triton 把操作数在共享内存 staging 时**提升为 f32**（`tensor<64x32xf32, #ttg.dot_op<...>>`）且布局是 `#blocked`（**非 MMA 编码**），`inputPrecision=tf32`；
   - 试过 mask / num_stages∈{1,2,3} / `input_precision='ieee'` / `out_dtype=tl.float16` 全部无效；`out_dtype=fp16` 时操作数虽为 f16 但仍 `#blocked2` 布局 + 误设 `tf32` 精度，且 cos 崩到 0.13（错误结果）。
   - **结论**：Triton 3.6 在 sm_75 上的 `tl.dot` fp16→MMA lowering 未生效（操作数提升 f32 或布局错配），退回 CUDA core。属**工具链/版本层限制**，非 kernel 写法问题。
-- **概念 / 认知（本项目最重要的误区纠正）**：**「`tl.dot(fp16)` 自动吃到张量核」是个常见错觉**。张量核红利要由编译器正确 lowering 成 `mma.sync` 才兑现；本组合(Triton 3.6 + Turing sm_75)没做到。要真正吃到 TC，路径是 cuBLAS/CUTLASS，或换能正确为 sm_75 生成 fp16 `mma` 的 Triton 版本。这也呼应节点 9「手写 int8 慢于 bf16 → 须 INT4(Marlin)」——**手写内核的峰值效率高度依赖底层 lowering，不是数据类型一换就自动加速**。
+- **概念 / 认知（本项目最重要误区纠正）** → 详见 [Triton 张量核限制](../../wiki/cuda/triton-tensor-core-limitations.md)（「`tl.dot(fp16)` 自动吃张量核」是错觉；红利须编译器 lowering 成 `mma.sync` 才兑现）。T4 项目视角：本组合 Triton 3.6+sm_75 没做到，手写 fp16 卡 ~1.2 TFLOPS；呼应节点 9「手写内核峰值依赖 lowering」。
 - **关联**：节点 16（T4 有 fp16 TC / 无 bf16·fp32 TC）、节点 19（M3 fp32 基线 ~8 TFLOPS → 对照 M4 手写 fp16 仍 ~1.2 TFLOPS，证明非 TC）、节点 9（手写内核峰值依赖 lowering）、wiki 延迟隐藏与占用率（TC 是另一维加速，与本路径 stages/warps 正交）、wiki Roofline（fp16 张量核把算力天花板从 8.1 抬到 65 TFLOPS → compute-bound 形状拐点右移）。
 
 ---
@@ -472,7 +472,7 @@ publish: true
   1. **Triton 3.6 在 sm_75 上 int8 / fp16 的 `tl.dot`→MMA lowering 双双损坏**：fp16 把操作数提升 f32 退回 CUDA core（M4）；int8 编译期 `extf`-on-`i8` 直接挂（M5）。结论：**该组合（Triton 3.6 + Turing sm_75）下"手写 Triton 张量核"不可行——不是 kernel 写法问题，是编译器后端 bug**。要真吃到张量核，须 cuBLAS/CUTLASS，或换能正确为 sm_75 生成 fp16/int8 `mma` 的 Triton 版本。
   2. **峰值 TOPS ≠ 实得吞吐**：`torch._int_mm` 实测仅 4.5~17.4 TOPS，远低于 T4 int8 峰值 130（3~13%）。说明 int8 张量核提取高度依赖 shape/layout/库（对齐、tile、packing）；即便走 cuBLAS，这些形状也没榨干 TC。但这 17.4 TOPS 仍约 **2× 我们 fp32 M3 的 ~8 TFLOPS（≈8 TOPS 等价）**——印证 int8 相对 fp32 仍有收益，只是远未到 16× 峰值比。
   3. **量化正确性扎实**：per-tensor 对称量化对 randn 即达 cos 0.9998~0.9999，证明量化方案本身没问题，瓶颈纯在 kernel/库层。
-- **概念 / 认知**：路径 A 的 M3→M5 串起一条硬道理——**数据类型/张量核红利不是「换个 dtype 就自动加速」，它要求编译器正确 lowering 成 `mma.sync`（M4/M5 证明 Triton 3.6+sm_75 做不到），且即便库层做对了，实得吞吐也受 shape/layout 强烈制约**。这把节点 9「手写 int8 慢于 bf16 → 须 INT4(Marlin)」从"现象"升级为"机制"：手写/库内核的峰值效率由 lowering + 形状适配共同决定。
+- **概念 / 认知（M3→M5 串起的硬道理）** → 详见 [Triton 张量核限制](../../wiki/cuda/triton-tensor-core-limitations.md)（数据类型/张量核红利不是换个 dtype 就自动加速；依赖 lowering + shape/layout）。T4 项目视角：把节点 9「手写 int8 慢于 bf16 → 须 INT4(Marlin)」从现象升级为机制。
 - **关联**：节点 21（M4 fp16 同族 lowering bug）、节点 16（T4 有 int8 TC 硬件）、节点 19（M3 fp32 基线 ~8 TFLOPS，对照 int8 ~2×）、节点 9（手写内核峰值依赖 lowering）、wiki Roofline（int8 张量核抬高算力天花板，但实得远低峰值）。
 
 ---
@@ -492,7 +492,7 @@ publish: true
   - `add_accelerate_matmul(pm)`（L263）+ `if capability // 10 in [8, 9]:`（L268）——MMA 编码与软件流水只分配给 **sm80/sm90**；sm_75 走 L294 `else` 分支（仅 LICM），dot 操作数保持 `#blocked` 非 MMA 布局 → **无 `mma.sync`**。
   - ⇒ fp16 dot 因无 MMA 编码而退回 CUDA core（操作数提升 f32，M4 现象）；int8 dot 的 MMA lowering 假设 sm_75 不存在的路径 → `arith.extf` 误用到 `i8` → 编译崩溃（M5 现象）。**两现象同一根因：sm_75 的 MMA 路径被上游关闭。**
 - **换版本实证尝试（受阻，但根因已锁死，无需强跑）**：建 venv 装 `triton==2.3.1 + torch==2.3.1` 验证 Turing MMA 受阻——venv `ensurepip` 失败（无网络 pip 引导）、pip 最老仅 `2.2.0`（ cutoff 是否在 2.2 不确定）、Python 3.12 与 torch 2.3 不兼容、`triton-turing` fork 需源码编译（重）。结论：本环境干净换版本成本高；但根因已由「Web issue + 本机源码」双重坐实。
-- **结论**：**M4/M5 翻车是 Triton 上游从 v2.x 起对 Turing(sm_75) 关闭张量核 MMA 路径（有意的设计取舍/放弃支持），与 kernel 写法无关**。要真在 T4 上用 Triton 吃张量核，须 **Triton ≤~2.1** 或 **`triton-turing` fork**（或换 Ampere+ 卡，sm80+ 原生支持）。路径 A 张量核线至此**机制层面完全解释清楚**。
+- **结论（通用根因）** → 详见 [Triton 张量核限制](../../wiki/cuda/triton-tensor-core-limitations.md)（上游 v2.x 起对 Turing sm_75 关闭 MMA 路径，与 kernel 写法无关）。T4 项目视角：要真用 Triton 吃张量核须 Triton ≤~2.1 / `triton-turing` fork / 换 Ampere+；网络取证（issue #9349/#1809）+ 本机 `compiler.py` 实证见下方保留段落。
 - **关联**：节点 21/22（M4/M5 现象）、节点 16（T4 有 fp16/int8 TC 硬件，问题在编译器不在硬件）、节点 9（手写内核峰值依赖 lowering）、wiki Roofline。
 
 ---
@@ -558,4 +558,5 @@ publish: true
 
 - 2026-07-22：将「路径 A·M0：decode GEMM 分块心智模型」从 runbook（节点 15 能力账本「已掌握」）萃取至 wiki/gemm/tiled-gemm.md（分块 GEMM 的原理与切法）与 wiki/gpu/hbm-traffic.md（HBM 流量与数据复用）（原位留指针，正文迁出）。
 - 2026-07-23：将「路径 A·M1/M2 通用教学概念」从 runbook（节点 17/18 概念块）萃取至 wiki/cuda/triton-matmul.md（Triton matmul 拆解：两层结构 / 1D program_id / off·ptr·mask / 寻址手算 / tl.dot 累加器误区）与 wiki/gpu/roofline.md（Roofline 模型 / AI / GB-s / TFLOPS / 指标定义）。节点 17/18 原位改为 2+1 行指针（各带 T4/M1/M2 项目视角注解），T4 实测数字（结果表、利用率、BLOCK 扫描）保留不丢。
+- 2026-07-23：将「路径 A·M3–M5 通用知识」从 runbook（节点 19/20/21/22/23 概念/认知/结论块）萃取至 wiki/cuda/triton-tensor-core-limitations.md（Triton 张量核限制：`tl.dot` 不自动吃 TC、红利须 lowering 成 `mma.sync`、上游 v2.x 起把 MMA 路径 gated 到 sm80+）与 wiki/gpu/latency-hiding.md（新增「旋钮生效边界 = roofline 拐点」「SMEM 预算勿靠公式臆测」两节）。runbook 原位改为指针 + 项目视角注解，节点 23 网络/源码审计证据保留不丢。
 
