@@ -362,7 +362,7 @@ publish: true
 
 ## 节点 19：路径 A·M3 — 带宽爬坡：autotune + double buffer（num_stages）+ num_warps（T4, 待跑）
 
-- **状态**：⏭️ 待跑（设计已白盒化，等用户确认后动手）
+- **状态**：✅ 完成（fp32 autotune 把带宽受限形状 HBM 利用率从 M2 ≤19% 爬到 ~42%；中途修一处 stride 推进 bug，见「问题 / 解决」）
 - **需拍板点**：M3 是否同时上 **fp16 张量核**（T4 有 fp16 张量核，比 fp32 快很多）？还是先只在 fp32 上把「autotune + double buffer 如何逼近 HBM 峰值」的机制跑透、fp16 留作单独一轮（避免一次引入两个变量）？建议**先 fp32 跑透机制**，fp16 张量核单独成一轮。等你拍板。
 - **假设**：在 M1 kernel（fp32）上加 `@triton.autotune`（BLOCK_M/N/K + num_warps + num_stages），T4 上 HBM 利用率可从 M2 的 ≤19%（BLOCK=64 实测 22.8 GB/s，约 7% 利用率）显著爬升，逼近 T4 HBM ~320 GB/s 的更高比例（目标 50%+，即 ~160+ GB/s on 带宽受限形状）；与 cuBLAS 差距大幅收敛。
 - **方法**：
@@ -377,7 +377,27 @@ publish: true
   - **num_stages（double buffer）是主杠杆**（把"搬"与"算" overlap，藏住 HBM 延迟），num_warps 次之；
   - BLOCK=128 仍受 T4 shared mem 64KB 约束，autotune 应避开或用单缓冲；
   - 这轮会直观验证刚写的「延迟隐藏」笔记：算力没变（fp32 同），只是把并发内存请求喂满 → 带宽利用率飙升。
-- **关联**：节点 17/18（M1/M2 基线）、wiki 延迟隐藏与占用率（num_warps/num_stages 即延迟隐藏旋钮）、wiki Roofline 模型与算术强度（爬升目标=逼近带宽屋顶）、wiki HBM 流量与数据复用（autotune 提升 tile 复用）。
+- **结果**（T4 fp32，ours vs torch/cuBLAS SGEMM；autotune 选最佳 (BLOCK,num_warps,num_stages)）：
+
+  | shape (M,N,K) | AI | ours GB/s | HBM% | torch GB/s | best_config | cos |
+  |---|---|---|---|---|---|---|
+  | (1,4096,4096) | 0.5 | 135.9 | 42% | 235.5 | BM64/BN128/BK32 w8 s4 | 1.0000 |
+  | (64,4096,4096) | 31.0 | 132.5 | 41% | 197.8 | BM64/BN128/BK32 w8 s4 | 1.0000 |
+  | (256,4096,4096) | 113.8 | 34.3 | 11% | 49.0 | BM128/BN128/BK16 w8 s2 | 1.0000 |
+  | (1024,1024,1024) | 170.7 | 29.6 | 9% | 36.7 | BM64/BN64/BK32 w4 s3 | 1.0000 |
+  | (4096,4096,4096) | 682.7 | 6.4 | 2% | 6.2 | BM128/BN128/BK16 w8 s2 | 1.0000 |
+
+  - **对比 M2 基线（节点 18 固定 BLOCK=32）**：(1,4096,4096) 61.2→135.9 GB/s（**2.2×**）；(64,4096,4096) 35.4→132.5 GB/s（**3.7×**）。autotune（主要是 num_stages 双缓冲 + num_warps 提升占用率 + 更大 BN）把带宽利用率从 ≤19% 拉到 ~42%，验证「延迟隐藏」笔记机制生效：算力没变（同 fp32），只是把并发内存请求喂满。
+  - **剩余差距**：cuBLAS fp32(SGEMM, 无张量核) 达 235 GB/s（74%），ours 42% → 约 1.7× 头room，来自 Triton 未用满 SMEM/寄存器排布；T4 fp32 无张量核，cuBLAS 也只靠 CUDA core，差距是 kernel 质量而非硬件。
+  - autotune 偏好：带宽受限形状选 BN=128 + w8 s4（更大 tile 复用 + 更多并发 warp/stage 藏延迟），与「num_stages/num_warps 即延迟隐藏旋钮」一致。
+- **问题 / 解决**（首跑 cos≈0.0068，全错）：
+  - **现象**：autotune 跑通但 5 个形状 cos 全在 0.005~0.03（应≈1.0），结果完全不相关。
+  - **根因**：K 循环里 B 的指针推进写错——`b_ptrs += BLOCK_K * stride_bn`（沿 N 轴）而非 `b_ptrs += BLOCK_K * stride_bk`（沿 K 轴）。A 的 K 维是第 2 维（stride=1）故 `ap += BLOCK_K*stride_ak` 正确；B 的 K 维是**第 1 维**（stride=N），推进必须用 `stride_bk`。误用 `stride_bn` 使每个 K 段都读错位的内存 → 结果噪声化。
+  - **解法**：单块测试（无 K 循环，cos=1.0）隔离出 bug 在循环推进；改 `stride_bn`→`stride_bk` 后全形状 cos=1.0。
+  - **防复发**：写 Triton GEMM 时 A/B 的 K 循环推进必须**各自用本张量的 K-stride**（`stride_ak` / `stride_bk`），绝不可两处都写 `stride_bn`；先在最小单块（K=BLOCK，无循环）验证 cos=1.0 再上完整循环。
+  - **学到了什么**：这跟「tl.dot 第三参才是累加器」是同一类陷阱——分块 GEMM 的「K 维在 A/B 里是不同维度」决定了指针推进的 stride 不对称；对称性假设害死人。
+- **概念 / 认知（形状选择 = 优化对象）**：(256,4096,4096) AI=114 > T4 拐点 AI*≈25 → 已**算力受限**（GB/s 仅 34 但 TFLOPS 53%），不是带宽游戏；真正带宽受限的是 **AI<AI\* 的小 M 形状**（(1,\*) AI0.5、(64,\*) AI31 近拐点）。印证 roofline：带宽优化要把精力放在 AI<AI\* 的形状，算力受限形状再怎么调带宽也救不了（受 8.1 TFLOPS 天花板锁死）。
+- **关联**：节点 17/18（M1/M2 基线）、wiki 延迟隐藏与占用率（num_warps/num_stages 即延迟隐藏旋钮，本节点 2.2~3.7× 提升是其直接证据）、wiki Roofline 模型与算术强度（AI 拐点判定优化对象）、wiki HBM 流量与数据复用（autotune 提升 tile 复用）、wiki 分块 GEMM 的原理与切法（A/B 的 K 维分处不同维度 → 指针推进 stride 不对称）。
 
 ---
 
@@ -400,6 +420,9 @@ publish: true
 | 分块 GEMM 参考实现（GPU-free）：naive + tiled + 对拍 + 块网格 + Triton 映射 | `project/vllm-plus/gemm_foundations.py` | 路径 A·M0 | ✅ Mac CPU 跑通（对拍 err 9.5e-5）；GPU 机可作 M1→Triton 翻译基线 |
 | 第一个 Triton matmul（fp32, 分块 + tl.dot 累加，先跑通） | `project/vllm-plus/gemm_triton_m1.py` | 路径 A·M1 | ✅ T4 上 3 组形状 cos=1.0 对拍 PASS（固定 BLOCK=32，未优化） |
 | M1 benchmark（计时 + GB/s/TFLOPS/AI + roofline + block 扫描） | `project/vllm-plus/gemm_triton_m2.py` | 路径 A·M2 | ✅ 量出 M1 距 T4 天花板：HBM 利用率≤19%、算力≤24%；BLOCK 16→64 提速 4×；BLOCK=128 爆 shared mem(64KB) |
+| M3 fp32 autotune benchmark（autotune BLOCK/num_warps/num_stages + 计时 + GB/s/TFLOPS/AI + 对照 cuBLAS） | `project/vllm-plus/gemm_triton_m3.py` | 路径 A·M3 | ✅ 带宽受限形状 HBM 利用率 ≤19%→~42%（2.2~3.7×）；修 B 的 K-stride 推进 bug |
+
+> ⚠️ **漂移**：`gemm_triton_m1.py` / `gemm_triton_m2.py` / `gemm_foundations.py` 在 runbook 记为已建，但**未进 vllm-plus 远程、本机工作树缺**；M3 为自包含重建（含 kernel）。如需 m1/m2 脚本应从此工作树补建并推 vllm-plus 远程。
 
 ---
 
@@ -411,7 +434,7 @@ publish: true
   - FP8 权重量化（需 Hopper/Blackwell 卡，超出本机范围）。
   - CUTLASS 级 INT8 GEMM（手写 Triton 内核带宽效率不足）。
   - GPU kernel 级 profiling（当前靠 monkey-patch + `cuda.synchronize` 粗粒度计时）。
-  - **路径 A 后段（T4 上推进中）**：M1 首个 Triton fp32 matmul 已跑通（cos=1.0，见节点 17）→ **M2 已完成**（节点 18：T4 上 HBM 利用率≤19%、算力≤24%、BLOCK 16→64 提速 4×）→ 下一步 **M3 带宽爬坡**（autotune / 双缓冲 num_stages / num_warps 提升占用率，把 GB/s 从 ~22.8 往 T4 ~320 拉，见节点 19）→ M4 int8 终验。注：T4 无 BF16 张量核，M1 用 fp32 起步即可，fp16 张量核优化留待 M3 一轮单独做。
+  - **路径 A 后段（T4 上推进中）**：M1 首个 Triton fp32 matmul 已跑通（cos=1.0，见节点 17）→ **M2 已完成**（节点 18：T4 上 HBM 利用率≤19%、算力≤24%、BLOCK 16→64 提速 4×）→ **M3 已完成**（节点 19：fp32 autotune 把带宽受限形状 HBM 利用率从 ≤19% 爬到 ~42%，修一处 B 的 K-stride 推进 bug）→ 下一步 **M4：上 T4 张量核（fp16 或 int8）终验**（T4 有 fp16/int8 张量核、fp32 无）。
 - **下一步该练**：把 12 项实验转化为「可讲清楚取舍」的简历叙事与面试话术（强项在「能说清每个优化为什么有效/无效」，而非只会报数字）。
 
 ---
@@ -427,7 +450,7 @@ publish: true
   2. `$project <dir>/vllm-plus`（重建软链 + 进入项目模式）。
   3. `cd <dir>/vllm-plus && pip install -e .`（`.venv` 不进 git，需按机器重建）。
   4. 模型 `~/huggingface/Qwen3-4B` **不进 git（~8GB）**，新机需重下或拷贝。
-- **当前线程**：路径 **A（从 0 打 kernel 地基）已规划**（见节点 15）：先懂带宽游戏 → M1 第一个 Triton GEMM（先跑对）→ M2 定位带宽瓶颈（已完成，节点 18；340 GB/s 为 4090D 专属，T4 实际峰值 ~320）→ M3 带宽优化爬坡 → M4 int8 终验。学习序列与机器无关；上 GPU 机后按节点 15 里程碑逐站执行，每站用实验卡记录。
+- **当前线程**：路径 **A（从 0 打 kernel 地基）已规划**（见节点 15）：先懂带宽游戏 → M1 第一个 Triton GEMM（先跑对）→ M2 定位带宽瓶颈（已完成，节点 18；340 GB/s 为 4090D 专属，T4 实际峰值 ~320）→ M3 带宽优化爬坡（已完成，节点 19）→ M4 上 T4 张量核（fp16/int8）终验。学习序列与机器无关；上 GPU 机后按节点 15 里程碑逐站执行，每站用实验卡记录。
 - **机器相关性**：340/750 GB/s 等数字是 4090D 专属；新机 GPU 不同则 autotune/数值会变，但**学习序列 A 与机器无关**。
 - **2026-07-23 注**：当前 grounds 工作机**本身有 GPU（2× Tesla T4, cc 7.5）**，是**新租来学 kernel（路径 A）的环境**；之前 12 项实验在 **RTX 4090D（Ada）** 上跑、结论仍有效。T4 ≠ 4090D——T4 有 INT8 张量核、**无 BF16 张量核**（见节点 16），因此路径 A 的 M1 首个 Triton matmul 应改用 **fp16**（才有张量核加速）而非原计划 bf16；节点 9「int8 慢于 bf16 → 须 INT4」是 4090D 结论、不受影响。在 T4 上跑 GPU 任务前必须 `export LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/cuda-12.8/lib64:$LD_LIBRARY_PATH`。
 - **关联**：节点 12 / 13 / 14。
