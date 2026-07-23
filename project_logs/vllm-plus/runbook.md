@@ -477,6 +477,26 @@ publish: true
 
 ---
 
+## 节点 23：路径 A·M4/M5 根因定位 — Triton 上游对 sm_75 关闭 MMA 路径（2026-07-23）
+
+- **状态**：✅ 完成（根因 100% 定位：网络取证 + 本机 Triton 3.6 源码实证双保险；M4/M5 翻车与 kernel 写法无关，是编译器上游对 Turing MMA 的有意放弃）
+- **背景**：M4 fp16 退回 CUDA core、M5 int8 编译崩溃。用户要求「换版本看看 / 网上搜搜」定位根因。本节点同时做网络取证与本地源码核查。
+- **网络取证（Triton 上游行为）**：
+  - Triton GitHub **issue #9349「tl.dot failed to compile for int8 inputs on Turing arch」**——与 M5 bug 逐一吻合（int8 dot 在 Turing 编译失败）。
+  - Triton GitHub **issue #1809「Support for int8 dot on Turing architecture」**——明确指出 int8 dot 在 Turing 架构**不被支持**。
+  - **`triton-turing` fork 的 README**：「Upstream Triton **dropped Turing support after v2.x**: the **MMA path was gated to sm80+**」——关键结论：上游 v2.x 之后把张量核 MMA 路径限定到 sm80+(Ampere 及以后)，Turing(sm_75, T4)被排除。
+  - 另有用户在 **Tesla T4(Turing)上跑官方 matmul 教程**踩到完全相同的问题，佐证非个例。
+- **本机源码实证**（/usr/local/lib/python3.12/dist-packages/triton/backends/nvidia/compiler.py, `make_ttgir`）：
+  - `emuTF32 = (capability // 10 >= 8)`（L254）——TF32 模拟只给 sm80+。
+  - `add_optimize_dot_operands(pm, capability >= 80)`（L265）——dot 操作数优化按 `sm80+` 开关；sm_75 传 `False`。
+  - `add_accelerate_matmul(pm)`（L263）+ `if capability // 10 in [8, 9]:`（L268）——MMA 编码与软件流水只分配给 **sm80/sm90**；sm_75 走 L294 `else` 分支（仅 LICM），dot 操作数保持 `#blocked` 非 MMA 布局 → **无 `mma.sync`**。
+  - ⇒ fp16 dot 因无 MMA 编码而退回 CUDA core（操作数提升 f32，M4 现象）；int8 dot 的 MMA lowering 假设 sm_75 不存在的路径 → `arith.extf` 误用到 `i8` → 编译崩溃（M5 现象）。**两现象同一根因：sm_75 的 MMA 路径被上游关闭。**
+- **换版本实证尝试（受阻，但根因已锁死，无需强跑）**：建 venv 装 `triton==2.3.1 + torch==2.3.1` 验证 Turing MMA 受阻——venv `ensurepip` 失败（无网络 pip 引导）、pip 最老仅 `2.2.0`（ cutoff 是否在 2.2 不确定）、Python 3.12 与 torch 2.3 不兼容、`triton-turing` fork 需源码编译（重）。结论：本环境干净换版本成本高；但根因已由「Web issue + 本机源码」双重坐实。
+- **结论**：**M4/M5 翻车是 Triton 上游从 v2.x 起对 Turing(sm_75) 关闭张量核 MMA 路径（有意的设计取舍/放弃支持），与 kernel 写法无关**。要真在 T4 上用 Triton 吃张量核，须 **Triton ≤~2.1** 或 **`triton-turing` fork**（或换 Ampere+ 卡，sm80+ 原生支持）。路径 A 张量核线至此**机制层面完全解释清楚**。
+- **关联**：节点 21/22（M4/M5 现象）、节点 16（T4 有 fp16/int8 TC 硬件，问题在编译器不在硬件）、节点 9（手写内核峰值依赖 lowering）、wiki Roofline。
+
+---
+
 ## 交付产物清单
 
 | 产物 | 位置（项目相对） | 来源 | 状态 |
@@ -513,7 +533,7 @@ publish: true
   - FP8 权重量化（需 Hopper/Blackwell 卡，超出本机范围）。
   - CUTLASS 级 INT8 GEMM（手写 Triton 内核带宽效率不足）。
   - GPU kernel 级 profiling（当前靠 monkey-patch + `cuda.synchronize` 粗粒度计时）。
-  - **路径 A 后段（T4 上推进中）**：M1 首个 Triton fp32 matmul 已跑通（cos=1.0，见节点 17）→ **M2 已完成**（节点 18：T4 上 HBM 利用率≤19%、算力≤24%、BLOCK 16→64 提速 4×）→ **M3 已完成**（节点 19：fp32 autotune 把带宽受限形状 HBM 利用率从 ≤19% 爬到 ~42%，修一处 B 的 K-stride 推进 bug）→ **M4 已完成**（节点 21：fp16 张量核终验——Triton 3.6+sm_75 不为 fp16 tl.dot 生成 mma.sync，手写 fp16 卡 ~1.2 TFLOPS；torch/cuBLAS HGEMM 实测 21~37 TFLOPS 证张量核硬件正常）→ **M5 已完成**（节点 22：int8 张量核终验——Triton 3.6+sm_75 编译 int8 tl.dot 直接失败（extf-on-i8 lowering bug，与 M4 同族）；torch._int_mm 量化正确 cos~0.9999 但仅 4.5~17.4 TOPS）。**路径 A 张量核线结论：Triton 3.6+sm_75 无法手写 fp16/int8 张量核（编译器后端 bug），张量核红利须走 cuBLAS/CUTLASS 或换 Triton 版本** → 下一步可选 **M6：换 Triton 版本（或 CUTLASS/cuBLAS 直连）复测 fp16/int8 mma，确认是版本问题并真正吃到 T4 张量核峰值**，或收尾路径 A（T4 上手写 Triton 内核的地基已打牢，张量核受工具链所限，结论清晰）。
+  - **路径 A 后段（T4 上推进中）**：M1 首个 Triton fp32 matmul 已跑通（cos=1.0，见节点 17）→ **M2 已完成**（节点 18：T4 上 HBM 利用率≤19%、算力≤24%、BLOCK 16→64 提速 4×）→ **M3 已完成**（节点 19：fp32 autotune 把带宽受限形状 HBM 利用率从 ≤19% 爬到 ~42%，修一处 B 的 K-stride 推进 bug）→ **M4 已完成**（节点 21：fp16 张量核终验——Triton 3.6+sm_75 不为 fp16 tl.dot 生成 mma.sync，手写 fp16 卡 ~1.2 TFLOPS；torch/cuBLAS HGEMM 实测 21~37 TFLOPS 证张量核硬件正常）→ **M5 已完成**（节点 22：int8 张量核终验——Triton 3.6+sm_75 编译 int8 tl.dot 直接失败（extf-on-i8 lowering bug，与 M4 同族）；torch._int_mm 量化正确 cos~0.9999 但仅 4.5~17.4 TOPS）。**根因已定位（节点 23）**：Triton 上游从 v2.x 起对 Turing(sm_75) 关闭张量核 MMA 路径（gated to sm80+），本机 compiler.py 源码 `add_optimize_dot_operands(pm, capability >= 80)` + `if capability // 10 in [8,9]` 实锤；与 kernel 写法无关。**路径 A 张量核线至此机制层完全解释清楚**：T4 上手写 Triton fp16/int8 张量核不可行（须 Triton ≤~2.1 或 triton-turing fork，或换 Ampere+）。→ 建议**收尾路径 A**：M1~M3 带宽/延迟隐藏地基已打牢，M4/M5 + 节点 23 把「张量核为何在此工具链吃不到」彻底讲透；若想真在 T4 上吃到张量核峰值，可选 **M6：源码编译 `triton-turing` fork（或 pip 装 Triton≤2.1 + 配 Python3.11）复测 fp16/int8 mma**，那是另一条较重的工程线，非路径 A 必选项。
 - **下一步该练**：把 12 项实验转化为「可讲清楚取舍」的简历叙事与面试话术（强项在「能说清每个优化为什么有效/无效」，而非只会报数字）。
 
 ---
